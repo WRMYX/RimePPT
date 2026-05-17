@@ -1,0 +1,10 @@
+{
+  "profiles": {
+    "RimePPT (Package)": {
+      "commandName": "MsixPackage"
+    },
+    "RimePPT (Unpackaged)": {
+      "commandName": "Project"
+    }
+  }
+}
