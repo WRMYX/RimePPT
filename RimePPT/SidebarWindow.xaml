@@ -27,6 +27,27 @@
 
             <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" Margin="4,2"/>
 
+            <Button x:Name="BtnAnnotate" Style="{StaticResource ToolbarBtnStyle}" Click="BtnAnnotate_Click" ToolTipService.ToolTip="画笔批注（ESC 退出）">
+                <StackPanel>
+                    <FontIcon x:Name="IconAnnotate" Glyph="&#xE70C;" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <TextBlock x:Name="LblAnnotate" Text="画笔" Style="{StaticResource ToolbarLabelStyle}"/>
+                </StackPanel>
+            </Button>
+            <Button x:Name="BtnEraser" Style="{StaticResource ToolbarBtnStyle}" Click="BtnEraser_Click" ToolTipService.ToolTip="橡皮擦（ESC 退出）">
+                <StackPanel>
+                    <FontIcon x:Name="IconEraser" Glyph="&#xEDC6;" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <TextBlock Text="橡皮" Style="{StaticResource ToolbarLabelStyle}"/>
+                </StackPanel>
+            </Button>
+            <Button x:Name="BtnClear" Style="{StaticResource ToolbarBtnStyle}" Click="BtnClear_Click" ToolTipService.ToolTip="清除所有批注">
+                <StackPanel>
+                    <FontIcon Glyph="&#xE74D;" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>
+                    <TextBlock Text="清除" Style="{StaticResource ToolbarLabelStyle}"/>
+                </StackPanel>
+            </Button>
+
+            <Rectangle Height="1" Fill="{ThemeResource DividerStrokeColorDefaultBrush}" Margin="4,2"/>
+
             <Button x:Name="BtnTools" Style="{StaticResource ToolbarBtnStyle}" ToolTipService.ToolTip="工具">
                 <StackPanel>
                     <FontIcon Glyph="&#xE700;" FontSize="16" Foreground="{ThemeResource TextFillColorSecondaryBrush}"/>

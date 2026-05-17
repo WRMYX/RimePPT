@@ -31,8 +31,11 @@ namespace RimePPT
         private readonly PptControlService _pptControl;
 
         // ── 侧栏子窗口 ────────────────────────────────────────────────
-        private SidebarWindow? _leftSidebar;
-        private SidebarWindow? _rightSidebar;
+        private SidebarWindow?     _leftSidebar;
+        private SidebarWindow?     _rightSidebar;
+        private AnnotationOverlay? _annotation;
+        private bool               _annotationActive = false;
+        private bool               _eraserActive     = false;
 
         // ── 计时器 ────────────────────────────────────────────────────
         private DispatcherTimer? _timer;
@@ -156,6 +159,65 @@ namespace RimePPT
         public void OnSettings()  => (Application.Current as App)?.ShowSettings();
         public void OnTimer()     => ToggleTimer();
 
+        // ── 批注 API ────────────────────────────────────────────────
+        public void OnAnnotatePen()
+        {
+            if (_annotationActive && !_eraserActive) { StopAnnotation(); return; }
+            EnsureAnnotation();
+            _annotationActive = true;
+            _eraserActive     = false;
+            _annotation!.IsEraser = false;
+            _annotation.Show(_pptMonitor);
+            BringToolbarsToFront();
+            UpdateAnnotateButtons();
+        }
+
+        public void OnAnnotateEraser()
+        {
+            if (_annotationActive && _eraserActive) { StopAnnotation(); return; }
+            EnsureAnnotation();
+            _annotationActive = true;
+            _eraserActive     = true;
+            _annotation!.IsEraser = true;
+            _annotation.Show(_pptMonitor);
+            BringToolbarsToFront();
+            UpdateAnnotateButtons();
+        }
+
+        public void OnAnnotateClear()
+        {
+            _annotation?.Clear();
+        }
+
+        private void EnsureAnnotation()
+        {
+            if (_annotation != null) return;
+            _annotation = new AnnotationOverlay();
+            _annotation.ExitRequested += StopAnnotation;
+        }
+
+        private void StopAnnotation()
+        {
+            _annotationActive = false;
+            _eraserActive     = false;
+            _annotation?.Hide();
+            UpdateAnnotateButtons();
+        }
+
+        private void BringToolbarsToFront()
+        {
+            IntPtr hwnd = WindowNative.GetWindowHandle(this);
+            WindowHelper.SetTopmost(hwnd);
+            _leftSidebar?.BringToFront();
+            _rightSidebar?.BringToFront();
+        }
+
+        private void UpdateAnnotateButtons()
+        {
+            _leftSidebar?.SetAnnotateActive(_annotationActive && !_eraserActive, _annotationActive && _eraserActive);
+            _rightSidebar?.SetAnnotateActive(_annotationActive && !_eraserActive, _annotationActive && _eraserActive);
+        }
+
         // ── 翻页（底部胶囊按钮） ──────────────────────────────────────
         private void BtnPrev_Click(object sender, RoutedEventArgs e) => OnPrev();
         private void BtnNext_Click(object sender, RoutedEventArgs e) => OnNext();
@@ -239,6 +301,7 @@ namespace RimePPT
         public void HideOverlay()
         {
             StopTimer();
+            StopAnnotation();
             _leftSidebar?.HideSidebar();
             _rightSidebar?.HideSidebar();
 

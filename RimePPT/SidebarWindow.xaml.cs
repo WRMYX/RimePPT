@@ -13,7 +13,7 @@ namespace RimePPT
     public sealed partial class SidebarWindow : Window
     {
         private const int SIDEBAR_W  = 56;
-        private const int SIDEBAR_H  = 228;   // 固定高度，适配 4 个按钮 + 分隔线
+        private const int SIDEBAR_H  = 340;   // 固定高度，适配 7 个按钮 + 2 分隔线
         private const int MARGIN     = 16;
 
         private readonly OverlayWindow _ctrl;
@@ -38,6 +38,30 @@ namespace RimePPT
             // 计时器状态同步（更新菜单项文字）
             _ctrl.TimerStateChanged += isRunning =>
                 MiTimer.Text = isRunning ? "停止计时" : "开始计时";
+        }
+
+        // ── 批注模式视觉状态 ─────────────────────────────────────────
+        private bool _annotating = false;
+
+        public void SetAnnotateActive(bool pen, bool eraser)
+        {
+            _annotating = pen || eraser;
+            // 画笔按钮高亮
+            IconAnnotate.Foreground = pen
+                ? (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["AccentTextFillColorPrimaryBrush"]
+                : (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
+            LblAnnotate.Text = pen ? "画笔 ✓" : "画笔";
+            // 橡皮按钮高亮
+            IconEraser.Foreground = eraser
+                ? (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["AccentTextFillColorPrimaryBrush"]
+                : (Microsoft.UI.Xaml.Media.Brush)Application.Current.Resources["TextFillColorSecondaryBrush"];
+        }
+
+        /// <summary>Re-asserts topmost so this window stays above the annotation overlay.</summary>
+        public void BringToFront()
+        {
+            IntPtr hwnd = WindowNative.GetWindowHandle(this);
+            WindowHelper.SetTopmost(hwnd);
         }
 
         // ── 显示 / 定位 ─────────────────────────────────────────────
@@ -68,5 +92,8 @@ namespace RimePPT
         private void BtnBlackout_Click(object s, RoutedEventArgs e) => _ctrl.OnBlackout();
         private void BtnSettings_Click(object s, RoutedEventArgs e) => _ctrl.OnSettings();
         private void BtnExit_Click(object s, RoutedEventArgs e)     => _ctrl.OnExit();
+        private void BtnAnnotate_Click(object s, RoutedEventArgs e) => _ctrl.OnAnnotatePen();
+        private void BtnEraser_Click(object s, RoutedEventArgs e)   => _ctrl.OnAnnotateEraser();
+        private void BtnClear_Click(object s, RoutedEventArgs e)    => _ctrl.OnAnnotateClear();
     }
 }
