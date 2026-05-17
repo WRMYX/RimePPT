@@ -1,3 +1,4 @@
+using System.Collections.Generic;
 using Windows.Foundation;
 using Windows.UI;
 
@@ -9,7 +10,7 @@ namespace RimePPT.Models
     public class StrokeData
     {
         public List<Point> Points { get; set; } = new();
-        public Color StrokeColor { get; set; } = Colors.Red;
+        public Color StrokeColor { get; set; } = Color.FromArgb(255, 255, 0, 0);
         public double Thickness { get; set; } = 3.0;
     }
 }
