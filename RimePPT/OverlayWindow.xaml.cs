@@ -1,50 +1,52 @@
 using Microsoft.UI;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Shapes;
 using RimePPT.Helpers;
-using RimePPT.Models;
 using RimePPT.Services;
 using System;
-using System.Collections.Generic;
-using System.Linq;
 using System.Runtime.InteropServices;
-using Windows.Foundation;
-using Windows.UI;
+using Windows.Graphics;
 using WinRT.Interop;
 
 namespace RimePPT
 {
+    /// <summary>
+    /// 小尺寸 Pill 工具栏窗口，停靠在 PPT 监视器底部居中。
+    /// 不使用任何透明化技巧 —— 整个窗口本身就是工具栏可视区域。
+    /// 黑屏模式：临时把窗口拉到全屏 + 切换 RootGrid 为黑底。
+    /// </summary>
     public sealed partial class OverlayWindow : Window
     {
+        // ── 常量 ──────────────────────────────────────────────────────
+        private const int PILL_WIDTH      = 460;
+        private const int PILL_HEIGHT     = 60;
+        private const int PILL_MARGIN_BOT = 32;
+        private const int PILL_RADIUS     = 30;
+
         // ── Services ──────────────────────────────────────────────────
         private readonly PptControlService _pptControl;
 
-        // ── State ─────────────────────────────────────────────────────
-        private bool _isLocked    = false;
-        private bool _isAnnotating = false;
-        private bool _isErasing   = false;
-        private Color _currentColor     = Colors.Red;
-        private double _currentThickness = 3.0;
+        // ── 计时器 ────────────────────────────────────────────────────
+        private DispatcherTimer? _timer;
+        private TimeSpan _elapsed;
 
-        private readonly Dictionary<int, List<StrokeData>> _annotations = new();
-        private readonly List<(Polyline Poly, StrokeData Stroke)> _pageElements = new();
+        // ── 状态 ──────────────────────────────────────────────────────
+        private IntPtr _pptHwnd = IntPtr.Zero;
+        private bool   _isBlackout = false;
+        private RectInt32 _pptMonitor;
 
-        private Polyline?   _activePoly   = null;
-        private StrokeData? _activeStroke = null;
-        private bool        _isDrawing    = false;
-
-        // ── Win32 Monitor info ────────────────────────────────────────
+        // ── Win32 ─────────────────────────────────────────────────────
         [DllImport("user32.dll")] private static extern IntPtr MonitorFromWindow(IntPtr hwnd, uint flags);
         [DllImport("user32.dll")] private static extern bool   GetMonitorInfo(IntPtr hMonitor, ref MONITORINFO lpmi);
+        [DllImport("user32.dll")] private static extern bool   SetForegroundWindow(IntPtr hWnd);
 
-        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        [StructLayout(LayoutKind.Sequential)]
         private struct RECT { public int Left, Top, Right, Bottom; }
 
-        [System.Runtime.InteropServices.StructLayout(System.Runtime.InteropServices.LayoutKind.Sequential)]
+        [StructLayout(LayoutKind.Sequential)]
         private struct MONITORINFO
         {
             public uint cbSize;
@@ -53,7 +55,7 @@ namespace RimePPT
             public uint dwFlags;
         }
 
-        // ── Constructor ───────────────────────────────────────────────
+        // ── 构造器 ────────────────────────────────────────────────────
         public OverlayWindow(PptControlService pptControl)
         {
             _pptControl = pptControl;
@@ -67,183 +69,77 @@ namespace RimePPT
             WindowId wid = Win32Interop.GetWindowIdFromWindow(hwnd);
             AppWindow appWindow = AppWindow.GetFromWindowId(wid);
 
-            // Transparent, always-on-top, no taskbar entry
-            WindowHelper.MakeTransparentOverlay(hwnd);
+            // 无边框、无标题栏（context-menu 风格）
+            appWindow.SetPresenter(OverlappedPresenter.CreateForContextMenu());
+
+            // 不进任务栏 + 不抢焦点
+            WindowHelper.MakeToolWindow(hwnd);
             WindowHelper.SetTopmost(hwnd);
-
-            // No title bar
-            appWindow.TitleBar.ExtendsContentIntoTitleBar = true;
-
-            // Register selective click-through (toolbars are interactive, rest passes through)
-            WindowHelper.EnableSelectiveClickThrough(hwnd, IsInInteractiveArea);
-
-            // Stretch window to cover the PPT monitor
-            appWindow.SetPresenter(AppWindowPresenterKind.FullScreen);
         }
 
-        // ── Monitor positioning ───────────────────────────────────────
-
-        /// <summary>
-        /// Position this overlay to cover the same screen as the PowerPoint slideshow.
-        /// </summary>
-        public void CoverMonitorOf(IntPtr pptHwnd)
+        // ── 监视器测量 ────────────────────────────────────────────────
+        private RectInt32 GetMonitorBounds(IntPtr pptHwnd)
         {
-            IntPtr hwnd = WindowNative.GetWindowHandle(this);
-            WindowId wid = Win32Interop.GetWindowIdFromWindow(hwnd);
-            AppWindow appWindow = AppWindow.GetFromWindowId(wid);
-
             const uint MONITOR_DEFAULTTONEAREST = 2;
             IntPtr hMonitor = MonitorFromWindow(pptHwnd, MONITOR_DEFAULTTONEAREST);
             var mi = new MONITORINFO { cbSize = (uint)Marshal.SizeOf<MONITORINFO>() };
-            if (GetMonitorInfo(hMonitor, ref mi))
-            {
-                appWindow.MoveAndResize(new Windows.Graphics.RectInt32(
-                    mi.rcMonitor.Left, mi.rcMonitor.Top,
-                    mi.rcMonitor.Right  - mi.rcMonitor.Left,
-                    mi.rcMonitor.Bottom - mi.rcMonitor.Top));
-            }
+            if (!GetMonitorInfo(hMonitor, ref mi))
+                return new RectInt32(0, 0, 1920, 1080);
+
+            return new RectInt32(
+                mi.rcMonitor.Left, mi.rcMonitor.Top,
+                mi.rcMonitor.Right  - mi.rcMonitor.Left,
+                mi.rcMonitor.Bottom - mi.rcMonitor.Top);
         }
 
-        // ── Interactive hit-test ──────────────────────────────────────
-        // Called from Win32 WM_NCHITTEST — physical pixel coordinates (client-relative)
-        private bool IsInInteractiveArea(int px, int py)
+        // ── Pill / Blackout 模式切换 ──────────────────────────────────
+        private void EnterPillMode()
         {
-            if (_isAnnotating) return true; // annotation mode: entire overlay interactive
+            _isBlackout = false;
+            BlackoutOverlay.Visibility = Visibility.Collapsed;
+            ToolbarPill.Visibility    = Visibility.Visible;
+            RootGrid.Background = (Microsoft.UI.Xaml.Media.Brush)
+                Application.Current.Resources["SmokeFillColorDefaultBrush"];
 
-            double scale = WindowHelper.GetDpiScale(WindowNative.GetWindowHandle(this));
+            int x = _pptMonitor.X + (_pptMonitor.Width - PILL_WIDTH) / 2;
+            int y = _pptMonitor.Y +  _pptMonitor.Height - PILL_HEIGHT - PILL_MARGIN_BOT;
 
-            bool InElement(FrameworkElement el)
-            {
-                try
-                {
-                    var transform = el.TransformToVisual(null);
-                    var bounds = transform.TransformBounds(new Rect(0, 0, el.ActualWidth, el.ActualHeight));
-                    var phys = new Rect(bounds.X * scale, bounds.Y * scale,
-                                        bounds.Width * scale, bounds.Height * scale);
-                    return phys.Contains(new Point(px, py));
-                }
-                catch { return false; }
-            }
+            IntPtr hwnd = WindowNative.GetWindowHandle(this);
+            WindowId wid = Win32Interop.GetWindowIdFromWindow(hwnd);
+            AppWindow.GetFromWindowId(wid).MoveAndResize(new RectInt32(x, y, PILL_WIDTH, PILL_HEIGHT));
 
-            return InElement(LeftToolbar) || InElement(RightToolbar) ||
-                   InElement(BottomToolbar) ||
-                   (ColorPanel.Visibility == Visibility.Visible && InElement(ColorPanel));
+            // 物理像素圆角（DPI 缩放）
+            double scale = WindowHelper.GetDpiScale(hwnd);
+            int physW = (int)(PILL_WIDTH  * scale);
+            int physH = (int)(PILL_HEIGHT * scale);
+            int physR = (int)(PILL_RADIUS * 2 * scale);
+            WindowHelper.SetRoundedRegion(hwnd, physW, physH, physR);
         }
 
-        // ── Layout change → update toolbar bounds ─────────────────────
-        private void RootGrid_SizeChanged(object sender, SizeChangedEventArgs e) { /* bounds recalculated on each hit-test call */ }
-
-        // ── Annotation Storage ────────────────────────────────────────
-        private void SaveCurrentAnnotations()
+        private void EnterBlackoutMode()
         {
-            int slide = _pptControl.CurrentSlide();
-            if (slide > 0)
-                _annotations[slide] = _pageElements.Select(p => p.Stroke).ToList();
+            _isBlackout = true;
+            ToolbarPill.Visibility    = Visibility.Collapsed;
+            BlackoutOverlay.Visibility = Visibility.Visible;
+            RootGrid.Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Black);
+
+            IntPtr hwnd = WindowNative.GetWindowHandle(this);
+            WindowId wid = Win32Interop.GetWindowIdFromWindow(hwnd);
+            AppWindow.GetFromWindowId(wid).MoveAndResize(_pptMonitor);
+            WindowHelper.ClearRegion(hwnd);
         }
 
-        private void RestoreAnnotations(int slideIndex)
-        {
-            InkCanvas.Children.Clear();
-            _pageElements.Clear();
-
-            if (_annotations.TryGetValue(slideIndex, out var strokes))
-                foreach (var s in strokes)
-                    _pageElements.Add((BuildPolyline(s), s));
-        }
-
-        private Polyline BuildPolyline(StrokeData stroke)
-        {
-            var poly = new Polyline
-            {
-                Stroke = new SolidColorBrush(stroke.StrokeColor),
-                StrokeThickness = stroke.Thickness,
-                StrokeLineJoin = PenLineJoin.Round,
-                StrokeStartLineCap = PenLineCap.Round,
-                StrokeEndLineCap   = PenLineCap.Round,
-                Points = new PointCollection()
-            };
-            foreach (var pt in stroke.Points) poly.Points.Add(pt);
-            InkCanvas.Children.Add(poly);
-            return poly;
-        }
-
-        // ── Ink Drawing ───────────────────────────────────────────────
-        private void InkCanvas_PointerPressed(object sender, PointerRoutedEventArgs e)
-        {
-            if (!_isAnnotating || _isErasing) return;
-            var pt = e.GetCurrentPoint(InkCanvas).Position;
-            _activeStroke = new StrokeData
-            {
-                StrokeColor = _currentColor,
-                Thickness   = _currentThickness,
-                Points      = new List<Point> { pt }
-            };
-            _activePoly = BuildPolyline(_activeStroke);
-            _pageElements.Add((_activePoly, _activeStroke));
-            _isDrawing = true;
-            InkCanvas.CapturePointer(e.Pointer);
-            e.Handled = true;
-        }
-
-        private void InkCanvas_PointerMoved(object sender, PointerRoutedEventArgs e)
-        {
-            if (_isAnnotating && !_isErasing && _isDrawing && _activePoly != null && _activeStroke != null)
-            {
-                var pt = e.GetCurrentPoint(InkCanvas).Position;
-                _activeStroke.Points.Add(pt);
-                _activePoly.Points.Add(pt);
-                e.Handled = true;
-            }
-            else if (_isAnnotating && _isErasing)
-            {
-                EraseAtPoint(e.GetCurrentPoint(InkCanvas).Position);
-            }
-        }
-
-        private void InkCanvas_PointerReleased(object sender, PointerRoutedEventArgs e)
-        {
-            if (!_isDrawing) return;
-            _isDrawing    = false;
-            _activePoly   = null;
-            _activeStroke = null;
-            try { InkCanvas.ReleasePointerCapture(e.Pointer); } catch { }
-            e.Handled = true;
-        }
-
-        private void EraseAtPoint(Point pt)
-        {
-            const double R = 20.0;
-            var toRemove = new List<(Polyline, StrokeData)>();
-            foreach (var (poly, stroke) in _pageElements)
-                foreach (var sp in stroke.Points)
-                {
-                    double dx = sp.X - pt.X, dy = sp.Y - pt.Y;
-                    if (dx * dx + dy * dy <= R * R) { toRemove.Add((poly, stroke)); break; }
-                }
-            foreach (var item in toRemove)
-            {
-                InkCanvas.Children.Remove(item.Item1);
-                _pageElements.Remove(item);
-            }
-        }
-
-        // ── Navigation ────────────────────────────────────────────────
+        // ── 翻页 ──────────────────────────────────────────────────────
         private void BtnPrev_Click(object sender, RoutedEventArgs e)
         {
-            if (_isLocked) return;
-            SaveCurrentAnnotations();
             _pptControl.PreviousSlide();
             RefreshPageInfo();
-            RestoreAnnotations(_pptControl.CurrentSlide());
         }
 
         private void BtnNext_Click(object sender, RoutedEventArgs e)
         {
-            if (_isLocked) return;
-            SaveCurrentAnnotations();
             _pptControl.NextSlide();
             RefreshPageInfo();
-            RestoreAnnotations(_pptControl.CurrentSlide());
         }
 
         private void RefreshPageInfo()
@@ -253,119 +149,74 @@ namespace RimePPT
             TbPageInfo.Text = (cur > 0 && tot > 0) ? $"{cur} / {tot}" : "— / —";
         }
 
-        // ── Toolbar Button Handlers ───────────────────────────────────
-        private void BtnAnnotate_Click(object sender, RoutedEventArgs e)
-        {
-            if (_isAnnotating && !_isErasing)
-            {
-                SetAnnotateMode(false, false);
-                ColorPanel.Visibility = Visibility.Collapsed;
-            }
-            else
-            {
-                SetAnnotateMode(true, false);
-                ColorPanel.Visibility = Visibility.Visible;
-            }
-        }
-
-        private void BtnEraser_Click(object sender, RoutedEventArgs e)
-        {
-            if (_isAnnotating && _isErasing) SetAnnotateMode(false, false);
-            else
-            {
-                SetAnnotateMode(true, true);
-                ColorPanel.Visibility = Visibility.Collapsed;
-            }
-        }
-
-        private void SetAnnotateMode(bool annotating, bool erasing)
-        {
-            _isAnnotating = annotating;
-            _isErasing    = erasing;
-            InkCanvas.IsHitTestVisible = annotating;
-
-            var pen    = new SolidColorBrush(Color.FromArgb(0x44, 0x21, 0x96, 0xF3));
-            var eraser = new SolidColorBrush(Color.FromArgb(0x44, 0xFF, 0x98, 0x00));
-            var none   = new SolidColorBrush(Colors.Transparent);
-            var penBot = new SolidColorBrush(Color.FromArgb(0x55, 0x21, 0x96, 0xF3));
-            var ersBot = new SolidColorBrush(Color.FromArgb(0x55, 0xFF, 0x98, 0x00));
-            var defBot = new SolidColorBrush(Color.FromArgb(0x33, 0xFF, 0xFF, 0xFF));
-
-            BtnLeftAnnotate.Background   = (annotating && !erasing) ? pen    : none;
-            BtnRightAnnotate.Background  = BtnLeftAnnotate.Background;
-            BtnBottomAnnotate.Background = (annotating && !erasing) ? penBot : defBot;
-
-            BtnLeftEraser.Background   = (annotating && erasing) ? eraser : none;
-            BtnRightEraser.Background  = BtnLeftEraser.Background;
-            BtnBottomEraser.Background = (annotating && erasing) ? ersBot : defBot;
-        }
-
-        private void BtnClearInk_Click(object sender, RoutedEventArgs e)
-        {
-            InkCanvas.Children.Clear();
-            _pageElements.Clear();
-            _annotations.Remove(_pptControl.CurrentSlide());
-        }
-
-        private void BtnLock_Click(object sender, RoutedEventArgs e)
-        {
-            _isLocked = !_isLocked;
-            string g = _isLocked ? "\uE72F" : "\uE72E";
-            IconLeftLock.Glyph   = g;
-            IconRightLock.Glyph  = g;
-            IconBottomLock.Glyph = g;
-            BtnLeftPrev.IsEnabled  = !_isLocked;
-            BtnLeftNext.IsEnabled  = !_isLocked;
-            BtnRightPrev.IsEnabled = !_isLocked;
-            BtnRightNext.IsEnabled = !_isLocked;
-        }
-
+        // ── 退出 ──────────────────────────────────────────────────────
         private void BtnExit_Click(object sender, RoutedEventArgs e)
         {
             _pptControl.EndShow();
             HideOverlay();
         }
 
-        // ── Color / Thickness ─────────────────────────────────────────
-        private void BtnColor_Click(object sender, RoutedEventArgs e)
+        // ── 计时器 ────────────────────────────────────────────────────
+        private void BtnTimer_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is Button btn && btn.Tag is string tag)
-                _currentColor = tag switch
-                {
-                    "Red"    => Colors.Red,
-                    "Yellow" => Colors.Yellow,
-                    "Green"  => Color.FromArgb(255, 76, 175, 80),
-                    "Blue"   => Color.FromArgb(255, 33, 150, 243),
-                    "White"  => Colors.White,
-                    "Black"  => Colors.Black,
-                    _        => Colors.Red
-                };
+            if (_timer != null) { StopTimer(); return; }
+
+            _elapsed = TimeSpan.Zero;
+            TbTimer.Text = "00:00";
+            TimerChip.Visibility = Visibility.Visible;
+            MiTimer.Text = "停止计时";
+            _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+            _timer.Tick += (_, _) =>
+            {
+                _elapsed += TimeSpan.FromSeconds(1);
+                TbTimer.Text = _elapsed.TotalHours >= 1
+                    ? _elapsed.ToString(@"hh\:mm\:ss")
+                    : _elapsed.ToString(@"mm\:ss");
+            };
+            _timer.Start();
         }
 
-        private void BtnThin_Click(object sender, RoutedEventArgs e)   => _currentThickness = 2.0;
-        private void BtnMedium_Click(object sender, RoutedEventArgs e) => _currentThickness = 4.0;
-        private void BtnThick_Click(object sender, RoutedEventArgs e)  => _currentThickness = 8.0;
+        private void StopTimer()
+        {
+            _timer?.Stop();
+            _timer = null;
+            TimerChip.Visibility = Visibility.Collapsed;
+            MiTimer.Text = "开始计时";
+        }
+
+        // ── 黑屏 ──────────────────────────────────────────────────────
+        private void BtnBlackout_Click(object sender, RoutedEventArgs e) => EnterBlackoutMode();
+
+        private void BlackoutOverlay_Tapped(object sender, TappedRoutedEventArgs e) => EnterPillMode();
+
+        // ── 设置 ──────────────────────────────────────────────────────
+        private void BtnSettings_Click(object sender, RoutedEventArgs e)
+            => (Application.Current as App)?.ShowSettings();
 
         // ── Show / Hide ───────────────────────────────────────────────
         public void ShowOverlay(IntPtr pptHwnd)
         {
+            _pptHwnd = pptHwnd;
+            _pptMonitor = GetMonitorBounds(pptHwnd);
             _pptControl.TryConnect();
 
-            // Reset annotation state when new slideshow starts
-            _annotations.Clear();
-            _pageElements.Clear();
-            InkCanvas.Children.Clear();
-            SetAnnotateMode(false, false);
-            ColorPanel.Visibility = Visibility.Collapsed;
+            EnterPillMode();
 
-            CoverMonitorOf(pptHwnd);
-            this.Activate();
+            IntPtr hwnd = WindowNative.GetWindowHandle(this);
+            WindowId wid = Win32Interop.GetWindowIdFromWindow(hwnd);
+            AppWindow.GetFromWindowId(wid).Show();
+
+            // 不抢焦点
+            WindowHelper.ShowNoActivate(hwnd);
+            if (pptHwnd != IntPtr.Zero) SetForegroundWindow(pptHwnd);
 
             RefreshPageInfo();
         }
 
         public void HideOverlay()
         {
+            StopTimer();
+            if (_isBlackout) EnterPillMode();   // reset to pill state
             IntPtr hwnd = WindowNative.GetWindowHandle(this);
             WindowId wid = Win32Interop.GetWindowIdFromWindow(hwnd);
             AppWindow.GetFromWindowId(wid).Hide();

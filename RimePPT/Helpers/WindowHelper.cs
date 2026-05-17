@@ -20,6 +20,8 @@ namespace RimePPT.Helpers
         private const uint SWP_NOACTIVATE  = 0x0010;
         private const int  WM_NCHITTEST    = 0x0084;
         private const int  HTTRANSPARENT   = -1;
+        private const int  WS_EX_NOREDIRECTIONBITMAP = 0x00200000;
+        private const int  SW_SHOWNOACTIVATE = 4;
         private static readonly IntPtr HWND_TOPMOST = new(-1);
 
         // ── P/Invoke ──────────────────────────────────────────────────
@@ -29,8 +31,9 @@ namespace RimePPT.Helpers
         [DllImport("user32.dll")] private static extern bool ScreenToClient(IntPtr hWnd, ref POINT lpPoint);
         [DllImport("user32.dll")] private static extern uint GetDpiForWindow(IntPtr hWnd);
 
-        [DllImport("dwmapi.dll")]
-        private static extern int DwmExtendFrameIntoClientArea(IntPtr hwnd, ref MARGINS pMarInset);
+        [DllImport("user32.dll")] private static extern bool ShowWindow(IntPtr hWnd, int nCmdShow);
+        [DllImport("user32.dll")] private static extern int  SetWindowRgn(IntPtr hWnd, IntPtr hRgn, bool bRedraw);
+        [DllImport("gdi32.dll")]  private static extern IntPtr CreateRoundRectRgn(int x1, int y1, int x2, int y2, int cx, int cy);
 
         // Comctl32 subclassing
         private delegate IntPtr SUBCLASSPROC(IntPtr hWnd, uint uMsg, IntPtr wParam, IntPtr lParam, UIntPtr uIdSubclass, UIntPtr dwRefData);
@@ -46,9 +49,6 @@ namespace RimePPT.Helpers
 
         // ── Structs ───────────────────────────────────────────────────
         [StructLayout(LayoutKind.Sequential)]
-        private struct MARGINS { public int cxLeftWidth, cxRightWidth, cyTopHeight, cyBottomHeight; }
-
-        [StructLayout(LayoutKind.Sequential)]
         public struct POINT { public int x, y; }
 
         // ── Hit-test subclass (ID=1) ──────────────────────────────────
@@ -61,20 +61,26 @@ namespace RimePPT.Helpers
 
         // ── Public API ────────────────────────────────────────────────
 
-        /// <summary>
-        /// Apply WS_EX_LAYERED + DWM glass extension to make window background transparent.
-        /// Call BEFORE showing the window; set XAML Grid Background="Transparent".
-        /// </summary>
-        public static void MakeTransparentOverlay(IntPtr hwnd)
+        /// <summary>Hide window from taskbar &amp; alt-tab without making it transparent.</summary>
+        public static void MakeToolWindow(IntPtr hwnd)
         {
             int ex = GetWindowLong(hwnd, GWL_EXSTYLE);
             SetWindowLong(hwnd, GWL_EXSTYLE,
-                ex | WS_EX_LAYERED | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE);
-
-            // Extend DWM glass into entire client area → enables true transparency
-            var m = new MARGINS { cxLeftWidth = -1, cxRightWidth = -1, cyTopHeight = -1, cyBottomHeight = -1 };
-            DwmExtendFrameIntoClientArea(hwnd, ref m);
+                ex | WS_EX_TOOLWINDOW | WS_EX_NOACTIVATE);
         }
+
+        /// <summary>Clip the window to a rounded rectangle (true rounded corners).</summary>
+        public static void SetRoundedRegion(IntPtr hwnd, int width, int height, int cornerRadius)
+        {
+            IntPtr rgn = CreateRoundRectRgn(0, 0, width + 1, height + 1, cornerRadius, cornerRadius);
+            SetWindowRgn(hwnd, rgn, true);
+        }
+
+        /// <summary>Remove any window region (back to rectangular).</summary>
+        public static void ClearRegion(IntPtr hwnd) => SetWindowRgn(hwnd, IntPtr.Zero, true);
+
+        /// <summary>Show window without stealing focus from PowerPoint.</summary>
+        public static void ShowNoActivate(IntPtr hwnd) => ShowWindow(hwnd, SW_SHOWNOACTIVATE);
 
         /// <summary>Pin the window above all others (HWND_TOPMOST).</summary>
         public static void SetTopmost(IntPtr hwnd)
