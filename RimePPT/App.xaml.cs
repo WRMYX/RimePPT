@@ -1,50 +1,116 @@
-﻿using Microsoft.UI.Xaml;
-using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Controls.Primitives;
-using Microsoft.UI.Xaml.Data;
-using Microsoft.UI.Xaml.Input;
-using Microsoft.UI.Xaml.Media;
-using Microsoft.UI.Xaml.Navigation;
-using Microsoft.UI.Xaml.Shapes;
+﻿using Microsoft.UI;
+using Microsoft.UI.Dispatching;
+using Microsoft.UI.Windowing;
+using Microsoft.UI.Xaml;
+using RimePPT.Services;
 using System;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Runtime.InteropServices.WindowsRuntime;
-using Windows.ApplicationModel;
-using Windows.ApplicationModel.Activation;
-using Windows.Foundation;
-using Windows.Foundation.Collections;
-
-// To learn more about WinUI, the WinUI project structure,
-// and more about our project templates, see: http://aka.ms/winui-project-info.
+using WinRT.Interop;
 
 namespace RimePPT
 {
-    /// <summary>
-    /// Provides application-specific behavior to supplement the default Application class.
-    /// </summary>
     public partial class App : Application
     {
-        private Window? _window;
+        // ── Long-lived objects ────────────────────────────────────────
+        private MainWindow?    _settingsWindow;
+        private OverlayWindow? _overlayWindow;
+        private PptMonitorService?  _monitor;
+        private PptControlService   _control = new();
+        private TrayService?   _tray;
 
-        /// <summary>
-        /// Initializes the singleton application object.  This is the first line of authored code
-        /// executed, and as such is the logical equivalent of main() or WinMain().
-        /// </summary>
-        public App()
+        private DispatcherQueue? _uiQueue;
+
+        public App() { InitializeComponent(); }
+
+        // ── Launch ────────────────────────────────────────────────────
+        protected override void OnLaunched(LaunchActivatedEventArgs args)
         {
-            InitializeComponent();
+            _uiQueue = DispatcherQueue.GetForCurrentThread();
+
+            // Create and immediately hide the settings window (keeps app alive)
+            _settingsWindow = new MainWindow();
+            HideWindow(_settingsWindow);
+
+            // Create the transparent overlay (hidden until slideshow detected)
+            _overlayWindow = new OverlayWindow(_control);
+            HideWindow(_overlayWindow);
+
+            // Start PPT monitor
+            _monitor = new PptMonitorService();
+            _monitor.SlideshowStarted += OnSlideshowStarted;
+            _monitor.SlideshowEnded   += OnSlideshowEnded;
+            _monitor.Start();
+
+            // Apply tray mode from settings
+            string bgMode = Windows.Storage.ApplicationData.Current
+                                   .LocalSettings.Values["BgMode"] as string ?? "tray";
+            ApplyTrayMode(bgMode == "tray");
         }
 
-        /// <summary>
-        /// Invoked when the application is launched.
-        /// </summary>
-        /// <param name="args">Details about the launch request and process.</param>
-        protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
+        // ── Slideshow events (may arrive on threadpool) ───────────────
+        private void OnSlideshowStarted(IntPtr pptHwnd)
         {
-            _window = new MainWindow();
-            _window.Activate();
+            _uiQueue?.TryEnqueue(() =>
+            {
+                _settingsWindow?.SetStatus("🎯 正在放映中", true);
+                _overlayWindow?.ShowOverlay(pptHwnd);
+            });
+        }
+
+        private void OnSlideshowEnded()
+        {
+            _uiQueue?.TryEnqueue(() =>
+            {
+                _settingsWindow?.SetStatus("正在监听 PowerPoint 放映…", false);
+                _overlayWindow?.HideOverlay();
+            });
+        }
+
+        // ── Tray management ───────────────────────────────────────────
+        public void ApplyTrayMode(bool showTray)
+        {
+            if (showTray && _tray == null && _settingsWindow != null)
+            {
+                IntPtr hwnd = WindowNative.GetWindowHandle(_settingsWindow);
+                _tray = new TrayService(hwnd);
+                _tray.OpenSettingsRequested += ShowSettings;
+                _tray.ExitRequested += Shutdown;
+                _tray.Show();
+            }
+            else if (!showTray && _tray != null)
+            {
+                _tray.Dispose();
+                _tray = null;
+            }
+        }
+
+        // ── Settings window ───────────────────────────────────────────
+        public void ShowSettings()
+        {
+            _uiQueue?.TryEnqueue(() =>
+            {
+                if (_settingsWindow == null) return;
+                IntPtr hwnd = WindowNative.GetWindowHandle(_settingsWindow);
+                var wid = Win32Interop.GetWindowIdFromWindow(hwnd);
+                AppWindow.GetFromWindowId(wid).Show();
+                _settingsWindow.Activate();
+            });
+        }
+
+        // ── Shutdown ──────────────────────────────────────────────────
+        public void Shutdown()
+        {
+            _monitor?.Stop();
+            _monitor?.Dispose();
+            _tray?.Dispose();
+            Exit();
+        }
+
+        // ── Helpers ───────────────────────────────────────────────────
+        private static void HideWindow(Window w)
+        {
+            IntPtr hwnd = WindowNative.GetWindowHandle(w);
+            var wid = Win32Interop.GetWindowIdFromWindow(hwnd);
+            AppWindow.GetFromWindowId(wid).Hide();
         }
     }
 }
