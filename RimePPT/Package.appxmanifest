@@ -9,15 +9,15 @@
   IgnorableNamespaces="uap rescap systemai">
 
   <Identity
-    Name="a9e85ae4-ad19-48d5-9bd8-c3e214b303df"
-    Publisher="CN=Administrator"
+    Name="5740e65b-d26b-4ffa-b30a-185075eb68ac"
+    Publisher="CN=Admin"
     Version="1.0.0.0" />
 
-  <mp:PhoneIdentity PhoneProductId="a9e85ae4-ad19-48d5-9bd8-c3e214b303df" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
+  <mp:PhoneIdentity PhoneProductId="5740e65b-d26b-4ffa-b30a-185075eb68ac" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
 
   <Properties>
     <DisplayName>RimePPT</DisplayName>
-    <PublisherDisplayName>Administrator</PublisherDisplayName>
+    <PublisherDisplayName>Admin</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
 

@@ -1,0 +1,13 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../../RimePPT/Core/Ink/StrokeData.cs" Link="Ink/StrokeData.cs" />
+    <Compile Include="../../RimePPT/Core/Ink/InkDocument.cs" Link="Ink/InkDocument.cs" />
+    <Compile Include="../../RimePPT/Core/Ink/StrokeGeometry.cs" Link="Ink/StrokeGeometry.cs" />
+    <Compile Include="../../RimePPT/Core/Ink/InkInputSession.cs" Link="Ink/InkInputSession.cs" />
+    <Compile Include="../../RimePPT/Core/Ink/StrokeEraser.cs" Link="Ink/StrokeEraser.cs" />
+  </ItemGroup>
+</Project>

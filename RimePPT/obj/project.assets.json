@@ -2,6 +2,87 @@
   "version": 4,
   "targets": {
     "net8.0-windows10.0.19041.0": {
+      "H.GeneratedIcons.System.Drawing/2.3.0": {
+        "type": "package",
+        "dependencies": {
+          "System.Drawing.Common": "9.0.1"
+        },
+        "compile": {
+          "lib/net8.0/H.GeneratedIcons.System.Drawing.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/H.GeneratedIcons.System.Drawing.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "H.NotifyIcon/2.3.0": {
+        "type": "package",
+        "dependencies": {
+          "H.GeneratedIcons.System.Drawing": "2.3.0"
+        },
+        "compile": {
+          "lib/net8.0/H.NotifyIcon.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/H.NotifyIcon.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "H.NotifyIcon.WinUI/2.3.0": {
+        "type": "package",
+        "dependencies": {
+          "H.NotifyIcon": "2.3.0",
+          "Microsoft.WindowsAppSDK": "1.6.250108002",
+          "System.Collections.Immutable": "9.0.1",
+          "System.Reflection.Metadata": "9.0.1"
+        },
+        "compile": {
+          "lib/net8.0-windows10.0.17763/H.NotifyIcon.WinUI.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0-windows10.0.17763/H.NotifyIcon.WinUI.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "Microsoft.Graphics.Win2D/1.3.2": {
+        "type": "package",
+        "dependencies": {
+          "Microsoft.WindowsAppSDK": "1.6.241114003"
+        },
+        "compile": {
+          "lib/net6.0-windows10.0.19041.0/Microsoft.Graphics.Canvas.Interop.dll": {}
+        },
+        "runtime": {
+          "lib/net6.0-windows10.0.19041.0/Microsoft.Graphics.Canvas.Interop.dll": {}
+        },
+        "build": {
+          "buildTransitive/net6.0-windows10.0.19041.0/Microsoft.Graphics.Win2D.props": {},
+          "buildTransitive/net6.0-windows10.0.19041.0/Microsoft.Graphics.Win2D.targets": {}
+        },
+        "runtimeTargets": {
+          "runtimes/win-arm64/native/Microsoft.Graphics.Canvas.dll": {
+            "assetType": "native",
+            "rid": "win-arm64"
+          },
+          "runtimes/win-x64/native/Microsoft.Graphics.Canvas.dll": {
+            "assetType": "native",
+            "rid": "win-x64"
+          },
+          "runtimes/win-x86/native/Microsoft.Graphics.Canvas.dll": {
+            "assetType": "native",
+            "rid": "win-x86"
+          }
+        }
+      },
       "Microsoft.Web.WebView2/1.0.3719.77": {
         "type": "package",
         "build": {
@@ -22,7 +103,7 @@
           }
         }
       },
-      "Microsoft.Win32.SystemEvents/8.0.0": {
+      "Microsoft.Win32.SystemEvents/9.0.1": {
         "type": "package",
         "compile": {
           "lib/net8.0/Microsoft.Win32.SystemEvents.dll": {
@@ -35,7 +116,7 @@
           }
         },
         "build": {
-          "buildTransitive/net6.0/_._": {}
+          "buildTransitive/net8.0/_._": {}
         },
         "runtimeTargets": {
           "runtimes/win/lib/net8.0/Microsoft.Win32.SystemEvents.dll": {
@@ -44,18 +125,22 @@
           }
         }
       },
-      "Microsoft.Windows.AI.MachineLearning/2.0.300": {
+      "Microsoft.Windows.AI.MachineLearning/2.1.74": {
         "type": "package",
         "dependencies": {
           "System.Numerics.Tensors": "9.0.0"
         },
         "compile": {
           "lib/net8.0-windows10.0.17763.0/Microsoft.ML.OnnxRuntime.dll": {},
-          "lib/net8.0-windows10.0.17763.0/Microsoft.Windows.AI.MachineLearning.Projection.dll": {}
+          "lib/net8.0-windows10.0.17763.0/Microsoft.Windows.AI.MachineLearning.Projection.dll": {
+            "related": ".xml"
+          }
         },
         "runtime": {
           "lib/net8.0-windows10.0.17763.0/Microsoft.ML.OnnxRuntime.dll": {},
-          "lib/net8.0-windows10.0.17763.0/Microsoft.Windows.AI.MachineLearning.Projection.dll": {}
+          "lib/net8.0-windows10.0.17763.0/Microsoft.Windows.AI.MachineLearning.Projection.dll": {
+            "related": ".xml"
+          }
         },
         "build": {
           "buildTransitive/Microsoft.Windows.AI.MachineLearning.props": {},
@@ -78,6 +163,10 @@
             "assetType": "native",
             "rid": "win-arm64ec"
           },
+          "runtimes/win-arm64ec/native/Microsoft.Windows.AI.MachineLearning.dll": {
+            "assetType": "native",
+            "rid": "win-arm64ec"
+          },
           "runtimes/win-arm64ec/native/onnxruntime.dll": {
             "assetType": "native",
             "rid": "win-arm64ec"
@@ -96,7 +185,7 @@
           }
         }
       },
-      "Microsoft.Windows.SDK.BuildTools/10.0.28000.1839": {
+      "Microsoft.Windows.SDK.BuildTools/10.0.28000.2705": {
         "type": "package",
         "build": {
           "buildTransitive/Microsoft.Windows.SDK.BuildTools.props": {},
@@ -110,52 +199,83 @@
           "buildTransitive/Microsoft.Windows.SDK.BuildTools.MSIX.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK/2.0.1": {
+      "Microsoft.WindowsAppSDK/2.4.0": {
         "type": "package",
         "dependencies": {
-          "Microsoft.WindowsAppSDK.AI": "2.0.185",
-          "Microsoft.WindowsAppSDK.Base": "2.0.3",
-          "Microsoft.WindowsAppSDK.DWrite": "2.0.26041403",
-          "Microsoft.WindowsAppSDK.Foundation": "2.0.20",
-          "Microsoft.WindowsAppSDK.InteractiveExperiences": "2.0.12",
-          "Microsoft.WindowsAppSDK.ML": "2.0.300",
-          "Microsoft.WindowsAppSDK.Runtime": "[2.0.1]",
-          "Microsoft.WindowsAppSDK.Widgets": "2.0.4",
-          "Microsoft.WindowsAppSDK.WinUI": "2.0.12"
+          "Microsoft.WindowsAppSDK.AI": "2.4.4",
+          "Microsoft.WindowsAppSDK.Base": "2.0.4",
+          "Microsoft.WindowsAppSDK.DWrite": "2.1.0",
+          "Microsoft.WindowsAppSDK.Foundation": "2.3.9",
+          "Microsoft.WindowsAppSDK.InteractiveExperiences": "2.1.6",
+          "Microsoft.WindowsAppSDK.ML": "2.1.74",
+          "Microsoft.WindowsAppSDK.Runtime": "[2.4.0]",
+          "Microsoft.WindowsAppSDK.Search": "2.4.4",
+          "Microsoft.WindowsAppSDK.Widgets": "2.0.5",
+          "Microsoft.WindowsAppSDK.WinUI": "2.3.6"
         },
         "build": {
           "buildTransitive/Microsoft.WindowsAppSDK.props": {},
           "buildTransitive/Microsoft.WindowsAppSDK.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.AI/2.0.185": {
+      "Microsoft.WindowsAppSDK.AI/2.4.4": {
         "type": "package",
         "dependencies": {
-          "Microsoft.WindowsAppSDK.Base": "2.0.3",
-          "Microsoft.WindowsAppSDK.Foundation": "2.0.19"
+          "Microsoft.WindowsAppSDK.Base": "2.0.4",
+          "Microsoft.WindowsAppSDK.Foundation": "2.3.9"
         },
         "compile": {
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Graphics.Imaging.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.ContentSafety.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Foundation.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Imaging.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Text.Projection.dll": {}
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Graphics.Imaging.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.ContentSafety.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Foundation.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Imaging.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Text.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Video.Projection.dll": {
+            "related": ".xml"
+          }
         },
         "runtime": {
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Graphics.Imaging.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.ContentSafety.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Foundation.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Imaging.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Text.Projection.dll": {}
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Graphics.Imaging.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.ContentSafety.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Foundation.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Imaging.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Text.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Video.Projection.dll": {
+            "related": ".xml"
+          }
         },
         "build": {
           "buildTransitive/Microsoft.WindowsAppSDK.AI.props": {},
           "buildTransitive/Microsoft.WindowsAppSDK.AI.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.Base/2.0.3": {
+      "Microsoft.WindowsAppSDK.Base/2.0.4": {
         "type": "package",
         "dependencies": {
           "Microsoft.Windows.SDK.BuildTools": "10.0.26100.4654",
@@ -166,7 +286,7 @@
           "buildTransitive/Microsoft.WindowsAppSDK.Base.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.DWrite/2.0.26041403": {
+      "Microsoft.WindowsAppSDK.DWrite/2.1.0": {
         "type": "package",
         "dependencies": {
           "Microsoft.WindowsAppSDK.Base": "2.0.3"
@@ -176,11 +296,11 @@
           "buildTransitive/Microsoft.WindowsAppSDK.DWrite.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.Foundation/2.0.20": {
+      "Microsoft.WindowsAppSDK.Foundation/2.3.9": {
         "type": "package",
         "dependencies": {
-          "Microsoft.WindowsAppSDK.Base": "2.0.3",
-          "Microsoft.WindowsAppSDK.InteractiveExperiences": "2.0.12"
+          "Microsoft.WindowsAppSDK.Base": "2.0.4",
+          "Microsoft.WindowsAppSDK.InteractiveExperiences": "2.1.3"
         },
         "compile": {
           "lib/net6.0-windows10.0.17763.0/Microsoft.Security.Authentication.OAuth.Projection.dll": {},
@@ -311,10 +431,10 @@
           }
         }
       },
-      "Microsoft.WindowsAppSDK.InteractiveExperiences/2.0.12": {
+      "Microsoft.WindowsAppSDK.InteractiveExperiences/2.1.6": {
         "type": "package",
         "dependencies": {
-          "Microsoft.WindowsAppSDK.Base": "2.0.3"
+          "Microsoft.WindowsAppSDK.Base": "2.0.4"
         },
         "compile": {
           "lib/net6.0-windows10.0.18362.0/Microsoft.InteractiveExperiences.Projection.dll": {
@@ -331,29 +451,47 @@
           "buildTransitive/Microsoft.WindowsAppSDK.InteractiveExperiences.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.ML/2.0.300": {
+      "Microsoft.WindowsAppSDK.ML/2.1.74": {
         "type": "package",
         "dependencies": {
-          "Microsoft.Windows.AI.MachineLearning": "[2.0.300, 3.0.0)",
-          "Microsoft.WindowsAppSDK.Base": "2.0.3",
-          "Microsoft.WindowsAppSDK.Foundation": "2.0.19"
+          "Microsoft.Windows.AI.MachineLearning": "[2.1.74, 3.0.0)",
+          "Microsoft.WindowsAppSDK.Base": "2.0.4",
+          "Microsoft.WindowsAppSDK.Foundation": "2.0.21"
         },
         "build": {
           "buildTransitive/Microsoft.WindowsAppSDK.ML.props": {},
           "buildTransitive/Microsoft.WindowsAppSDK.ML.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.Runtime/2.0.1": {
+      "Microsoft.WindowsAppSDK.Runtime/2.4.0": {
         "type": "package",
         "dependencies": {
-          "Microsoft.WindowsAppSDK.Base": "2.0.3"
+          "Microsoft.WindowsAppSDK.Base": "2.0.4"
         },
         "build": {
           "buildTransitive/Microsoft.WindowsAppSDK.Runtime.props": {},
           "buildTransitive/Microsoft.WindowsAppSDK.Runtime.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.Widgets/2.0.4": {
+      "Microsoft.WindowsAppSDK.Search/2.4.4": {
+        "type": "package",
+        "dependencies": {
+          "Microsoft.WindowsAppSDK.AI": "[2.4.4]",
+          "Microsoft.WindowsAppSDK.Base": "2.0.4",
+          "Microsoft.WindowsAppSDK.Foundation": "2.3.9"
+        },
+        "compile": {
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.Search.Projection.dll": {}
+        },
+        "runtime": {
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.Search.Projection.dll": {}
+        },
+        "build": {
+          "buildTransitive/Microsoft.WindowsAppSDK.Search.props": {},
+          "buildTransitive/Microsoft.WindowsAppSDK.Search.targets": {}
+        }
+      },
+      "Microsoft.WindowsAppSDK.Widgets/2.0.5": {
         "type": "package",
         "dependencies": {
           "Microsoft.WindowsAppSDK.Base": "2.0.3"
@@ -373,13 +511,13 @@
           "buildTransitive/Microsoft.WindowsAppSDK.Widgets.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.WinUI/2.0.12": {
+      "Microsoft.WindowsAppSDK.WinUI/2.3.6": {
         "type": "package",
         "dependencies": {
           "Microsoft.Web.WebView2": "1.0.3719.77",
-          "Microsoft.WindowsAppSDK.Base": "2.0.3",
-          "Microsoft.WindowsAppSDK.Foundation": "2.0.20",
-          "Microsoft.WindowsAppSDK.InteractiveExperiences": "2.0.12"
+          "Microsoft.WindowsAppSDK.Base": "2.0.4",
+          "Microsoft.WindowsAppSDK.Foundation": "2.3.9",
+          "Microsoft.WindowsAppSDK.InteractiveExperiences": "2.1.3"
         },
         "compile": {
           "lib/net6.0-windows10.0.17763.0/Microsoft.WinUI.dll": {
@@ -396,23 +534,45 @@
           "buildTransitive/Microsoft.WindowsAppSDK.WinUI.targets": {}
         }
       },
-      "System.Drawing.Common/8.0.0": {
+      "System.Collections.Immutable/9.0.1": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/System.Collections.Immutable.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/System.Collections.Immutable.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/net8.0/_._": {}
+        }
+      },
+      "System.Drawing.Common/9.0.1": {
         "type": "package",
         "dependencies": {
-          "Microsoft.Win32.SystemEvents": "8.0.0"
+          "Microsoft.Win32.SystemEvents": "9.0.1"
         },
         "compile": {
           "lib/net8.0/System.Drawing.Common.dll": {
             "related": ".pdb;.xml"
+          },
+          "lib/net8.0/System.Private.Windows.Core.dll": {
+            "related": ".xml"
           }
         },
         "runtime": {
           "lib/net8.0/System.Drawing.Common.dll": {
             "related": ".pdb;.xml"
+          },
+          "lib/net8.0/System.Private.Windows.Core.dll": {
+            "related": ".xml"
           }
         },
         "build": {
-          "buildTransitive/net6.0/_._": {}
+          "buildTransitive/net8.0/_._": {}
         }
       },
       "System.Numerics.Tensors/9.0.0": {
@@ -430,9 +590,98 @@
         "build": {
           "buildTransitive/net8.0/_._": {}
         }
+      },
+      "System.Reflection.Metadata/9.0.1": {
+        "type": "package",
+        "dependencies": {
+          "System.Collections.Immutable": "9.0.1"
+        },
+        "compile": {
+          "lib/net8.0/System.Reflection.Metadata.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/System.Reflection.Metadata.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/net8.0/_._": {}
+        }
       }
     },
     "net8.0-windows10.0.19041.0/win-arm64": {
+      "H.GeneratedIcons.System.Drawing/2.3.0": {
+        "type": "package",
+        "dependencies": {
+          "System.Drawing.Common": "9.0.1"
+        },
+        "compile": {
+          "lib/net8.0/H.GeneratedIcons.System.Drawing.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/H.GeneratedIcons.System.Drawing.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "H.NotifyIcon/2.3.0": {
+        "type": "package",
+        "dependencies": {
+          "H.GeneratedIcons.System.Drawing": "2.3.0"
+        },
+        "compile": {
+          "lib/net8.0/H.NotifyIcon.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/H.NotifyIcon.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "H.NotifyIcon.WinUI/2.3.0": {
+        "type": "package",
+        "dependencies": {
+          "H.NotifyIcon": "2.3.0",
+          "Microsoft.WindowsAppSDK": "1.6.250108002",
+          "System.Collections.Immutable": "9.0.1",
+          "System.Reflection.Metadata": "9.0.1"
+        },
+        "compile": {
+          "lib/net8.0-windows10.0.17763/H.NotifyIcon.WinUI.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0-windows10.0.17763/H.NotifyIcon.WinUI.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "Microsoft.Graphics.Win2D/1.3.2": {
+        "type": "package",
+        "dependencies": {
+          "Microsoft.WindowsAppSDK": "1.6.241114003"
+        },
+        "compile": {
+          "lib/net6.0-windows10.0.19041.0/Microsoft.Graphics.Canvas.Interop.dll": {}
+        },
+        "runtime": {
+          "lib/net6.0-windows10.0.19041.0/Microsoft.Graphics.Canvas.Interop.dll": {}
+        },
+        "native": {
+          "runtimes/win-arm64/native/Microsoft.Graphics.Canvas.dll": {}
+        },
+        "build": {
+          "buildTransitive/net6.0-windows10.0.19041.0/Microsoft.Graphics.Win2D.props": {},
+          "buildTransitive/net6.0-windows10.0.19041.0/Microsoft.Graphics.Win2D.targets": {}
+        }
+      },
       "Microsoft.Web.WebView2/1.0.3719.77": {
         "type": "package",
         "native": {
@@ -442,7 +691,7 @@
           "buildTransitive/Microsoft.Web.WebView2.targets": {}
         }
       },
-      "Microsoft.Win32.SystemEvents/8.0.0": {
+      "Microsoft.Win32.SystemEvents/9.0.1": {
         "type": "package",
         "compile": {
           "lib/net8.0/Microsoft.Win32.SystemEvents.dll": {
@@ -455,21 +704,25 @@
           }
         },
         "build": {
-          "buildTransitive/net6.0/_._": {}
+          "buildTransitive/net8.0/_._": {}
         }
       },
-      "Microsoft.Windows.AI.MachineLearning/2.0.300": {
+      "Microsoft.Windows.AI.MachineLearning/2.1.74": {
         "type": "package",
         "dependencies": {
           "System.Numerics.Tensors": "9.0.0"
         },
         "compile": {
           "lib/net8.0-windows10.0.17763.0/Microsoft.ML.OnnxRuntime.dll": {},
-          "lib/net8.0-windows10.0.17763.0/Microsoft.Windows.AI.MachineLearning.Projection.dll": {}
+          "lib/net8.0-windows10.0.17763.0/Microsoft.Windows.AI.MachineLearning.Projection.dll": {
+            "related": ".xml"
+          }
         },
         "runtime": {
           "lib/net8.0-windows10.0.17763.0/Microsoft.ML.OnnxRuntime.dll": {},
-          "lib/net8.0-windows10.0.17763.0/Microsoft.Windows.AI.MachineLearning.Projection.dll": {}
+          "lib/net8.0-windows10.0.17763.0/Microsoft.Windows.AI.MachineLearning.Projection.dll": {
+            "related": ".xml"
+          }
         },
         "native": {
           "runtimes/win-arm64/native/DirectML.dll": {},
@@ -481,7 +734,7 @@
           "buildTransitive/Microsoft.Windows.AI.MachineLearning.targets": {}
         }
       },
-      "Microsoft.Windows.SDK.BuildTools/10.0.28000.1839": {
+      "Microsoft.Windows.SDK.BuildTools/10.0.28000.2705": {
         "type": "package",
         "build": {
           "buildTransitive/Microsoft.Windows.SDK.BuildTools.props": {},
@@ -495,52 +748,83 @@
           "buildTransitive/Microsoft.Windows.SDK.BuildTools.MSIX.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK/2.0.1": {
+      "Microsoft.WindowsAppSDK/2.4.0": {
         "type": "package",
         "dependencies": {
-          "Microsoft.WindowsAppSDK.AI": "2.0.185",
-          "Microsoft.WindowsAppSDK.Base": "2.0.3",
-          "Microsoft.WindowsAppSDK.DWrite": "2.0.26041403",
-          "Microsoft.WindowsAppSDK.Foundation": "2.0.20",
-          "Microsoft.WindowsAppSDK.InteractiveExperiences": "2.0.12",
-          "Microsoft.WindowsAppSDK.ML": "2.0.300",
-          "Microsoft.WindowsAppSDK.Runtime": "[2.0.1]",
-          "Microsoft.WindowsAppSDK.Widgets": "2.0.4",
-          "Microsoft.WindowsAppSDK.WinUI": "2.0.12"
+          "Microsoft.WindowsAppSDK.AI": "2.4.4",
+          "Microsoft.WindowsAppSDK.Base": "2.0.4",
+          "Microsoft.WindowsAppSDK.DWrite": "2.1.0",
+          "Microsoft.WindowsAppSDK.Foundation": "2.3.9",
+          "Microsoft.WindowsAppSDK.InteractiveExperiences": "2.1.6",
+          "Microsoft.WindowsAppSDK.ML": "2.1.74",
+          "Microsoft.WindowsAppSDK.Runtime": "[2.4.0]",
+          "Microsoft.WindowsAppSDK.Search": "2.4.4",
+          "Microsoft.WindowsAppSDK.Widgets": "2.0.5",
+          "Microsoft.WindowsAppSDK.WinUI": "2.3.6"
         },
         "build": {
           "buildTransitive/Microsoft.WindowsAppSDK.props": {},
           "buildTransitive/Microsoft.WindowsAppSDK.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.AI/2.0.185": {
+      "Microsoft.WindowsAppSDK.AI/2.4.4": {
         "type": "package",
         "dependencies": {
-          "Microsoft.WindowsAppSDK.Base": "2.0.3",
-          "Microsoft.WindowsAppSDK.Foundation": "2.0.19"
+          "Microsoft.WindowsAppSDK.Base": "2.0.4",
+          "Microsoft.WindowsAppSDK.Foundation": "2.3.9"
         },
         "compile": {
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Graphics.Imaging.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.ContentSafety.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Foundation.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Imaging.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Text.Projection.dll": {}
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Graphics.Imaging.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.ContentSafety.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Foundation.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Imaging.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Text.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Video.Projection.dll": {
+            "related": ".xml"
+          }
         },
         "runtime": {
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Graphics.Imaging.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.ContentSafety.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Foundation.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Imaging.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Text.Projection.dll": {}
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Graphics.Imaging.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.ContentSafety.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Foundation.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Imaging.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Text.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Video.Projection.dll": {
+            "related": ".xml"
+          }
         },
         "build": {
           "buildTransitive/Microsoft.WindowsAppSDK.AI.props": {},
           "buildTransitive/Microsoft.WindowsAppSDK.AI.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.Base/2.0.3": {
+      "Microsoft.WindowsAppSDK.Base/2.0.4": {
         "type": "package",
         "dependencies": {
           "Microsoft.Windows.SDK.BuildTools": "10.0.26100.4654",
@@ -551,7 +835,7 @@
           "buildTransitive/Microsoft.WindowsAppSDK.Base.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.DWrite/2.0.26041403": {
+      "Microsoft.WindowsAppSDK.DWrite/2.1.0": {
         "type": "package",
         "dependencies": {
           "Microsoft.WindowsAppSDK.Base": "2.0.3"
@@ -561,11 +845,11 @@
           "buildTransitive/Microsoft.WindowsAppSDK.DWrite.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.Foundation/2.0.20": {
+      "Microsoft.WindowsAppSDK.Foundation/2.3.9": {
         "type": "package",
         "dependencies": {
-          "Microsoft.WindowsAppSDK.Base": "2.0.3",
-          "Microsoft.WindowsAppSDK.InteractiveExperiences": "2.0.12"
+          "Microsoft.WindowsAppSDK.Base": "2.0.4",
+          "Microsoft.WindowsAppSDK.InteractiveExperiences": "2.1.3"
         },
         "compile": {
           "lib/net6.0-windows10.0.17763.0/Microsoft.Security.Authentication.OAuth.Projection.dll": {},
@@ -666,10 +950,10 @@
           "buildTransitive/Microsoft.WindowsAppSDK.Foundation.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.InteractiveExperiences/2.0.12": {
+      "Microsoft.WindowsAppSDK.InteractiveExperiences/2.1.6": {
         "type": "package",
         "dependencies": {
-          "Microsoft.WindowsAppSDK.Base": "2.0.3"
+          "Microsoft.WindowsAppSDK.Base": "2.0.4"
         },
         "compile": {
           "lib/net6.0-windows10.0.18362.0/Microsoft.InteractiveExperiences.Projection.dll": {
@@ -686,29 +970,47 @@
           "buildTransitive/Microsoft.WindowsAppSDK.InteractiveExperiences.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.ML/2.0.300": {
+      "Microsoft.WindowsAppSDK.ML/2.1.74": {
         "type": "package",
         "dependencies": {
-          "Microsoft.Windows.AI.MachineLearning": "[2.0.300, 3.0.0)",
-          "Microsoft.WindowsAppSDK.Base": "2.0.3",
-          "Microsoft.WindowsAppSDK.Foundation": "2.0.19"
+          "Microsoft.Windows.AI.MachineLearning": "[2.1.74, 3.0.0)",
+          "Microsoft.WindowsAppSDK.Base": "2.0.4",
+          "Microsoft.WindowsAppSDK.Foundation": "2.0.21"
         },
         "build": {
           "buildTransitive/Microsoft.WindowsAppSDK.ML.props": {},
           "buildTransitive/Microsoft.WindowsAppSDK.ML.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.Runtime/2.0.1": {
+      "Microsoft.WindowsAppSDK.Runtime/2.4.0": {
         "type": "package",
         "dependencies": {
-          "Microsoft.WindowsAppSDK.Base": "2.0.3"
+          "Microsoft.WindowsAppSDK.Base": "2.0.4"
         },
         "build": {
           "buildTransitive/Microsoft.WindowsAppSDK.Runtime.props": {},
           "buildTransitive/Microsoft.WindowsAppSDK.Runtime.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.Widgets/2.0.4": {
+      "Microsoft.WindowsAppSDK.Search/2.4.4": {
+        "type": "package",
+        "dependencies": {
+          "Microsoft.WindowsAppSDK.AI": "[2.4.4]",
+          "Microsoft.WindowsAppSDK.Base": "2.0.4",
+          "Microsoft.WindowsAppSDK.Foundation": "2.3.9"
+        },
+        "compile": {
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.Search.Projection.dll": {}
+        },
+        "runtime": {
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.Search.Projection.dll": {}
+        },
+        "build": {
+          "buildTransitive/Microsoft.WindowsAppSDK.Search.props": {},
+          "buildTransitive/Microsoft.WindowsAppSDK.Search.targets": {}
+        }
+      },
+      "Microsoft.WindowsAppSDK.Widgets/2.0.5": {
         "type": "package",
         "dependencies": {
           "Microsoft.WindowsAppSDK.Base": "2.0.3"
@@ -728,13 +1030,13 @@
           "buildTransitive/Microsoft.WindowsAppSDK.Widgets.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.WinUI/2.0.12": {
+      "Microsoft.WindowsAppSDK.WinUI/2.3.6": {
         "type": "package",
         "dependencies": {
           "Microsoft.Web.WebView2": "1.0.3719.77",
-          "Microsoft.WindowsAppSDK.Base": "2.0.3",
-          "Microsoft.WindowsAppSDK.Foundation": "2.0.20",
-          "Microsoft.WindowsAppSDK.InteractiveExperiences": "2.0.12"
+          "Microsoft.WindowsAppSDK.Base": "2.0.4",
+          "Microsoft.WindowsAppSDK.Foundation": "2.3.9",
+          "Microsoft.WindowsAppSDK.InteractiveExperiences": "2.1.3"
         },
         "compile": {
           "lib/net6.0-windows10.0.17763.0/Microsoft.WinUI.dll": {
@@ -751,23 +1053,45 @@
           "buildTransitive/Microsoft.WindowsAppSDK.WinUI.targets": {}
         }
       },
-      "System.Drawing.Common/8.0.0": {
+      "System.Collections.Immutable/9.0.1": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/System.Collections.Immutable.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/System.Collections.Immutable.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/net8.0/_._": {}
+        }
+      },
+      "System.Drawing.Common/9.0.1": {
         "type": "package",
         "dependencies": {
-          "Microsoft.Win32.SystemEvents": "8.0.0"
+          "Microsoft.Win32.SystemEvents": "9.0.1"
         },
         "compile": {
           "lib/net8.0/System.Drawing.Common.dll": {
             "related": ".pdb;.xml"
+          },
+          "lib/net8.0/System.Private.Windows.Core.dll": {
+            "related": ".xml"
           }
         },
         "runtime": {
           "lib/net8.0/System.Drawing.Common.dll": {
             "related": ".pdb;.xml"
+          },
+          "lib/net8.0/System.Private.Windows.Core.dll": {
+            "related": ".xml"
           }
         },
         "build": {
-          "buildTransitive/net6.0/_._": {}
+          "buildTransitive/net8.0/_._": {}
         }
       },
       "System.Numerics.Tensors/9.0.0": {
@@ -785,9 +1109,98 @@
         "build": {
           "buildTransitive/net8.0/_._": {}
         }
+      },
+      "System.Reflection.Metadata/9.0.1": {
+        "type": "package",
+        "dependencies": {
+          "System.Collections.Immutable": "9.0.1"
+        },
+        "compile": {
+          "lib/net8.0/System.Reflection.Metadata.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/System.Reflection.Metadata.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/net8.0/_._": {}
+        }
       }
     },
     "net8.0-windows10.0.19041.0/win-x64": {
+      "H.GeneratedIcons.System.Drawing/2.3.0": {
+        "type": "package",
+        "dependencies": {
+          "System.Drawing.Common": "9.0.1"
+        },
+        "compile": {
+          "lib/net8.0/H.GeneratedIcons.System.Drawing.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/H.GeneratedIcons.System.Drawing.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "H.NotifyIcon/2.3.0": {
+        "type": "package",
+        "dependencies": {
+          "H.GeneratedIcons.System.Drawing": "2.3.0"
+        },
+        "compile": {
+          "lib/net8.0/H.NotifyIcon.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/H.NotifyIcon.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "H.NotifyIcon.WinUI/2.3.0": {
+        "type": "package",
+        "dependencies": {
+          "H.NotifyIcon": "2.3.0",
+          "Microsoft.WindowsAppSDK": "1.6.250108002",
+          "System.Collections.Immutable": "9.0.1",
+          "System.Reflection.Metadata": "9.0.1"
+        },
+        "compile": {
+          "lib/net8.0-windows10.0.17763/H.NotifyIcon.WinUI.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0-windows10.0.17763/H.NotifyIcon.WinUI.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "Microsoft.Graphics.Win2D/1.3.2": {
+        "type": "package",
+        "dependencies": {
+          "Microsoft.WindowsAppSDK": "1.6.241114003"
+        },
+        "compile": {
+          "lib/net6.0-windows10.0.19041.0/Microsoft.Graphics.Canvas.Interop.dll": {}
+        },
+        "runtime": {
+          "lib/net6.0-windows10.0.19041.0/Microsoft.Graphics.Canvas.Interop.dll": {}
+        },
+        "native": {
+          "runtimes/win-x64/native/Microsoft.Graphics.Canvas.dll": {}
+        },
+        "build": {
+          "buildTransitive/net6.0-windows10.0.19041.0/Microsoft.Graphics.Win2D.props": {},
+          "buildTransitive/net6.0-windows10.0.19041.0/Microsoft.Graphics.Win2D.targets": {}
+        }
+      },
       "Microsoft.Web.WebView2/1.0.3719.77": {
         "type": "package",
         "native": {
@@ -797,7 +1210,7 @@
           "buildTransitive/Microsoft.Web.WebView2.targets": {}
         }
       },
-      "Microsoft.Win32.SystemEvents/8.0.0": {
+      "Microsoft.Win32.SystemEvents/9.0.1": {
         "type": "package",
         "compile": {
           "lib/net8.0/Microsoft.Win32.SystemEvents.dll": {
@@ -810,21 +1223,25 @@
           }
         },
         "build": {
-          "buildTransitive/net6.0/_._": {}
+          "buildTransitive/net8.0/_._": {}
         }
       },
-      "Microsoft.Windows.AI.MachineLearning/2.0.300": {
+      "Microsoft.Windows.AI.MachineLearning/2.1.74": {
         "type": "package",
         "dependencies": {
           "System.Numerics.Tensors": "9.0.0"
         },
         "compile": {
           "lib/net8.0-windows10.0.17763.0/Microsoft.ML.OnnxRuntime.dll": {},
-          "lib/net8.0-windows10.0.17763.0/Microsoft.Windows.AI.MachineLearning.Projection.dll": {}
+          "lib/net8.0-windows10.0.17763.0/Microsoft.Windows.AI.MachineLearning.Projection.dll": {
+            "related": ".xml"
+          }
         },
         "runtime": {
           "lib/net8.0-windows10.0.17763.0/Microsoft.ML.OnnxRuntime.dll": {},
-          "lib/net8.0-windows10.0.17763.0/Microsoft.Windows.AI.MachineLearning.Projection.dll": {}
+          "lib/net8.0-windows10.0.17763.0/Microsoft.Windows.AI.MachineLearning.Projection.dll": {
+            "related": ".xml"
+          }
         },
         "native": {
           "runtimes/win-x64/native/DirectML.dll": {},
@@ -836,7 +1253,7 @@
           "buildTransitive/Microsoft.Windows.AI.MachineLearning.targets": {}
         }
       },
-      "Microsoft.Windows.SDK.BuildTools/10.0.28000.1839": {
+      "Microsoft.Windows.SDK.BuildTools/10.0.28000.2705": {
         "type": "package",
         "build": {
           "buildTransitive/Microsoft.Windows.SDK.BuildTools.props": {},
@@ -850,52 +1267,83 @@
           "buildTransitive/Microsoft.Windows.SDK.BuildTools.MSIX.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK/2.0.1": {
+      "Microsoft.WindowsAppSDK/2.4.0": {
         "type": "package",
         "dependencies": {
-          "Microsoft.WindowsAppSDK.AI": "2.0.185",
-          "Microsoft.WindowsAppSDK.Base": "2.0.3",
-          "Microsoft.WindowsAppSDK.DWrite": "2.0.26041403",
-          "Microsoft.WindowsAppSDK.Foundation": "2.0.20",
-          "Microsoft.WindowsAppSDK.InteractiveExperiences": "2.0.12",
-          "Microsoft.WindowsAppSDK.ML": "2.0.300",
-          "Microsoft.WindowsAppSDK.Runtime": "[2.0.1]",
-          "Microsoft.WindowsAppSDK.Widgets": "2.0.4",
-          "Microsoft.WindowsAppSDK.WinUI": "2.0.12"
+          "Microsoft.WindowsAppSDK.AI": "2.4.4",
+          "Microsoft.WindowsAppSDK.Base": "2.0.4",
+          "Microsoft.WindowsAppSDK.DWrite": "2.1.0",
+          "Microsoft.WindowsAppSDK.Foundation": "2.3.9",
+          "Microsoft.WindowsAppSDK.InteractiveExperiences": "2.1.6",
+          "Microsoft.WindowsAppSDK.ML": "2.1.74",
+          "Microsoft.WindowsAppSDK.Runtime": "[2.4.0]",
+          "Microsoft.WindowsAppSDK.Search": "2.4.4",
+          "Microsoft.WindowsAppSDK.Widgets": "2.0.5",
+          "Microsoft.WindowsAppSDK.WinUI": "2.3.6"
         },
         "build": {
           "buildTransitive/Microsoft.WindowsAppSDK.props": {},
           "buildTransitive/Microsoft.WindowsAppSDK.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.AI/2.0.185": {
+      "Microsoft.WindowsAppSDK.AI/2.4.4": {
         "type": "package",
         "dependencies": {
-          "Microsoft.WindowsAppSDK.Base": "2.0.3",
-          "Microsoft.WindowsAppSDK.Foundation": "2.0.19"
+          "Microsoft.WindowsAppSDK.Base": "2.0.4",
+          "Microsoft.WindowsAppSDK.Foundation": "2.3.9"
         },
         "compile": {
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Graphics.Imaging.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.ContentSafety.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Foundation.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Imaging.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Text.Projection.dll": {}
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Graphics.Imaging.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.ContentSafety.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Foundation.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Imaging.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Text.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Video.Projection.dll": {
+            "related": ".xml"
+          }
         },
         "runtime": {
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Graphics.Imaging.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.ContentSafety.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Foundation.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Imaging.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Text.Projection.dll": {}
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Graphics.Imaging.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.ContentSafety.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Foundation.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Imaging.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Text.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Video.Projection.dll": {
+            "related": ".xml"
+          }
         },
         "build": {
           "buildTransitive/Microsoft.WindowsAppSDK.AI.props": {},
           "buildTransitive/Microsoft.WindowsAppSDK.AI.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.Base/2.0.3": {
+      "Microsoft.WindowsAppSDK.Base/2.0.4": {
         "type": "package",
         "dependencies": {
           "Microsoft.Windows.SDK.BuildTools": "10.0.26100.4654",
@@ -906,7 +1354,7 @@
           "buildTransitive/Microsoft.WindowsAppSDK.Base.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.DWrite/2.0.26041403": {
+      "Microsoft.WindowsAppSDK.DWrite/2.1.0": {
         "type": "package",
         "dependencies": {
           "Microsoft.WindowsAppSDK.Base": "2.0.3"
@@ -916,11 +1364,11 @@
           "buildTransitive/Microsoft.WindowsAppSDK.DWrite.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.Foundation/2.0.20": {
+      "Microsoft.WindowsAppSDK.Foundation/2.3.9": {
         "type": "package",
         "dependencies": {
-          "Microsoft.WindowsAppSDK.Base": "2.0.3",
-          "Microsoft.WindowsAppSDK.InteractiveExperiences": "2.0.12"
+          "Microsoft.WindowsAppSDK.Base": "2.0.4",
+          "Microsoft.WindowsAppSDK.InteractiveExperiences": "2.1.3"
         },
         "compile": {
           "lib/net6.0-windows10.0.17763.0/Microsoft.Security.Authentication.OAuth.Projection.dll": {},
@@ -1021,10 +1469,10 @@
           "buildTransitive/Microsoft.WindowsAppSDK.Foundation.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.InteractiveExperiences/2.0.12": {
+      "Microsoft.WindowsAppSDK.InteractiveExperiences/2.1.6": {
         "type": "package",
         "dependencies": {
-          "Microsoft.WindowsAppSDK.Base": "2.0.3"
+          "Microsoft.WindowsAppSDK.Base": "2.0.4"
         },
         "compile": {
           "lib/net6.0-windows10.0.18362.0/Microsoft.InteractiveExperiences.Projection.dll": {
@@ -1041,29 +1489,47 @@
           "buildTransitive/Microsoft.WindowsAppSDK.InteractiveExperiences.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.ML/2.0.300": {
+      "Microsoft.WindowsAppSDK.ML/2.1.74": {
         "type": "package",
         "dependencies": {
-          "Microsoft.Windows.AI.MachineLearning": "[2.0.300, 3.0.0)",
-          "Microsoft.WindowsAppSDK.Base": "2.0.3",
-          "Microsoft.WindowsAppSDK.Foundation": "2.0.19"
+          "Microsoft.Windows.AI.MachineLearning": "[2.1.74, 3.0.0)",
+          "Microsoft.WindowsAppSDK.Base": "2.0.4",
+          "Microsoft.WindowsAppSDK.Foundation": "2.0.21"
         },
         "build": {
           "buildTransitive/Microsoft.WindowsAppSDK.ML.props": {},
           "buildTransitive/Microsoft.WindowsAppSDK.ML.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.Runtime/2.0.1": {
+      "Microsoft.WindowsAppSDK.Runtime/2.4.0": {
         "type": "package",
         "dependencies": {
-          "Microsoft.WindowsAppSDK.Base": "2.0.3"
+          "Microsoft.WindowsAppSDK.Base": "2.0.4"
         },
         "build": {
           "buildTransitive/Microsoft.WindowsAppSDK.Runtime.props": {},
           "buildTransitive/Microsoft.WindowsAppSDK.Runtime.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.Widgets/2.0.4": {
+      "Microsoft.WindowsAppSDK.Search/2.4.4": {
+        "type": "package",
+        "dependencies": {
+          "Microsoft.WindowsAppSDK.AI": "[2.4.4]",
+          "Microsoft.WindowsAppSDK.Base": "2.0.4",
+          "Microsoft.WindowsAppSDK.Foundation": "2.3.9"
+        },
+        "compile": {
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.Search.Projection.dll": {}
+        },
+        "runtime": {
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.Search.Projection.dll": {}
+        },
+        "build": {
+          "buildTransitive/Microsoft.WindowsAppSDK.Search.props": {},
+          "buildTransitive/Microsoft.WindowsAppSDK.Search.targets": {}
+        }
+      },
+      "Microsoft.WindowsAppSDK.Widgets/2.0.5": {
         "type": "package",
         "dependencies": {
           "Microsoft.WindowsAppSDK.Base": "2.0.3"
@@ -1083,13 +1549,13 @@
           "buildTransitive/Microsoft.WindowsAppSDK.Widgets.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.WinUI/2.0.12": {
+      "Microsoft.WindowsAppSDK.WinUI/2.3.6": {
         "type": "package",
         "dependencies": {
           "Microsoft.Web.WebView2": "1.0.3719.77",
-          "Microsoft.WindowsAppSDK.Base": "2.0.3",
-          "Microsoft.WindowsAppSDK.Foundation": "2.0.20",
-          "Microsoft.WindowsAppSDK.InteractiveExperiences": "2.0.12"
+          "Microsoft.WindowsAppSDK.Base": "2.0.4",
+          "Microsoft.WindowsAppSDK.Foundation": "2.3.9",
+          "Microsoft.WindowsAppSDK.InteractiveExperiences": "2.1.3"
         },
         "compile": {
           "lib/net6.0-windows10.0.17763.0/Microsoft.WinUI.dll": {
@@ -1106,23 +1572,45 @@
           "buildTransitive/Microsoft.WindowsAppSDK.WinUI.targets": {}
         }
       },
-      "System.Drawing.Common/8.0.0": {
+      "System.Collections.Immutable/9.0.1": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/System.Collections.Immutable.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/System.Collections.Immutable.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/net8.0/_._": {}
+        }
+      },
+      "System.Drawing.Common/9.0.1": {
         "type": "package",
         "dependencies": {
-          "Microsoft.Win32.SystemEvents": "8.0.0"
+          "Microsoft.Win32.SystemEvents": "9.0.1"
         },
         "compile": {
           "lib/net8.0/System.Drawing.Common.dll": {
             "related": ".pdb;.xml"
+          },
+          "lib/net8.0/System.Private.Windows.Core.dll": {
+            "related": ".xml"
           }
         },
         "runtime": {
           "lib/net8.0/System.Drawing.Common.dll": {
             "related": ".pdb;.xml"
+          },
+          "lib/net8.0/System.Private.Windows.Core.dll": {
+            "related": ".xml"
           }
         },
         "build": {
-          "buildTransitive/net6.0/_._": {}
+          "buildTransitive/net8.0/_._": {}
         }
       },
       "System.Numerics.Tensors/9.0.0": {
@@ -1140,9 +1628,98 @@
         "build": {
           "buildTransitive/net8.0/_._": {}
         }
+      },
+      "System.Reflection.Metadata/9.0.1": {
+        "type": "package",
+        "dependencies": {
+          "System.Collections.Immutable": "9.0.1"
+        },
+        "compile": {
+          "lib/net8.0/System.Reflection.Metadata.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/System.Reflection.Metadata.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/net8.0/_._": {}
+        }
       }
     },
     "net8.0-windows10.0.19041.0/win-x86": {
+      "H.GeneratedIcons.System.Drawing/2.3.0": {
+        "type": "package",
+        "dependencies": {
+          "System.Drawing.Common": "9.0.1"
+        },
+        "compile": {
+          "lib/net8.0/H.GeneratedIcons.System.Drawing.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/H.GeneratedIcons.System.Drawing.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "H.NotifyIcon/2.3.0": {
+        "type": "package",
+        "dependencies": {
+          "H.GeneratedIcons.System.Drawing": "2.3.0"
+        },
+        "compile": {
+          "lib/net8.0/H.NotifyIcon.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/H.NotifyIcon.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "H.NotifyIcon.WinUI/2.3.0": {
+        "type": "package",
+        "dependencies": {
+          "H.NotifyIcon": "2.3.0",
+          "Microsoft.WindowsAppSDK": "1.6.250108002",
+          "System.Collections.Immutable": "9.0.1",
+          "System.Reflection.Metadata": "9.0.1"
+        },
+        "compile": {
+          "lib/net8.0-windows10.0.17763/H.NotifyIcon.WinUI.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0-windows10.0.17763/H.NotifyIcon.WinUI.dll": {
+            "related": ".xml"
+          }
+        }
+      },
+      "Microsoft.Graphics.Win2D/1.3.2": {
+        "type": "package",
+        "dependencies": {
+          "Microsoft.WindowsAppSDK": "1.6.241114003"
+        },
+        "compile": {
+          "lib/net6.0-windows10.0.19041.0/Microsoft.Graphics.Canvas.Interop.dll": {}
+        },
+        "runtime": {
+          "lib/net6.0-windows10.0.19041.0/Microsoft.Graphics.Canvas.Interop.dll": {}
+        },
+        "native": {
+          "runtimes/win-x86/native/Microsoft.Graphics.Canvas.dll": {}
+        },
+        "build": {
+          "buildTransitive/net6.0-windows10.0.19041.0/Microsoft.Graphics.Win2D.props": {},
+          "buildTransitive/net6.0-windows10.0.19041.0/Microsoft.Graphics.Win2D.targets": {}
+        }
+      },
       "Microsoft.Web.WebView2/1.0.3719.77": {
         "type": "package",
         "native": {
@@ -1152,7 +1729,7 @@
           "buildTransitive/Microsoft.Web.WebView2.targets": {}
         }
       },
-      "Microsoft.Win32.SystemEvents/8.0.0": {
+      "Microsoft.Win32.SystemEvents/9.0.1": {
         "type": "package",
         "compile": {
           "lib/net8.0/Microsoft.Win32.SystemEvents.dll": {
@@ -1165,28 +1742,32 @@
           }
         },
         "build": {
-          "buildTransitive/net6.0/_._": {}
+          "buildTransitive/net8.0/_._": {}
         }
       },
-      "Microsoft.Windows.AI.MachineLearning/2.0.300": {
+      "Microsoft.Windows.AI.MachineLearning/2.1.74": {
         "type": "package",
         "dependencies": {
           "System.Numerics.Tensors": "9.0.0"
         },
         "compile": {
           "lib/net8.0-windows10.0.17763.0/Microsoft.ML.OnnxRuntime.dll": {},
-          "lib/net8.0-windows10.0.17763.0/Microsoft.Windows.AI.MachineLearning.Projection.dll": {}
+          "lib/net8.0-windows10.0.17763.0/Microsoft.Windows.AI.MachineLearning.Projection.dll": {
+            "related": ".xml"
+          }
         },
         "runtime": {
           "lib/net8.0-windows10.0.17763.0/Microsoft.ML.OnnxRuntime.dll": {},
-          "lib/net8.0-windows10.0.17763.0/Microsoft.Windows.AI.MachineLearning.Projection.dll": {}
+          "lib/net8.0-windows10.0.17763.0/Microsoft.Windows.AI.MachineLearning.Projection.dll": {
+            "related": ".xml"
+          }
         },
         "build": {
           "buildTransitive/Microsoft.Windows.AI.MachineLearning.props": {},
           "buildTransitive/Microsoft.Windows.AI.MachineLearning.targets": {}
         }
       },
-      "Microsoft.Windows.SDK.BuildTools/10.0.28000.1839": {
+      "Microsoft.Windows.SDK.BuildTools/10.0.28000.2705": {
         "type": "package",
         "build": {
           "buildTransitive/Microsoft.Windows.SDK.BuildTools.props": {},
@@ -1200,52 +1781,83 @@
           "buildTransitive/Microsoft.Windows.SDK.BuildTools.MSIX.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK/2.0.1": {
+      "Microsoft.WindowsAppSDK/2.4.0": {
         "type": "package",
         "dependencies": {
-          "Microsoft.WindowsAppSDK.AI": "2.0.185",
-          "Microsoft.WindowsAppSDK.Base": "2.0.3",
-          "Microsoft.WindowsAppSDK.DWrite": "2.0.26041403",
-          "Microsoft.WindowsAppSDK.Foundation": "2.0.20",
-          "Microsoft.WindowsAppSDK.InteractiveExperiences": "2.0.12",
-          "Microsoft.WindowsAppSDK.ML": "2.0.300",
-          "Microsoft.WindowsAppSDK.Runtime": "[2.0.1]",
-          "Microsoft.WindowsAppSDK.Widgets": "2.0.4",
-          "Microsoft.WindowsAppSDK.WinUI": "2.0.12"
+          "Microsoft.WindowsAppSDK.AI": "2.4.4",
+          "Microsoft.WindowsAppSDK.Base": "2.0.4",
+          "Microsoft.WindowsAppSDK.DWrite": "2.1.0",
+          "Microsoft.WindowsAppSDK.Foundation": "2.3.9",
+          "Microsoft.WindowsAppSDK.InteractiveExperiences": "2.1.6",
+          "Microsoft.WindowsAppSDK.ML": "2.1.74",
+          "Microsoft.WindowsAppSDK.Runtime": "[2.4.0]",
+          "Microsoft.WindowsAppSDK.Search": "2.4.4",
+          "Microsoft.WindowsAppSDK.Widgets": "2.0.5",
+          "Microsoft.WindowsAppSDK.WinUI": "2.3.6"
         },
         "build": {
           "buildTransitive/Microsoft.WindowsAppSDK.props": {},
           "buildTransitive/Microsoft.WindowsAppSDK.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.AI/2.0.185": {
+      "Microsoft.WindowsAppSDK.AI/2.4.4": {
         "type": "package",
         "dependencies": {
-          "Microsoft.WindowsAppSDK.Base": "2.0.3",
-          "Microsoft.WindowsAppSDK.Foundation": "2.0.19"
+          "Microsoft.WindowsAppSDK.Base": "2.0.4",
+          "Microsoft.WindowsAppSDK.Foundation": "2.3.9"
         },
         "compile": {
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Graphics.Imaging.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.ContentSafety.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Foundation.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Imaging.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Text.Projection.dll": {}
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Graphics.Imaging.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.ContentSafety.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Foundation.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Imaging.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Text.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Video.Projection.dll": {
+            "related": ".xml"
+          }
         },
         "runtime": {
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Graphics.Imaging.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.ContentSafety.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Foundation.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Imaging.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Projection.dll": {},
-          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Text.Projection.dll": {}
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Graphics.Imaging.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.ContentSafety.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Foundation.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Imaging.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Text.Projection.dll": {
+            "related": ".xml"
+          },
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Video.Projection.dll": {
+            "related": ".xml"
+          }
         },
         "build": {
           "buildTransitive/Microsoft.WindowsAppSDK.AI.props": {},
           "buildTransitive/Microsoft.WindowsAppSDK.AI.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.Base/2.0.3": {
+      "Microsoft.WindowsAppSDK.Base/2.0.4": {
         "type": "package",
         "dependencies": {
           "Microsoft.Windows.SDK.BuildTools": "10.0.26100.4654",
@@ -1256,7 +1868,7 @@
           "buildTransitive/Microsoft.WindowsAppSDK.Base.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.DWrite/2.0.26041403": {
+      "Microsoft.WindowsAppSDK.DWrite/2.1.0": {
         "type": "package",
         "dependencies": {
           "Microsoft.WindowsAppSDK.Base": "2.0.3"
@@ -1266,11 +1878,11 @@
           "buildTransitive/Microsoft.WindowsAppSDK.DWrite.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.Foundation/2.0.20": {
+      "Microsoft.WindowsAppSDK.Foundation/2.3.9": {
         "type": "package",
         "dependencies": {
-          "Microsoft.WindowsAppSDK.Base": "2.0.3",
-          "Microsoft.WindowsAppSDK.InteractiveExperiences": "2.0.12"
+          "Microsoft.WindowsAppSDK.Base": "2.0.4",
+          "Microsoft.WindowsAppSDK.InteractiveExperiences": "2.1.3"
         },
         "compile": {
           "lib/net6.0-windows10.0.17763.0/Microsoft.Security.Authentication.OAuth.Projection.dll": {},
@@ -1371,10 +1983,10 @@
           "buildTransitive/Microsoft.WindowsAppSDK.Foundation.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.InteractiveExperiences/2.0.12": {
+      "Microsoft.WindowsAppSDK.InteractiveExperiences/2.1.6": {
         "type": "package",
         "dependencies": {
-          "Microsoft.WindowsAppSDK.Base": "2.0.3"
+          "Microsoft.WindowsAppSDK.Base": "2.0.4"
         },
         "compile": {
           "lib/net6.0-windows10.0.18362.0/Microsoft.InteractiveExperiences.Projection.dll": {
@@ -1391,29 +2003,47 @@
           "buildTransitive/Microsoft.WindowsAppSDK.InteractiveExperiences.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.ML/2.0.300": {
+      "Microsoft.WindowsAppSDK.ML/2.1.74": {
         "type": "package",
         "dependencies": {
-          "Microsoft.Windows.AI.MachineLearning": "[2.0.300, 3.0.0)",
-          "Microsoft.WindowsAppSDK.Base": "2.0.3",
-          "Microsoft.WindowsAppSDK.Foundation": "2.0.19"
+          "Microsoft.Windows.AI.MachineLearning": "[2.1.74, 3.0.0)",
+          "Microsoft.WindowsAppSDK.Base": "2.0.4",
+          "Microsoft.WindowsAppSDK.Foundation": "2.0.21"
         },
         "build": {
           "buildTransitive/Microsoft.WindowsAppSDK.ML.props": {},
           "buildTransitive/Microsoft.WindowsAppSDK.ML.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.Runtime/2.0.1": {
+      "Microsoft.WindowsAppSDK.Runtime/2.4.0": {
         "type": "package",
         "dependencies": {
-          "Microsoft.WindowsAppSDK.Base": "2.0.3"
+          "Microsoft.WindowsAppSDK.Base": "2.0.4"
         },
         "build": {
           "buildTransitive/Microsoft.WindowsAppSDK.Runtime.props": {},
           "buildTransitive/Microsoft.WindowsAppSDK.Runtime.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.Widgets/2.0.4": {
+      "Microsoft.WindowsAppSDK.Search/2.4.4": {
+        "type": "package",
+        "dependencies": {
+          "Microsoft.WindowsAppSDK.AI": "[2.4.4]",
+          "Microsoft.WindowsAppSDK.Base": "2.0.4",
+          "Microsoft.WindowsAppSDK.Foundation": "2.3.9"
+        },
+        "compile": {
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.Search.Projection.dll": {}
+        },
+        "runtime": {
+          "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.Search.Projection.dll": {}
+        },
+        "build": {
+          "buildTransitive/Microsoft.WindowsAppSDK.Search.props": {},
+          "buildTransitive/Microsoft.WindowsAppSDK.Search.targets": {}
+        }
+      },
+      "Microsoft.WindowsAppSDK.Widgets/2.0.5": {
         "type": "package",
         "dependencies": {
           "Microsoft.WindowsAppSDK.Base": "2.0.3"
@@ -1433,13 +2063,13 @@
           "buildTransitive/Microsoft.WindowsAppSDK.Widgets.targets": {}
         }
       },
-      "Microsoft.WindowsAppSDK.WinUI/2.0.12": {
+      "Microsoft.WindowsAppSDK.WinUI/2.3.6": {
         "type": "package",
         "dependencies": {
           "Microsoft.Web.WebView2": "1.0.3719.77",
-          "Microsoft.WindowsAppSDK.Base": "2.0.3",
-          "Microsoft.WindowsAppSDK.Foundation": "2.0.20",
-          "Microsoft.WindowsAppSDK.InteractiveExperiences": "2.0.12"
+          "Microsoft.WindowsAppSDK.Base": "2.0.4",
+          "Microsoft.WindowsAppSDK.Foundation": "2.3.9",
+          "Microsoft.WindowsAppSDK.InteractiveExperiences": "2.1.3"
         },
         "compile": {
           "lib/net6.0-windows10.0.17763.0/Microsoft.WinUI.dll": {
@@ -1456,23 +2086,45 @@
           "buildTransitive/Microsoft.WindowsAppSDK.WinUI.targets": {}
         }
       },
-      "System.Drawing.Common/8.0.0": {
+      "System.Collections.Immutable/9.0.1": {
+        "type": "package",
+        "compile": {
+          "lib/net8.0/System.Collections.Immutable.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/System.Collections.Immutable.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/net8.0/_._": {}
+        }
+      },
+      "System.Drawing.Common/9.0.1": {
         "type": "package",
         "dependencies": {
-          "Microsoft.Win32.SystemEvents": "8.0.0"
+          "Microsoft.Win32.SystemEvents": "9.0.1"
         },
         "compile": {
           "lib/net8.0/System.Drawing.Common.dll": {
             "related": ".pdb;.xml"
+          },
+          "lib/net8.0/System.Private.Windows.Core.dll": {
+            "related": ".xml"
           }
         },
         "runtime": {
           "lib/net8.0/System.Drawing.Common.dll": {
             "related": ".pdb;.xml"
+          },
+          "lib/net8.0/System.Private.Windows.Core.dll": {
+            "related": ".xml"
           }
         },
         "build": {
-          "buildTransitive/net6.0/_._": {}
+          "buildTransitive/net8.0/_._": {}
         }
       },
       "System.Numerics.Tensors/9.0.0": {
@@ -1490,10 +2142,117 @@
         "build": {
           "buildTransitive/net8.0/_._": {}
         }
+      },
+      "System.Reflection.Metadata/9.0.1": {
+        "type": "package",
+        "dependencies": {
+          "System.Collections.Immutable": "9.0.1"
+        },
+        "compile": {
+          "lib/net8.0/System.Reflection.Metadata.dll": {
+            "related": ".xml"
+          }
+        },
+        "runtime": {
+          "lib/net8.0/System.Reflection.Metadata.dll": {
+            "related": ".xml"
+          }
+        },
+        "build": {
+          "buildTransitive/net8.0/_._": {}
+        }
       }
     }
   },
   "libraries": {
+    "H.GeneratedIcons.System.Drawing/2.3.0": {
+      "sha512": "3iI+3gy0VJNfXpMCJTHDfqOtVPCp4oXz9jlphtnG3s3dWo/jx1y1N6vuFiKdbzKElztPE+W5nM+7KHBEEyr8zg==",
+      "type": "package",
+      "path": "h.generatedicons.system.drawing/2.3.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "README.md",
+        "h.generatedicons.system.drawing.2.3.0.nupkg.sha512",
+        "h.generatedicons.system.drawing.nuspec",
+        "lib/net462/H.GeneratedIcons.System.Drawing.dll",
+        "lib/net462/H.GeneratedIcons.System.Drawing.xml",
+        "lib/net8.0/H.GeneratedIcons.System.Drawing.dll",
+        "lib/net8.0/H.GeneratedIcons.System.Drawing.xml",
+        "lib/net9.0/H.GeneratedIcons.System.Drawing.dll",
+        "lib/net9.0/H.GeneratedIcons.System.Drawing.xml",
+        "lib/netstandard2.0/H.GeneratedIcons.System.Drawing.dll",
+        "lib/netstandard2.0/H.GeneratedIcons.System.Drawing.xml",
+        "nuget_icon.png"
+      ]
+    },
+    "H.NotifyIcon/2.3.0": {
+      "sha512": "nmxzTPfYzwusJkfTapccqvv2SDQr1cOpIXkPnPiFhmux3X79n+gWkoBuKyA2zyE86FFRVoKfc6TklK0RLCjnRw==",
+      "type": "package",
+      "path": "h.notifyicon/2.3.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "README.md",
+        "h.notifyicon.2.3.0.nupkg.sha512",
+        "h.notifyicon.nuspec",
+        "lib/net462/H.NotifyIcon.dll",
+        "lib/net462/H.NotifyIcon.xml",
+        "lib/net8.0/H.NotifyIcon.dll",
+        "lib/net8.0/H.NotifyIcon.xml",
+        "lib/net9.0/H.NotifyIcon.dll",
+        "lib/net9.0/H.NotifyIcon.xml",
+        "lib/netstandard2.0/H.NotifyIcon.dll",
+        "lib/netstandard2.0/H.NotifyIcon.xml",
+        "nuget_icon.png"
+      ]
+    },
+    "H.NotifyIcon.WinUI/2.3.0": {
+      "sha512": "+v1J8W2uEfkT57SqFph/bqReruxWu4kT/komQ1014JhzhYZQT8KAlChVuFUarxtl5bE13wHf+B410obkikT4lA==",
+      "type": "package",
+      "path": "h.notifyicon.winui/2.3.0",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "README.md",
+        "h.notifyicon.winui.2.3.0.nupkg.sha512",
+        "h.notifyicon.winui.nuspec",
+        "lib/net8.0-windows10.0.17763/H.NotifyIcon.WinUI.dll",
+        "lib/net8.0-windows10.0.17763/H.NotifyIcon.WinUI.xml",
+        "nuget_icon.png"
+      ]
+    },
+    "Microsoft.Graphics.Win2D/1.3.2": {
+      "sha512": "xAv4+Xj8wePW1innIUSXebX6UHMGDzOxwKPwYNUNY7mBrsRL/hPFEtuPLpBSxc3iBnuaCogPDCDeN7T4b1xV0Q==",
+      "type": "package",
+      "path": "microsoft.graphics.win2d/1.3.2",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Win2d.githash.txt",
+        "build/Win2D.common.targets",
+        "build/native/Microsoft.Graphics.Win2D.targets",
+        "build/net45/Microsoft.Graphics.Win2D.targets",
+        "build/net6.0-windows10.0.19041.0/Microsoft.Graphics.Win2D.props",
+        "build/net6.0-windows10.0.19041.0/Microsoft.Graphics.Win2D.targets",
+        "build/win10/Microsoft.Graphics.Win2D.targets",
+        "buildTransitive/net6.0-windows10.0.19041.0/Microsoft.Graphics.Win2D.props",
+        "buildTransitive/net6.0-windows10.0.19041.0/Microsoft.Graphics.Win2D.targets",
+        "icon.png",
+        "include/Microsoft.Graphics.Canvas.native.h",
+        "include/arm64/Microsoft.Graphics.Canvas.h",
+        "include/x64/Microsoft.Graphics.Canvas.h",
+        "include/x86/Microsoft.Graphics.Canvas.h",
+        "lib/net45/Microsoft.Graphics.Canvas.winmd",
+        "lib/net6.0-windows10.0.19041.0/Microsoft.Graphics.Canvas.Interop.dll",
+        "lib/uap10.0/Microsoft.Graphics.Canvas.winmd",
+        "microsoft.graphics.win2d.1.3.2.nupkg.sha512",
+        "microsoft.graphics.win2d.nuspec",
+        "runtimes/win-arm64/native/Microsoft.Graphics.Canvas.dll",
+        "runtimes/win-x64/native/Microsoft.Graphics.Canvas.dll",
+        "runtimes/win-x86/native/Microsoft.Graphics.Canvas.dll"
+      ]
+    },
     "Microsoft.Web.WebView2/1.0.3719.77": {
       "sha512": "t+ucyKw5NTwMjsUrDF6R9Lk40lpcKQD1/HgyGFxl49tdA4h9dKlsj6FYGEmDRpFNfnTpENuTypMcdbrlkqBdDA==",
       "type": "package",
@@ -1591,45 +2350,42 @@
         "tools/wv2winrt/zh-Hant/System.CommandLine.resources.dll"
       ]
     },
-    "Microsoft.Win32.SystemEvents/8.0.0": {
-      "sha512": "9opKRyOKMCi2xJ7Bj7kxtZ1r9vbzosMvRrdEhVhDz8j8MoBGgB+WmC94yH839NPH+BclAjtQ/pyagvi/8gDLkw==",
+    "Microsoft.Win32.SystemEvents/9.0.1": {
+      "sha512": "OxjcwJqBW/5A1111+vL9d+5KYTvOzeCTJY9zHZ0kpQI4wX075p6L7inHPSYuf0MGakVjUvaShvw9e9pfbInU2Q==",
       "type": "package",
-      "path": "microsoft.win32.systemevents/8.0.0",
+      "path": "microsoft.win32.systemevents/9.0.1",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
         "Icon.png",
         "LICENSE.TXT",
+        "PACKAGE.md",
         "THIRD-PARTY-NOTICES.TXT",
         "buildTransitive/net461/Microsoft.Win32.SystemEvents.targets",
         "buildTransitive/net462/_._",
-        "buildTransitive/net6.0/_._",
+        "buildTransitive/net8.0/_._",
         "buildTransitive/netcoreapp2.0/Microsoft.Win32.SystemEvents.targets",
         "lib/net462/Microsoft.Win32.SystemEvents.dll",
         "lib/net462/Microsoft.Win32.SystemEvents.xml",
-        "lib/net6.0/Microsoft.Win32.SystemEvents.dll",
-        "lib/net6.0/Microsoft.Win32.SystemEvents.xml",
-        "lib/net7.0/Microsoft.Win32.SystemEvents.dll",
-        "lib/net7.0/Microsoft.Win32.SystemEvents.xml",
         "lib/net8.0/Microsoft.Win32.SystemEvents.dll",
         "lib/net8.0/Microsoft.Win32.SystemEvents.xml",
+        "lib/net9.0/Microsoft.Win32.SystemEvents.dll",
+        "lib/net9.0/Microsoft.Win32.SystemEvents.xml",
         "lib/netstandard2.0/Microsoft.Win32.SystemEvents.dll",
         "lib/netstandard2.0/Microsoft.Win32.SystemEvents.xml",
-        "microsoft.win32.systemevents.8.0.0.nupkg.sha512",
+        "microsoft.win32.systemevents.9.0.1.nupkg.sha512",
         "microsoft.win32.systemevents.nuspec",
-        "runtimes/win/lib/net6.0/Microsoft.Win32.SystemEvents.dll",
-        "runtimes/win/lib/net6.0/Microsoft.Win32.SystemEvents.xml",
-        "runtimes/win/lib/net7.0/Microsoft.Win32.SystemEvents.dll",
-        "runtimes/win/lib/net7.0/Microsoft.Win32.SystemEvents.xml",
         "runtimes/win/lib/net8.0/Microsoft.Win32.SystemEvents.dll",
         "runtimes/win/lib/net8.0/Microsoft.Win32.SystemEvents.xml",
+        "runtimes/win/lib/net9.0/Microsoft.Win32.SystemEvents.dll",
+        "runtimes/win/lib/net9.0/Microsoft.Win32.SystemEvents.xml",
         "useSharedDesignerContext.txt"
       ]
     },
-    "Microsoft.Windows.AI.MachineLearning/2.0.300": {
-      "sha512": "OiJX15N198kG30Lop7LH8WjmBfk2/9iU9it9eLPnkNZ49Yi/vAa4ntONGiGOgv5mb8/fvFHV5trCWSPM+OQhSw==",
+    "Microsoft.Windows.AI.MachineLearning/2.1.74": {
+      "sha512": "/Z1yAQ0J53eD1RrOl5anTDS0UQOgneERY//hLljwGcWeUX9ynCvOl5qUxAsfWvwsZZGcvV4WKjAvnAtA6N5i+w==",
       "type": "package",
-      "path": "microsoft.windows.ai.machinelearning/2.0.300",
+      "path": "microsoft.windows.ai.machinelearning/2.1.74",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -1669,30 +2425,35 @@
         "include/winml/provider_options.h",
         "lib/native/arm64/Microsoft.Windows.AI.MachineLearning.lib",
         "lib/native/arm64/onnxruntime.lib",
+        "lib/native/arm64ec/Microsoft.Windows.AI.MachineLearning.lib",
         "lib/native/arm64ec/onnxruntime.lib",
         "lib/native/x64/Microsoft.Windows.AI.MachineLearning.lib",
         "lib/native/x64/onnxruntime.lib",
         "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.MachineLearning.Projection.dll",
+        "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.MachineLearning.Projection.xml",
         "lib/net8.0-windows10.0.17763.0/Microsoft.ML.OnnxRuntime.dll",
         "lib/net8.0-windows10.0.17763.0/Microsoft.Windows.AI.MachineLearning.Projection.dll",
+        "lib/net8.0-windows10.0.17763.0/Microsoft.Windows.AI.MachineLearning.Projection.xml",
         "license.txt",
         "metadata/Microsoft.Windows.AI.MachineLearning.winmd",
-        "microsoft.windows.ai.machinelearning.2.0.300.nupkg.sha512",
+        "metadata/Microsoft.Windows.AI.MachineLearning.xml",
+        "microsoft.windows.ai.machinelearning.2.1.74.nupkg.sha512",
         "microsoft.windows.ai.machinelearning.nuspec",
         "runtimes/win-arm64/native/DirectML.dll",
         "runtimes/win-arm64/native/Microsoft.Windows.AI.MachineLearning.dll",
         "runtimes/win-arm64/native/onnxruntime.dll",
         "runtimes/win-arm64ec/native/DirectML.dll",
+        "runtimes/win-arm64ec/native/Microsoft.Windows.AI.MachineLearning.dll",
         "runtimes/win-arm64ec/native/onnxruntime.dll",
         "runtimes/win-x64/native/DirectML.dll",
         "runtimes/win-x64/native/Microsoft.Windows.AI.MachineLearning.dll",
         "runtimes/win-x64/native/onnxruntime.dll"
       ]
     },
-    "Microsoft.Windows.SDK.BuildTools/10.0.28000.1839": {
-      "sha512": "xPRyq2l8rBbKPOEymCGGN1+086KHsMpXz2bhP2Ha3Woo0tsqrnEXUO/iINJ5kqOvax78LtSReoAZi26rFqOdPg==",
+    "Microsoft.Windows.SDK.BuildTools/10.0.28000.2705": {
+      "sha512": "TZQ96xtu7+fyFsyJCgj6Hazru0H8G1kiE1CeZLGpsqT4xKQmkxWu9yRuxYLeHJECjqEHN7duZUTcdbt8zlQ8OQ==",
       "type": "package",
-      "path": "microsoft.windows.sdk.buildtools/10.0.28000.1839",
+      "path": "microsoft.windows.sdk.buildtools/10.0.28000.2705",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -1861,7 +2622,7 @@
         "build/Microsoft.Windows.SDK.BuildTools.targets",
         "buildTransitive/Microsoft.Windows.SDK.BuildTools.props",
         "buildTransitive/Microsoft.Windows.SDK.BuildTools.targets",
-        "microsoft.windows.sdk.buildtools.10.0.28000.1839.nupkg.sha512",
+        "microsoft.windows.sdk.buildtools.10.0.28000.2705.nupkg.sha512",
         "microsoft.windows.sdk.buildtools.nuspec",
         "schemas/10.0.28000.0/winrt/AppxManifestSchema.xsd",
         "schemas/10.0.28000.0/winrt/AppxManifestSchema2010_v2.xsd",
@@ -1961,10 +2722,10 @@
         "tools/net6.0/Newtonsoft.Json.dll"
       ]
     },
-    "Microsoft.WindowsAppSDK/2.0.1": {
-      "sha512": "R+iN0mqIUUppbzpHU178R5malnttTTVBOBIGi1NQVVZAs34bAANM/iLJhjj6uUBgYiPfpvjcLbHT5IZ8kKKaqg==",
+    "Microsoft.WindowsAppSDK/2.4.0": {
+      "sha512": "sdS48CFL5EqzFB5a63Rr6qdK5l8NqmxWKJ/DXwsF8waCDLXdD8SjSnIOfpxzq4f4aUhaeXEAwVRA9rD8QvM+2g==",
       "type": "package",
-      "path": "microsoft.windowsappsdk/2.0.1",
+      "path": "microsoft.windowsappsdk/2.4.0",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -1979,14 +2740,14 @@
         "buildTransitive/native/Microsoft.WindowsAppSDK.props",
         "buildTransitive/native/Microsoft.WindowsAppSDK.targets",
         "license.txt",
-        "microsoft.windowsappsdk.2.0.1.nupkg.sha512",
+        "microsoft.windowsappsdk.2.4.0.nupkg.sha512",
         "microsoft.windowsappsdk.nuspec"
       ]
     },
-    "Microsoft.WindowsAppSDK.AI/2.0.185": {
-      "sha512": "KkWthQS+QuiTQJ8HgSpobUgfJDRUAwps0/1MjYM3wZ/hQzSKr1UoyiYLgk/I8Z2I+/NNphbZ9NsY7DwHKrZJlg==",
+    "Microsoft.WindowsAppSDK.AI/2.4.4": {
+      "sha512": "nwgZKIWa97bxP3UYahv9LK1WAftzsEu3x/Ws9hCs5QG9mOf25ODrhv7BOGfYvptEhrh+XhoqCa8etSVQRr8cmw==",
       "type": "package",
-      "path": "microsoft.windowsappsdk.ai/2.0.185",
+      "path": "microsoft.windowsappsdk.ai/2.4.4",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -1999,34 +2760,54 @@
         "buildTransitive/native/Microsoft.WindowsAppSDK.AI.props",
         "buildTransitive/native/Microsoft.WindowsAppSDK.AI.targets",
         "lib/net6.0-windows10.0.17763.0/Microsoft.Graphics.Imaging.Projection.dll",
+        "lib/net6.0-windows10.0.17763.0/Microsoft.Graphics.Imaging.Projection.xml",
         "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.ContentSafety.Projection.dll",
+        "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.ContentSafety.Projection.xml",
         "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Foundation.Projection.dll",
+        "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Foundation.Projection.xml",
         "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Imaging.Projection.dll",
+        "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Imaging.Projection.xml",
         "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Projection.dll",
+        "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Projection.xml",
         "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Text.Projection.dll",
+        "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Text.Projection.xml",
+        "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Video.Projection.dll",
+        "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.AI.Video.Projection.xml",
         "license.txt",
         "metadata/Microsoft.Graphics.Imaging.winmd",
+        "metadata/Microsoft.Graphics.Imaging.xml",
         "metadata/Microsoft.Windows.AI.ContentSafety.winmd",
+        "metadata/Microsoft.Windows.AI.ContentSafety.xml",
         "metadata/Microsoft.Windows.AI.Foundation.winmd",
+        "metadata/Microsoft.Windows.AI.Foundation.xml",
         "metadata/Microsoft.Windows.AI.Imaging.winmd",
+        "metadata/Microsoft.Windows.AI.Imaging.xml",
         "metadata/Microsoft.Windows.AI.Text.winmd",
+        "metadata/Microsoft.Windows.AI.Text.xml",
+        "metadata/Microsoft.Windows.AI.Video.winmd",
+        "metadata/Microsoft.Windows.AI.Video.xml",
         "metadata/Microsoft.Windows.AI.winmd",
+        "metadata/Microsoft.Windows.AI.xml",
         "metadata/Microsoft.Windows.SemanticSearch.winmd",
+        "metadata/Microsoft.Windows.SemanticSearch.xml",
         "metadata/Microsoft.Windows.Vision.winmd",
         "metadata/Microsoft.Windows.Workloads.winmd",
-        "microsoft.windowsappsdk.ai.2.0.185.nupkg.sha512",
+        "metadata/Microsoft.Windows.Workloads.xml",
+        "microsoft.windowsappsdk.ai.2.4.4.nupkg.sha512",
         "microsoft.windowsappsdk.ai.nuspec",
         "runtimes-framework/package.appxfragment",
         "runtimes-framework/win-arm64/native/Microsoft.Graphics.Imaging.dll",
         "runtimes-framework/win-arm64/native/Microsoft.Graphics.ImagingInternal.ImageObjectRemover.winmd",
         "runtimes-framework/win-arm64/native/Microsoft.Graphics.ImagingInternal.winmd",
         "runtimes-framework/win-arm64/native/Microsoft.Graphics.Internal.Imaging.winmd",
+        "runtimes-framework/win-arm64/native/Microsoft.Windows.AI.AICapabilities.dll",
         "runtimes-framework/win-arm64/native/Microsoft.Windows.AI.ContentModerationInternal.winmd",
         "runtimes-framework/win-arm64/native/Microsoft.Windows.AI.ContentSafety.dll",
         "runtimes-framework/win-arm64/native/Microsoft.Windows.AI.FoundationInternal.winmd",
         "runtimes-framework/win-arm64/native/Microsoft.Windows.AI.GenerativeInternal.winmd",
         "runtimes-framework/win-arm64/native/Microsoft.Windows.AI.Imaging.dll",
         "runtimes-framework/win-arm64/native/Microsoft.Windows.AI.Text.dll",
+        "runtimes-framework/win-arm64/native/Microsoft.Windows.AI.Video.dll",
         "runtimes-framework/win-arm64/native/Microsoft.Windows.ImageCreationInternal.winmd",
         "runtimes-framework/win-arm64/native/Microsoft.Windows.Internal.AI.ContentModeration.winmd",
         "runtimes-framework/win-arm64/native/Microsoft.Windows.Internal.AI.Generative.winmd",
@@ -2041,7 +2822,10 @@
         "runtimes-framework/win-arm64/native/Microsoft.Windows.Workloads.dll",
         "runtimes-framework/win-arm64/native/Microsoft.Windows.Workloads.pri",
         "runtimes-framework/win-arm64/native/NPUDetect.dll",
+        "runtimes-framework/win-arm64/native/PerceptiveStreaming.dll",
         "runtimes-framework/win-arm64/native/SessionHandleIPCProxyStub.dll",
+        "runtimes-framework/win-arm64/native/streaming_sr_cpu_1x192x192x3.all.onnxe",
+        "runtimes-framework/win-arm64/native/streaming_sr_wodq_1x384x384x3.all.onnxe",
         "runtimes-framework/win-arm64/native/workloads.j32.json",
         "runtimes-framework/win-arm64/native/workloads.json",
         "runtimes-framework/win-arm64/native/workloads.qnn.json",
@@ -2049,12 +2833,14 @@
         "runtimes-framework/win-arm64ec/native/Microsoft.Graphics.ImagingInternal.ImageObjectRemover.winmd",
         "runtimes-framework/win-arm64ec/native/Microsoft.Graphics.ImagingInternal.winmd",
         "runtimes-framework/win-arm64ec/native/Microsoft.Graphics.Internal.Imaging.winmd",
+        "runtimes-framework/win-arm64ec/native/Microsoft.Windows.AI.AICapabilities.dll",
         "runtimes-framework/win-arm64ec/native/Microsoft.Windows.AI.ContentModerationInternal.winmd",
         "runtimes-framework/win-arm64ec/native/Microsoft.Windows.AI.ContentSafety.dll",
         "runtimes-framework/win-arm64ec/native/Microsoft.Windows.AI.FoundationInternal.winmd",
         "runtimes-framework/win-arm64ec/native/Microsoft.Windows.AI.GenerativeInternal.winmd",
         "runtimes-framework/win-arm64ec/native/Microsoft.Windows.AI.Imaging.dll",
         "runtimes-framework/win-arm64ec/native/Microsoft.Windows.AI.Text.dll",
+        "runtimes-framework/win-arm64ec/native/Microsoft.Windows.AI.Video.dll",
         "runtimes-framework/win-arm64ec/native/Microsoft.Windows.ImageCreationInternal.winmd",
         "runtimes-framework/win-arm64ec/native/Microsoft.Windows.Internal.AI.ContentModeration.winmd",
         "runtimes-framework/win-arm64ec/native/Microsoft.Windows.Internal.AI.Generative.winmd",
@@ -2070,7 +2856,10 @@
         "runtimes-framework/win-arm64ec/native/Microsoft.Windows.Workloads.dll",
         "runtimes-framework/win-arm64ec/native/Microsoft.Windows.Workloads.pri",
         "runtimes-framework/win-arm64ec/native/NPUDetect.dll",
+        "runtimes-framework/win-arm64ec/native/PerceptiveStreaming.dll",
         "runtimes-framework/win-arm64ec/native/SessionHandleIPCProxyStub.dll",
+        "runtimes-framework/win-arm64ec/native/streaming_sr_cpu_1x192x192x3.all.onnxe",
+        "runtimes-framework/win-arm64ec/native/streaming_sr_wodq_1x384x384x3.all.onnxe",
         "runtimes-framework/win-arm64ec/native/workloads.365.json",
         "runtimes-framework/win-arm64ec/native/workloads.j32.json",
         "runtimes-framework/win-arm64ec/native/workloads.json",
@@ -2081,12 +2870,14 @@
         "runtimes-framework/win-x64/native/Microsoft.Graphics.ImagingInternal.ImageObjectRemover.winmd",
         "runtimes-framework/win-x64/native/Microsoft.Graphics.ImagingInternal.winmd",
         "runtimes-framework/win-x64/native/Microsoft.Graphics.Internal.Imaging.winmd",
+        "runtimes-framework/win-x64/native/Microsoft.Windows.AI.AICapabilities.dll",
         "runtimes-framework/win-x64/native/Microsoft.Windows.AI.ContentModerationInternal.winmd",
         "runtimes-framework/win-x64/native/Microsoft.Windows.AI.ContentSafety.dll",
         "runtimes-framework/win-x64/native/Microsoft.Windows.AI.FoundationInternal.winmd",
         "runtimes-framework/win-x64/native/Microsoft.Windows.AI.GenerativeInternal.winmd",
         "runtimes-framework/win-x64/native/Microsoft.Windows.AI.Imaging.dll",
         "runtimes-framework/win-x64/native/Microsoft.Windows.AI.Text.dll",
+        "runtimes-framework/win-x64/native/Microsoft.Windows.AI.Video.dll",
         "runtimes-framework/win-x64/native/Microsoft.Windows.ImageCreationInternal.winmd",
         "runtimes-framework/win-x64/native/Microsoft.Windows.Internal.AI.ContentModeration.winmd",
         "runtimes-framework/win-x64/native/Microsoft.Windows.Internal.AI.Generative.winmd",
@@ -2102,7 +2893,10 @@
         "runtimes-framework/win-x64/native/Microsoft.Windows.Workloads.dll",
         "runtimes-framework/win-x64/native/Microsoft.Windows.Workloads.pri",
         "runtimes-framework/win-x64/native/NPUDetect.dll",
+        "runtimes-framework/win-x64/native/PerceptiveStreaming.dll",
         "runtimes-framework/win-x64/native/SessionHandleIPCProxyStub.dll",
+        "runtimes-framework/win-x64/native/streaming_sr_cpu_1x192x192x3.all.onnxe",
+        "runtimes-framework/win-x64/native/streaming_sr_wodq_1x384x384x3.all.onnxe",
         "runtimes-framework/win-x64/native/workloads.365.json",
         "runtimes-framework/win-x64/native/workloads.j32.json",
         "runtimes-framework/win-x64/native/workloads.json",
@@ -2111,10 +2905,10 @@
         "runtimes-framework/win-x64/native/workloads.stx.json"
       ]
     },
-    "Microsoft.WindowsAppSDK.Base/2.0.3": {
-      "sha512": "UZIO8/Vk2FKONlKNM8ZyFLhkSZcMZSzFDVmmzZOCnOBcvxNwWRW/+klUlTEI8tLpPVHJTQUsZE677GaYyDzrHw==",
+    "Microsoft.WindowsAppSDK.Base/2.0.4": {
+      "sha512": "QXSy2llX2/Bx9dYWGUEsb10F40q94ZiDnPMzqa2/qRmTG4y9EXxGp6uHITb7c0b4FCa+6KFBlgh6D53M0QEMEg==",
       "type": "package",
-      "path": "microsoft.windowsappsdk.base/2.0.3",
+      "path": "microsoft.windowsappsdk.base/2.0.4",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -2137,14 +2931,14 @@
         "buildTransitive/native/Microsoft.WindowsAppSDK.Base.props",
         "buildTransitive/native/Microsoft.WindowsAppSDK.Base.targets",
         "license.txt",
-        "microsoft.windowsappsdk.base.2.0.3.nupkg.sha512",
+        "microsoft.windowsappsdk.base.2.0.4.nupkg.sha512",
         "microsoft.windowsappsdk.base.nuspec"
       ]
     },
-    "Microsoft.WindowsAppSDK.DWrite/2.0.26041403": {
-      "sha512": "iClF//qwKk82OWR84acdTezu9euInOYo6QvtFz/IobfbpWBLfXA4mjbu5DpK03z/BF8hHG7COIwvJ+D/5iNvsg==",
+    "Microsoft.WindowsAppSDK.DWrite/2.1.0": {
+      "sha512": "dgix7NSeo7Z8SZPyrsOqYm/6OUvBveHCiVyorYecmtDYoZW26dJ6/i9yveIxgWvmFpgfKXPeIuQBCvhbetHiYg==",
       "type": "package",
-      "path": "microsoft.windowsappsdk.dwrite/2.0.26041403",
+      "path": "microsoft.windowsappsdk.dwrite/2.1.0",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -2165,7 +2959,7 @@
         "lib/native/x64/DWriteCore.lib",
         "lib/native/x86/DWriteCore.lib",
         "license.txt",
-        "microsoft.windowsappsdk.dwrite.2.0.26041403.nupkg.sha512",
+        "microsoft.windowsappsdk.dwrite.2.1.0.nupkg.sha512",
         "microsoft.windowsappsdk.dwrite.nuspec",
         "runtimes-framework/win-arm64/native/DWriteCore.dll",
         "runtimes-framework/win-arm64ec/native/DWriteCore.dll",
@@ -2173,10 +2967,10 @@
         "runtimes-framework/win-x86/native/DWriteCore.dll"
       ]
     },
-    "Microsoft.WindowsAppSDK.Foundation/2.0.20": {
-      "sha512": "PwoRG/eddoi9SOSVPyanei5WAHMyAeVFAeqcovd0V0Ebx6dw7S+ksVVGThAoMjrRI6f93Fa6mTmwXqFHExOtlw==",
+    "Microsoft.WindowsAppSDK.Foundation/2.3.9": {
+      "sha512": "lnfSoKvuMN2nv/NyMDWHX5u2K/tdg8AiyW+z30/YmCbJZp1k38B8/d4pKf+RjgkQbSGbIikN4irae72FXA3X5Q==",
       "type": "package",
-      "path": "microsoft.windowsappsdk.foundation/2.0.20",
+      "path": "microsoft.windowsappsdk.foundation/2.3.9",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -2320,7 +3114,7 @@
         "metadata/Microsoft.Windows.System.Power.xml",
         "metadata/Microsoft.Windows.System.winmd",
         "metadata/Microsoft.Windows.System.xml",
-        "microsoft.windowsappsdk.foundation.2.0.20.nupkg.sha512",
+        "microsoft.windowsappsdk.foundation.2.3.9.nupkg.sha512",
         "microsoft.windowsappsdk.foundation.nuspec",
         "runtimes-framework/package.appxfragment",
         "runtimes-framework/win-arm64/native/DeploymentAgent.exe",
@@ -2361,10 +3155,10 @@
         "runtimes/win-x86/native/Microsoft.WindowsAppRuntime.Bootstrap.dll"
       ]
     },
-    "Microsoft.WindowsAppSDK.InteractiveExperiences/2.0.12": {
-      "sha512": "uGNDuIhBHTO1azsa0SCO6/h/0JBVKqoKiJA0K8JSgrlGeC5Lx7g0xppS8aOF/aTnOPSR9BIEHWRvH9JldWTbBg==",
+    "Microsoft.WindowsAppSDK.InteractiveExperiences/2.1.6": {
+      "sha512": "j7pyWfsXPQFTEWX22GgC6/JDzliBpwKESJzglCOv8wRJI7SmXiPdYqQnBI2gSKC1slJIpkczVdmmpvHmxPxyOw==",
       "type": "package",
-      "path": "microsoft.windowsappsdk.interactiveexperiences/2.0.12",
+      "path": "microsoft.windowsappsdk.interactiveexperiences/2.1.6",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -2423,7 +3217,7 @@
         "metadata/10.0.18362.0/Microsoft.Graphics.xml",
         "metadata/10.0.18362.0/Microsoft.UI.winmd",
         "metadata/10.0.18362.0/Microsoft.UI.xml",
-        "microsoft.windowsappsdk.interactiveexperiences.2.0.12.nupkg.sha512",
+        "microsoft.windowsappsdk.interactiveexperiences.2.1.6.nupkg.sha512",
         "microsoft.windowsappsdk.interactiveexperiences.nuspec",
         "runtimes-framework/package.appxfragment",
         "runtimes-framework/win-arm64/native/CoreMessagingXP.dll",
@@ -2496,10 +3290,10 @@
         "runtimes-framework/win-x86/native/wuceffectsi.dll"
       ]
     },
-    "Microsoft.WindowsAppSDK.ML/2.0.300": {
-      "sha512": "3/PInpjZozhI+KryPO2b3gZVNyFVOd5qSBhiGW/qFo2VzKQCMc0+cyaCPVm8uhfm3jqgYjQ4g/EqHFA5gJIaoQ==",
+    "Microsoft.WindowsAppSDK.ML/2.1.74": {
+      "sha512": "9Vd1ikH+n6pbqhgmCn+zNulJ6gIp9Hz9bC++ka1Uphh2gule6HiT6Jr25N/fQoEc4I9xOTKkn3DtlcpHlcocaw==",
       "type": "package",
-      "path": "microsoft.windowsappsdk.ml/2.0.300",
+      "path": "microsoft.windowsappsdk.ml/2.1.74",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -2507,25 +3301,27 @@
         "ThirdPartyNotices.txt",
         "build/Microsoft.WindowsAppSDK.ML.props",
         "build/Microsoft.WindowsAppSDK.ML.targets",
+        "build/cmake/microsoft.windowsappsdk.ml-config.cmake",
         "build/native/Microsoft.WindowsAppSDK.ML.props",
         "build/native/Microsoft.WindowsAppSDK.ML.targets",
         "buildTransitive/Microsoft.WindowsAppSDK.ML.props",
         "buildTransitive/Microsoft.WindowsAppSDK.ML.targets",
+        "buildTransitive/cmake/microsoft.windowsappsdk.ml-config.cmake",
         "buildTransitive/native/Microsoft.WindowsAppSDK.ML.props",
         "buildTransitive/native/Microsoft.WindowsAppSDK.ML.targets",
         "include/WindowsMLAutoInitializer.Passthrough.cpp",
         "include/WindowsMLAutoInitializer.SelfContained.cpp",
         "include/WindowsMLAutoInitializer.cpp",
         "license.txt",
-        "microsoft.windowsappsdk.ml.2.0.300.nupkg.sha512",
+        "microsoft.windowsappsdk.ml.2.1.74.nupkg.sha512",
         "microsoft.windowsappsdk.ml.nuspec",
         "runtimes-framework/package.appxfragment"
       ]
     },
-    "Microsoft.WindowsAppSDK.Runtime/2.0.1": {
-      "sha512": "auDu0gwvIrxM1gbOJsRiyRJHHeFaAC9ORO4EppreRQEeD+BteTdl6Z/bP4aUgmUimrr7gOQQ87iLcQOsahbvSQ==",
+    "Microsoft.WindowsAppSDK.Runtime/2.4.0": {
+      "sha512": "ioljT2/zivSWb6Hc375VPrRrauE5O49OccruHQFI23NdwGERCFBgCr1qCYhFciTxAX9hOMkJeAx0/Wo6Z5y6eg==",
       "type": "package",
-      "path": "microsoft.windowsappsdk.runtime/2.0.1",
+      "path": "microsoft.windowsappsdk.runtime/2.4.0",
       "hasTools": true,
       "files": [
         ".nupkg.metadata",
@@ -2551,7 +3347,7 @@
         "include/WindowsAppSDK-VersionInfo.cs",
         "include/WindowsAppSDK-VersionInfo.h",
         "license.txt",
-        "microsoft.windowsappsdk.runtime.2.0.1.nupkg.sha512",
+        "microsoft.windowsappsdk.runtime.2.4.0.nupkg.sha512",
         "microsoft.windowsappsdk.runtime.nuspec",
         "tools/MSIX/win10-arm64/MSIX.inventory",
         "tools/MSIX/win10-arm64/Microsoft.WindowsAppRuntime.2.msix",
@@ -2572,10 +3368,36 @@
         "tools/MSIX/win10-x86/Microsoft.WindowsAppRuntime.Singleton.2.msix"
       ]
     },
-    "Microsoft.WindowsAppSDK.Widgets/2.0.4": {
-      "sha512": "gvfIHLmQKBQ+KQKrWb+Oc+eQEZtpKx2zHQDBzFF7Tio+SDkXtaONU4nvHgaqcnkbqNpDPPT/pYIr7UaI51vNEQ==",
+    "Microsoft.WindowsAppSDK.Search/2.4.4": {
+      "sha512": "3IXnSBTBBQpqp3B+0R5FUEzcAHFwq4DVEDukVdqk3nP+X4LA10yPLO/uQgDaxtDxwhMJcEXX3vrKFdQTWSAOwg==",
       "type": "package",
-      "path": "microsoft.windowsappsdk.widgets/2.0.4",
+      "path": "microsoft.windowsappsdk.search/2.4.4",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "build/Microsoft.WindowsAppSDK.Search.props",
+        "build/Microsoft.WindowsAppSDK.Search.targets",
+        "build/native/Microsoft.WindowsAppSDK.Search.props",
+        "build/native/Microsoft.WindowsAppSDK.Search.targets",
+        "buildTransitive/Microsoft.WindowsAppSDK.Search.props",
+        "buildTransitive/Microsoft.WindowsAppSDK.Search.targets",
+        "buildTransitive/native/Microsoft.WindowsAppSDK.Search.props",
+        "buildTransitive/native/Microsoft.WindowsAppSDK.Search.targets",
+        "lib/net6.0-windows10.0.17763.0/Microsoft.Windows.Search.Projection.dll",
+        "license.txt",
+        "metadata/Microsoft.Windows.Search.winmd",
+        "microsoft.windowsappsdk.search.2.4.4.nupkg.sha512",
+        "microsoft.windowsappsdk.search.nuspec",
+        "runtimes-framework/package.appxfragment",
+        "runtimes-framework/win-arm64/native/Microsoft.Windows.Search.dll",
+        "runtimes-framework/win-arm64ec/native/Microsoft.Windows.Search.dll",
+        "runtimes-framework/win-x64/native/Microsoft.Windows.Search.dll"
+      ]
+    },
+    "Microsoft.WindowsAppSDK.Widgets/2.0.5": {
+      "sha512": "lRz+8+QU65gV8hRzLVE+GRsPKZ42lnzqkmsw96HzQd/DuFYfr4JYpUU7ZZ5YrkV2EfQe4BCmoRKAeZ3WwalMcg==",
+      "type": "package",
+      "path": "microsoft.windowsappsdk.widgets/2.0.5",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
@@ -2592,7 +3414,7 @@
         "license.txt",
         "metadata/Microsoft.Windows.Widgets.winmd",
         "metadata/Microsoft.Windows.Widgets.xml",
-        "microsoft.windowsappsdk.widgets.2.0.4.nupkg.sha512",
+        "microsoft.windowsappsdk.widgets.2.0.5.nupkg.sha512",
         "microsoft.windowsappsdk.widgets.nuspec",
         "runtimes-framework/package.appxfragment",
         "runtimes-framework/win-arm64/native/Microsoft.Windows.Widgets.dll",
@@ -2601,10 +3423,10 @@
         "runtimes-framework/win-x86/native/Microsoft.Windows.Widgets.dll"
       ]
     },
-    "Microsoft.WindowsAppSDK.WinUI/2.0.12": {
-      "sha512": "qNyajFTgO9xuxKtcs7vLqg7NLSuZK5+EUKeRh6fHQ9Da8hhmymoKci/srxyQwyLkFOXRL7nnuoxovUpzNjlsCg==",
+    "Microsoft.WindowsAppSDK.WinUI/2.3.6": {
+      "sha512": "01ImKF+wYm2aehRWS2GpKeoBL1RutDcJOUSTSo3fkLjOSr+gKPcUGDAtIUwZcQTvHWOct6hT1jKIdyxbJIhpBA==",
       "type": "package",
-      "path": "microsoft.windowsappsdk.winui/2.0.12",
+      "path": "microsoft.windowsappsdk.winui/2.3.6",
       "hasTools": true,
       "files": [
         ".nupkg.metadata",
@@ -2663,7 +3485,7 @@
         "metadata/Microsoft.UI.Text.xml",
         "metadata/Microsoft.UI.Xaml.winmd",
         "metadata/Microsoft.UI.Xaml.xml",
-        "microsoft.windowsappsdk.winui.2.0.12.nupkg.sha512",
+        "microsoft.windowsappsdk.winui.2.3.6.nupkg.sha512",
         "microsoft.windowsappsdk.winui.nuspec",
         "runtimes-framework/package.appxfragment",
         "runtimes-framework/win-arm64/native/Microsoft.UI.Xaml.Controls.dll",
@@ -3427,34 +4249,64 @@
         "tools/x86/GenXbf.dll"
       ]
     },
-    "System.Drawing.Common/8.0.0": {
-      "sha512": "JkbHJjtI/dWc5dfmEdJlbe3VwgZqCkZRtfuWFh5GOv0f+gGCfBtzMpIVkmdkj2AObO9y+oiOi81UGwH3aBYuqA==",
+    "System.Collections.Immutable/9.0.1": {
+      "sha512": "qt4+ClsZYKzar/Rw1zbt0t9iuBUCLVNsjXicEuVQyKL7143CwhWzI2gTwzz8AhSaFYVHnpcb8SBGA+zaY4weUg==",
       "type": "package",
-      "path": "system.drawing.common/8.0.0",
+      "path": "system.collections.immutable/9.0.1",
       "files": [
         ".nupkg.metadata",
         ".signature.p7s",
         "Icon.png",
         "LICENSE.TXT",
+        "PACKAGE.md",
+        "THIRD-PARTY-NOTICES.TXT",
+        "buildTransitive/net461/System.Collections.Immutable.targets",
+        "buildTransitive/net462/_._",
+        "buildTransitive/net8.0/_._",
+        "buildTransitive/netcoreapp2.0/System.Collections.Immutable.targets",
+        "lib/net462/System.Collections.Immutable.dll",
+        "lib/net462/System.Collections.Immutable.xml",
+        "lib/net8.0/System.Collections.Immutable.dll",
+        "lib/net8.0/System.Collections.Immutable.xml",
+        "lib/net9.0/System.Collections.Immutable.dll",
+        "lib/net9.0/System.Collections.Immutable.xml",
+        "lib/netstandard2.0/System.Collections.Immutable.dll",
+        "lib/netstandard2.0/System.Collections.Immutable.xml",
+        "system.collections.immutable.9.0.1.nupkg.sha512",
+        "system.collections.immutable.nuspec",
+        "useSharedDesignerContext.txt"
+      ]
+    },
+    "System.Drawing.Common/9.0.1": {
+      "sha512": "TTPkCqSMyMaG8BXlBKYTTJFtLV0SvjjsvgUN598hYgHaX/5B7tdUc2JhQF9vwrYmlzxId+gwFnKYuxQ2XsSz2g==",
+      "type": "package",
+      "path": "system.drawing.common/9.0.1",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Icon.png",
+        "LICENSE.TXT",
+        "PACKAGE.md",
         "THIRD-PARTY-NOTICES.TXT",
         "buildTransitive/net461/System.Drawing.Common.targets",
         "buildTransitive/net462/_._",
-        "buildTransitive/net6.0/_._",
+        "buildTransitive/net8.0/_._",
         "buildTransitive/netcoreapp2.0/System.Drawing.Common.targets",
         "lib/MonoAndroid10/_._",
         "lib/MonoTouch10/_._",
         "lib/net462/System.Drawing.Common.dll",
         "lib/net462/System.Drawing.Common.pdb",
         "lib/net462/System.Drawing.Common.xml",
-        "lib/net6.0/System.Drawing.Common.dll",
-        "lib/net6.0/System.Drawing.Common.pdb",
-        "lib/net6.0/System.Drawing.Common.xml",
-        "lib/net7.0/System.Drawing.Common.dll",
-        "lib/net7.0/System.Drawing.Common.pdb",
-        "lib/net7.0/System.Drawing.Common.xml",
         "lib/net8.0/System.Drawing.Common.dll",
         "lib/net8.0/System.Drawing.Common.pdb",
         "lib/net8.0/System.Drawing.Common.xml",
+        "lib/net8.0/System.Private.Windows.Core.dll",
+        "lib/net8.0/System.Private.Windows.Core.xml",
+        "lib/net9.0/System.Drawing.Common.dll",
+        "lib/net9.0/System.Drawing.Common.pdb",
+        "lib/net9.0/System.Drawing.Common.xml",
+        "lib/net9.0/System.Private.Windows.Core.dll",
+        "lib/net9.0/System.Private.Windows.Core.xml",
         "lib/netstandard2.0/System.Drawing.Common.dll",
         "lib/netstandard2.0/System.Drawing.Common.pdb",
         "lib/netstandard2.0/System.Drawing.Common.xml",
@@ -3462,7 +4314,7 @@
         "lib/xamarinmac20/_._",
         "lib/xamarintvos10/_._",
         "lib/xamarinwatchos10/_._",
-        "system.drawing.common.8.0.0.nupkg.sha512",
+        "system.drawing.common.9.0.1.nupkg.sha512",
         "system.drawing.common.nuspec",
         "useSharedDesignerContext.txt"
       ]
@@ -3494,33 +4346,62 @@
         "system.numerics.tensors.nuspec",
         "useSharedDesignerContext.txt"
       ]
+    },
+    "System.Reflection.Metadata/9.0.1": {
+      "sha512": "XGkA0wiS4vbZu708VtlgSh40stW2ucDriDItkiJUnnp867x5HaBfmoTqdA00DYG0Ld7Kg0cLvEPkUEUxputgzQ==",
+      "type": "package",
+      "path": "system.reflection.metadata/9.0.1",
+      "files": [
+        ".nupkg.metadata",
+        ".signature.p7s",
+        "Icon.png",
+        "LICENSE.TXT",
+        "PACKAGE.md",
+        "THIRD-PARTY-NOTICES.TXT",
+        "buildTransitive/net461/System.Reflection.Metadata.targets",
+        "buildTransitive/net462/_._",
+        "buildTransitive/net8.0/_._",
+        "buildTransitive/netcoreapp2.0/System.Reflection.Metadata.targets",
+        "lib/net462/System.Reflection.Metadata.dll",
+        "lib/net462/System.Reflection.Metadata.xml",
+        "lib/net8.0/System.Reflection.Metadata.dll",
+        "lib/net8.0/System.Reflection.Metadata.xml",
+        "lib/net9.0/System.Reflection.Metadata.dll",
+        "lib/net9.0/System.Reflection.Metadata.xml",
+        "lib/netstandard2.0/System.Reflection.Metadata.dll",
+        "lib/netstandard2.0/System.Reflection.Metadata.xml",
+        "system.reflection.metadata.9.0.1.nupkg.sha512",
+        "system.reflection.metadata.nuspec",
+        "useSharedDesignerContext.txt"
+      ]
     }
   },
   "projectFileDependencyGroups": {
     "net8.0-windows10.0.19041.0": [
-      "Microsoft.Windows.SDK.BuildTools >= 10.0.28000.1839",
-      "Microsoft.WindowsAppSDK >= 2.0.1",
-      "System.Drawing.Common >= 8.0.0"
+      "H.NotifyIcon.WinUI >= 2.3.0",
+      "Microsoft.Graphics.Win2D >= 1.3.2",
+      "Microsoft.Windows.SDK.BuildTools >= 10.0.28000.2705",
+      "Microsoft.WindowsAppSDK >= 2.4.0"
     ]
   },
   "packageFolders": {
-    "C:\\Users\\Administrator\\.nuget\\packages\\": {},
+    "C:\\Users\\Admin\\.nuget\\packages\\": {},
     "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages": {}
   },
   "project": {
     "version": "1.0.0",
     "restore": {
-      "projectUniqueName": "C:\\Users\\Administrator\\Desktop\\RimePPT\\RimePPT\\RimePPT.csproj",
+      "projectUniqueName": "D:\\linshi\\桌面\\WinUI\\RimePPT\\RimePPT\\RimePPT.csproj",
       "projectName": "RimePPT",
-      "projectPath": "C:\\Users\\Administrator\\Desktop\\RimePPT\\RimePPT\\RimePPT.csproj",
-      "packagesPath": "C:\\Users\\Administrator\\.nuget\\packages\\",
-      "outputPath": "C:\\Users\\Administrator\\Desktop\\RimePPT\\RimePPT\\obj\\",
+      "projectPath": "D:\\linshi\\桌面\\WinUI\\RimePPT\\RimePPT\\RimePPT.csproj",
+      "packagesPath": "C:\\Users\\Admin\\.nuget\\packages\\",
+      "outputPath": "D:\\linshi\\桌面\\WinUI\\RimePPT\\RimePPT\\obj\\",
       "projectStyle": "PackageReference",
       "fallbackFolders": [
         "C:\\Program Files (x86)\\Microsoft Visual Studio\\Shared\\NuGetPackages"
       ],
       "configFilePaths": [
-        "C:\\Users\\Administrator\\AppData\\Roaming\\NuGet\\NuGet.Config",
+        "C:\\Users\\Admin\\AppData\\Roaming\\NuGet\\NuGet.Config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.FallbackLocation.config",
         "C:\\Program Files (x86)\\NuGet\\Config\\Microsoft.VisualStudio.Offline.config"
       ],
@@ -3548,24 +4429,28 @@
         "auditLevel": "low",
         "auditMode": "direct"
       },
-      "SdkAnalysisLevel": "10.0.300"
+      "SdkAnalysisLevel": "10.0.400"
     },
     "frameworks": {
       "net8.0-windows10.0.19041.0": {
         "framework": "net8.0-windows10.0.19041",
         "targetAlias": "net8.0-windows10.0.19041.0",
         "dependencies": {
+          "H.NotifyIcon.WinUI": {
+            "target": "Package",
+            "version": "[2.3.0, )"
+          },
+          "Microsoft.Graphics.Win2D": {
+            "target": "Package",
+            "version": "[1.3.2, )"
+          },
           "Microsoft.Windows.SDK.BuildTools": {
             "target": "Package",
-            "version": "[10.0.28000.1839, )"
+            "version": "[10.0.28000.2705, )"
           },
           "Microsoft.WindowsAppSDK": {
             "target": "Package",
-            "version": "[2.0.1, )"
-          },
-          "System.Drawing.Common": {
-            "target": "Package",
-            "version": "[8.0.0, )"
+            "version": "[2.4.0, )"
           }
         },
         "imports": [
@@ -3582,27 +4467,27 @@
         "downloadDependencies": [
           {
             "name": "Microsoft.AspNetCore.App.Runtime.win-arm64",
-            "version": "[8.0.27, 8.0.27]"
+            "version": "[8.0.30, 8.0.30]"
           },
           {
             "name": "Microsoft.AspNetCore.App.Runtime.win-x64",
-            "version": "[8.0.27, 8.0.27]"
+            "version": "[8.0.30, 8.0.30]"
           },
           {
             "name": "Microsoft.AspNetCore.App.Runtime.win-x86",
-            "version": "[8.0.27, 8.0.27]"
+            "version": "[8.0.30, 8.0.30]"
           },
           {
             "name": "Microsoft.NETCore.App.Runtime.win-arm64",
-            "version": "[8.0.27, 8.0.27]"
+            "version": "[8.0.30, 8.0.30]"
           },
           {
             "name": "Microsoft.NETCore.App.Runtime.win-x64",
-            "version": "[8.0.27, 8.0.27]"
+            "version": "[8.0.30, 8.0.30]"
           },
           {
             "name": "Microsoft.NETCore.App.Runtime.win-x86",
-            "version": "[8.0.27, 8.0.27]"
+            "version": "[8.0.30, 8.0.30]"
           },
           {
             "name": "Microsoft.Windows.SDK.NET.Ref",
@@ -3610,15 +4495,15 @@
           },
           {
             "name": "Microsoft.WindowsDesktop.App.Runtime.win-arm64",
-            "version": "[8.0.27, 8.0.27]"
+            "version": "[8.0.30, 8.0.30]"
           },
           {
             "name": "Microsoft.WindowsDesktop.App.Runtime.win-x64",
-            "version": "[8.0.27, 8.0.27]"
+            "version": "[8.0.30, 8.0.30]"
           },
           {
             "name": "Microsoft.WindowsDesktop.App.Runtime.win-x86",
-            "version": "[8.0.27, 8.0.27]"
+            "version": "[8.0.30, 8.0.30]"
           }
         ],
         "frameworkReferences": {
@@ -3629,7 +4514,7 @@
             "privateAssets": "all"
           }
         },
-        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.300/PortableRuntimeIdentifierGraph.json"
+        "runtimeIdentifierGraphPath": "C:\\Program Files\\dotnet\\sdk\\10.0.400/PortableRuntimeIdentifierGraph.json"
       }
     },
     "runtimes": {

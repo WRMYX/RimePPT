@@ -1,0 +1,308 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Window
+    x:Class="RimePPT.Windows.SettingsWindow"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    Title="RimePPT 设置">
+
+    <Window.SystemBackdrop>
+        <MicaBackdrop />
+    </Window.SystemBackdrop>
+
+    <NavigationView
+        x:Name="Nav"
+        PaneDisplayMode="Left"
+        OpenPaneLength="200"
+        IsBackButtonVisible="Collapsed"
+        IsSettingsVisible="False"
+        IsPaneToggleButtonVisible="True"
+        SelectionChanged="OnNavSelectionChanged">
+
+        <NavigationView.PaneHeader>
+            <Grid Margin="10,4,10,4" PointerPressed="OnPaneHeaderPressed" Background="Transparent">
+                <StackPanel Orientation="Horizontal" Spacing="10">
+                    <Image x:Name="PaneLogo" Width="22" Height="22" />
+                    <TextBlock Text="RimePPT 设置" VerticalAlignment="Center" FontWeight="SemiBold" />
+                </StackPanel>
+            </Grid>
+        </NavigationView.PaneHeader>
+
+        <NavigationView.Header>
+            <TextBlock Text="设置" FontSize="28" FontWeight="SemiBold" PointerPressed="OnHeaderPressed" />
+        </NavigationView.Header>
+
+        <NavigationView.MenuItems>
+            <NavigationViewItem Content="外观" Tag="appearance">
+                <NavigationViewItem.Icon>
+                    <FontIcon Glyph="&#xE790;" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem Content="工具栏" Tag="toolbar">
+                <NavigationViewItem.Icon>
+                    <FontIcon Glyph="&#xE7F4;" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem Content="调试" Tag="debug">
+                <NavigationViewItem.Icon>
+                    <FontIcon Glyph="&#xE768;" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+        </NavigationView.MenuItems>
+
+        <NavigationView.FooterMenuItems>
+            <NavigationViewItem Content="关于" Tag="about">
+                <NavigationViewItem.Icon>
+                    <FontIcon Glyph="&#xE946;" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+        </NavigationView.FooterMenuItems>
+
+        <Grid Padding="8,0,0,0">
+            <Grid.Resources>
+                <Style x:Key="CardBorder" TargetType="Border">
+                    <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
+                    <Setter Property="BorderBrush" Value="{ThemeResource CardStrokeColorDefaultBrush}" />
+                    <Setter Property="BorderThickness" Value="1" />
+                    <Setter Property="CornerRadius" Value="8" />
+                </Style>
+                <Style x:Key="SettingTitle" TargetType="TextBlock">
+                    <Setter Property="FontSize" Value="14" />
+                </Style>
+                <Style x:Key="SettingDesc" TargetType="TextBlock">
+                    <Setter Property="FontSize" Value="12" />
+                    <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
+                </Style>
+                <Style x:Key="Divider" TargetType="Rectangle">
+                    <Setter Property="Height" Value="1" />
+                    <Setter Property="Fill" Value="{ThemeResource DividerStrokeColorDefaultBrush}" />
+                    <Setter Property="Margin" Value="14,0" />
+                </Style>
+            </Grid.Resources>
+
+            <!-- ———— 外观 ———— -->
+            <ScrollViewer x:Name="AppearancePage" Padding="8,0,16,16">
+                <StackPanel MaxWidth="560" HorizontalAlignment="Left" Spacing="10">
+                    <Border Style="{StaticResource CardBorder}">
+                        <StackPanel>
+                            <Grid Padding="14,8" MinHeight="60">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel VerticalAlignment="Center" Spacing="2">
+                                    <TextBlock Text="工具条主题" Style="{StaticResource SettingTitle}" />
+                                    <TextBlock Text="跟随系统，或强制浅色 / 深色" Style="{StaticResource SettingDesc}" />
+                                </StackPanel>
+                                <ComboBox x:Name="ThemeCombo" Grid.Column="1" Width="140" VerticalAlignment="Center" SelectionChanged="OnThemeChanged">
+                                    <ComboBoxItem Content="跟随系统" />
+                                    <ComboBoxItem Content="浅色" />
+                                    <ComboBoxItem Content="深色" />
+                                </ComboBox>
+                            </Grid>
+                            <Rectangle Style="{StaticResource Divider}" />
+                            <Grid Padding="14,8" MinHeight="60">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel VerticalAlignment="Center" Spacing="2">
+                                    <TextBlock Text="按钮文字" Style="{StaticResource SettingTitle}" />
+                                    <TextBlock Text="工具条按钮上显示文字标签" Style="{StaticResource SettingDesc}" />
+                                </StackPanel>
+                                <ToggleSwitch x:Name="ShowTextToggle" Grid.Column="1" VerticalAlignment="Center" OnContent="" OffContent="" Toggled="OnShowTextToggled" />
+                            </Grid>
+                            <Rectangle Style="{StaticResource Divider}" />
+                            <Grid Padding="14,8" MinHeight="60">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel VerticalAlignment="Center" Spacing="2">
+                                    <TextBlock Text="屏幕边距" Style="{StaticResource SettingTitle}" />
+                                    <TextBlock Text="工具条与屏幕边缘的距离（像素）" Style="{StaticResource SettingDesc}" />
+                                </StackPanel>
+                                <NumberBox x:Name="MarginBox" Grid.Column="1" Width="140" Minimum="0" Maximum="60" SpinButtonPlacementMode="Compact" VerticalAlignment="Center" ValueChanged="OnMarginChanged" />
+                            </Grid>
+                            <Rectangle Style="{StaticResource Divider}" />
+                            <Grid Padding="14,8" MinHeight="60">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel VerticalAlignment="Center" Spacing="2">
+                                    <TextBlock Text="随放映显示工具条" Style="{StaticResource SettingTitle}" />
+                                    <TextBlock Text="进入幻灯片放映时自动浮出工具条" Style="{StaticResource SettingDesc}" />
+                                </StackPanel>
+                                <ToggleSwitch x:Name="AutoShowToggle" Grid.Column="1" VerticalAlignment="Center" OnContent="" OffContent="" Toggled="OnAutoShowToggled" />
+                            </Grid>
+                            <Rectangle Style="{StaticResource Divider}" />
+                            <Grid Padding="14,8" MinHeight="60">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel VerticalAlignment="Center" Spacing="2">
+                                    <TextBlock Text="开机自启" Style="{StaticResource SettingTitle}" />
+                                    <TextBlock Text="登录 Windows 后自动运行并驻留托盘" Style="{StaticResource SettingDesc}" />
+                                </StackPanel>
+                                <ToggleSwitch x:Name="StartupToggle" Grid.Column="1" VerticalAlignment="Center" OnContent="" OffContent="" Toggled="OnStartupToggled" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ———— 工具栏 ———— -->
+            <ScrollViewer x:Name="ToolbarPage" Padding="8,0,16,16" Visibility="Collapsed">
+                <StackPanel MaxWidth="560" HorizontalAlignment="Left" Spacing="10">
+
+                    <!-- 显示区域：屏幕示意图选择器 -->
+                    <Border Style="{StaticResource CardBorder}">
+                        <StackPanel>
+                            <StackPanel Padding="14,10" Spacing="2">
+                                <TextBlock Text="显示区域" Style="{StaticResource SettingTitle}" />
+                                <TextBlock Text="点击屏幕示意图上的区域，显示或隐藏对应工具条" Style="{StaticResource SettingDesc}" />
+                            </StackPanel>
+                            <Rectangle Style="{StaticResource Divider}" />
+                            <Border Margin="14,12" Width="320" Height="180"
+                                    CornerRadius="8"
+                                    Background="{ThemeResource ControlFillColorDefaultBrush}"
+                                    BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
+                                    BorderThickness="1">
+                                <Grid>
+                                    <ToggleButton x:Name="ZoneLeftRail" Tag="LeftRail" Click="OnZoneToggled"
+                                                  HorizontalAlignment="Left" VerticalAlignment="Center" Margin="10,0,0,0"
+                                                  ToolTipService.ToolTip="左栏：翻页 · 批注 · 橡皮 · 工具 · 退出">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <FontIcon Glyph="&#xE76B;" FontSize="14" />
+                                            <TextBlock Text="左栏" FontSize="11" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </ToggleButton>
+                                    <ToggleButton x:Name="ZoneRightRail" Tag="RightRail" Click="OnZoneToggled"
+                                                  HorizontalAlignment="Right" VerticalAlignment="Center" Margin="0,0,10,0"
+                                                  ToolTipService.ToolTip="右栏：翻页 · 批注 · 橡皮 · 工具 · 退出">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <FontIcon Glyph="&#xE76C;" FontSize="14" />
+                                            <TextBlock Text="右栏" FontSize="11" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </ToggleButton>
+                                    <ToggleButton x:Name="ZoneBottomLeft" Tag="BottomLeft" Click="OnZoneToggled"
+                                                  HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="10,0,0,10"
+                                                  ToolTipService.ToolTip="底左：仅上一页 / 下一页">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <FontIcon Glyph="&#xE76B;" FontSize="14" />
+                                            <TextBlock Text="底左" FontSize="11" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </ToggleButton>
+                                    <ToggleButton x:Name="ZoneBottomCenter" Tag="BottomCenter" Click="OnZoneToggled"
+                                                  HorizontalAlignment="Center" VerticalAlignment="Bottom" Margin="0,0,0,10"
+                                                  ToolTipService.ToolTip="底中：批注 · 橡皮 · 工具 · 退出">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <FontIcon Glyph="&#xE90F;" FontSize="14" />
+                                            <TextBlock Text="底中" FontSize="11" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </ToggleButton>
+                                    <ToggleButton x:Name="ZoneBottomRight" Tag="BottomRight" Click="OnZoneToggled"
+                                                  HorizontalAlignment="Right" VerticalAlignment="Bottom" Margin="0,0,10,10"
+                                                  ToolTipService.ToolTip="底右：仅上一页 / 下一页">
+                                        <StackPanel Orientation="Horizontal" Spacing="6">
+                                            <FontIcon Glyph="&#xE76C;" FontSize="14" />
+                                            <TextBlock Text="底右" FontSize="11" VerticalAlignment="Center" />
+                                        </StackPanel>
+                                    </ToggleButton>
+                                </Grid>
+                            </Border>
+                            <TextBlock x:Name="LayoutWarning" Padding="14,0,14,10"
+                                       Text="当前未选择任何工具条区域，放映时将没有工具条"
+                                       Style="{StaticResource SettingDesc}"
+                                       Foreground="{ThemeResource SystemFillColorCautionBrush}"
+                                       Visibility="Collapsed" />
+                        </StackPanel>
+                    </Border>
+
+                    <!-- 实时预览 -->
+                    <Border Style="{StaticResource CardBorder}">
+                        <StackPanel>
+                            <Grid Padding="14,10" MinHeight="60">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel VerticalAlignment="Center" Spacing="2">
+                                    <TextBlock Text="实时预览" Style="{StaticResource SettingTitle}" />
+                                    <TextBlock Text="在主显示器按当前选择实际浮出工具条，切换上方选择立即重建" Style="{StaticResource SettingDesc}" />
+                                </StackPanel>
+                                <Button x:Name="PreviewButton" Grid.Column="1" Content="启动预览" VerticalAlignment="Center" Click="OnPreviewToggled" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ———— 调试 ———— -->
+            <ScrollViewer x:Name="DebugPage" Padding="8,0,16,16" Visibility="Collapsed">
+                <StackPanel MaxWidth="560" HorizontalAlignment="Left" Spacing="10">
+                    <Border Style="{StaticResource CardBorder}">
+                        <StackPanel>
+                            <Grid Padding="14,10" MinHeight="60">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel VerticalAlignment="Center" Spacing="2">
+                                    <TextBlock Text="模拟放映：双侧竖栏" Style="{StaticResource SettingTitle}" />
+                                    <TextBlock Text="无需 Office 即可验证工具条与批注流程" Style="{StaticResource SettingDesc}" />
+                                </StackPanel>
+                                <Button Grid.Column="1" Content="启动" VerticalAlignment="Center" Click="OnDebugSide" />
+                            </Grid>
+                            <Rectangle Style="{StaticResource Divider}" />
+                            <Grid Padding="14,10" MinHeight="60">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel VerticalAlignment="Center" Spacing="2">
+                                    <TextBlock Text="模拟放映：底部工具条" Style="{StaticResource SettingTitle}" />
+                                    <TextBlock Text="三段式底部布局" Style="{StaticResource SettingDesc}" />
+                                </StackPanel>
+                                <Button Grid.Column="1" Content="启动" VerticalAlignment="Center" Click="OnDebugBottom" />
+                            </Grid>
+                            <Rectangle Style="{StaticResource Divider}" />
+                            <Grid Padding="14,10" MinHeight="60">
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*" />
+                                    <ColumnDefinition Width="Auto" />
+                                </Grid.ColumnDefinitions>
+                                <StackPanel VerticalAlignment="Center" Spacing="2">
+                                    <TextBlock Text="结束模拟" Style="{StaticResource SettingTitle}" />
+                                    <TextBlock Text="关闭由模拟产生的全部浮窗" Style="{StaticResource SettingDesc}" />
+                                </StackPanel>
+                                <Button Grid.Column="1" Content="结束" VerticalAlignment="Center" Click="OnDebugStop" />
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+
+            <!-- ———— 关于 ———— -->
+            <ScrollViewer x:Name="AboutPage" Padding="8,0,16,16" Visibility="Collapsed">
+                <StackPanel MaxWidth="560" HorizontalAlignment="Left" Spacing="10">
+                    <Border Style="{StaticResource CardBorder}">
+                        <StackPanel Padding="16,12" Spacing="6">
+                            <TextBlock Text="RimePPT" FontSize="18" FontWeight="SemiBold" />
+                            <TextBlock Text="WinUI 原生 PPT 放映助手：放映时浮出工具条，支持触屏批注与墨迹记忆。" TextWrapping="Wrap" Style="{StaticResource SettingDesc}" />
+                            <TextBlock x:Name="VersionText" Style="{StaticResource SettingDesc}" />
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource CardBorder}">
+                        <StackPanel Padding="16,12" Spacing="8">
+                            <TextBlock Text="开发者" Style="{StaticResource SettingDesc}" />
+                            <Image x:Name="DevLogo" Height="36" HorizontalAlignment="Left" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
+        </Grid>
+    </NavigationView>
+</Window>

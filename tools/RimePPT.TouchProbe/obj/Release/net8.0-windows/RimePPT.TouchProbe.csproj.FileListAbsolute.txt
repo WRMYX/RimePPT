@@ -1,0 +1,14 @@
+D:\linshi\桌面\WinUI\RimePPT\tools\RimePPT.TouchProbe\obj\Release\net8.0-windows\RimePPT.TouchProbe.GeneratedMSBuildEditorConfig.editorconfig
+D:\linshi\桌面\WinUI\RimePPT\tools\RimePPT.TouchProbe\obj\Release\net8.0-windows\RimePPT.TouchProbe.AssemblyInfoInputs.cache
+D:\linshi\桌面\WinUI\RimePPT\tools\RimePPT.TouchProbe\obj\Release\net8.0-windows\RimePPT.TouchProbe.AssemblyInfo.cs
+D:\linshi\桌面\WinUI\RimePPT\tools\RimePPT.TouchProbe\obj\Release\net8.0-windows\RimePPT.TouchProbe.csproj.CoreCompileInputs.cache
+D:\linshi\桌面\WinUI\RimePPT\tools\RimePPT.TouchProbe\bin\Release\net8.0-windows\RimePPT.TouchProbe.exe
+D:\linshi\桌面\WinUI\RimePPT\tools\RimePPT.TouchProbe\bin\Release\net8.0-windows\RimePPT.TouchProbe.deps.json
+D:\linshi\桌面\WinUI\RimePPT\tools\RimePPT.TouchProbe\bin\Release\net8.0-windows\RimePPT.TouchProbe.runtimeconfig.json
+D:\linshi\桌面\WinUI\RimePPT\tools\RimePPT.TouchProbe\bin\Release\net8.0-windows\RimePPT.TouchProbe.dll
+D:\linshi\桌面\WinUI\RimePPT\tools\RimePPT.TouchProbe\bin\Release\net8.0-windows\RimePPT.TouchProbe.pdb
+D:\linshi\桌面\WinUI\RimePPT\tools\RimePPT.TouchProbe\obj\Release\net8.0-windows\RimePPT.TouchProbe.dll
+D:\linshi\桌面\WinUI\RimePPT\tools\RimePPT.TouchProbe\obj\Release\net8.0-windows\refint\RimePPT.TouchProbe.dll
+D:\linshi\桌面\WinUI\RimePPT\tools\RimePPT.TouchProbe\obj\Release\net8.0-windows\RimePPT.TouchProbe.pdb
+D:\linshi\桌面\WinUI\RimePPT\tools\RimePPT.TouchProbe\obj\Release\net8.0-windows\RimePPT.TouchProbe.genruntimeconfig.cache
+D:\linshi\桌面\WinUI\RimePPT\tools\RimePPT.TouchProbe\obj\Release\net8.0-windows\ref\RimePPT.TouchProbe.dll

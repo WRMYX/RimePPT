@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<UserControl
+    x:Class="RimePPT.Controls.ToolbarButton"
+    xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+    xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+    mc:Ignorable="d">
+
+    <!--  Grid 提供命中面：UserControl.Background 不参与渲染/命中，Button 退出命中测试。
+          Min 44×44：触摸屏最小命中目标（有效像素规范），图标-only 模式下同样保证 -->
+    <Grid Background="Transparent" MinWidth="44" MinHeight="44">
+        <Button x:Name="RootButton"
+                IsHitTestVisible="False"
+                Padding="0"
+                MinWidth="0"
+                MinHeight="0"
+                BorderThickness="0"
+                Background="Transparent"
+                HorizontalAlignment="Stretch"
+                HorizontalContentAlignment="Center"
+                VerticalContentAlignment="Center">
+            <StackPanel Spacing="2" Padding="10,8">
+                <FontIcon x:Name="IconGlyph"
+                          Glyph=""
+                          FontFamily="Segoe Fluent Icons"
+                          FontSize="20" />
+                <TextBlock x:Name="LabelText"
+                           Text=""
+                           FontSize="11" />
+            </StackPanel>
+        </Button>
+    </Grid>
+</UserControl>
