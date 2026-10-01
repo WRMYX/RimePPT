@@ -161,6 +161,50 @@ Test("adjusted eraser respects narrow width", () => {
     Check(eraser.EraseSweep(list,new(new(100,100),new(100,100),56,72),view).Changed,"default did not erase");
 });
 
+Test("fade has complementary opacity and exact endpoints", () => {
+    var animation = new InkPageTransition(InkPageAnimationMode.Fade, 240, 1000, true, true);
+    var first = animation.At(0); var middle = animation.At(120); var last = animation.At(240);
+    Check(first.OutgoingOpacity == 1 && first.IncomingOpacity == 0 && !first.IsComplete, "first frame");
+    Check(Math.Abs(middle.IncomingOpacity - .5f) < .0001 && middle.IncomingOpacity + middle.OutgoingOpacity == 1, "crossfade");
+    Check(last.OutgoingOpacity == 0 && last.IncomingOpacity == 1 && last.IsComplete, "end frame");
+});
+Test("replay and outgoing fade use independent durations", () => {
+    var animation = new InkPageTransition(InkPageAnimationMode.Replay, 200, 1000, true, true);
+    Check(animation.At(200).OutgoingOpacity == 0 && Math.Abs(animation.At(200).ReplayProgress - .2) < .0001 && !animation.At(200).IsComplete, "independent clocks");
+    Check(animation.At(1000).IsComplete && animation.At(1000).ReplayProgress == 1, "replay finish");
+    Check(new InkPageTransition(InkPageAnimationMode.Replay, 200, 4000, true, false).At(200).IsComplete, "empty page must not wait for replay");
+});
+Test("disabled or empty animation settles immediately and invalid durations are bounded", () => {
+    Check(new InkPageTransition(InkPageAnimationMode.None, 240, 1000, true, true).At(0).IsComplete, "disabled");
+    Check(new InkPageTransition(InkPageAnimationMode.Fade, 240, 1000, false, false).At(0).IsComplete, "empty");
+    var corrupt = new InkPageTransition(InkPageAnimationMode.Replay, double.NaN, double.PositiveInfinity, true, true);
+    Check(double.IsFinite(corrupt.At(double.NaN).ReplayProgress) && corrupt.At(1000).IsComplete, "nonfinite duration");
+});
+Test("replay follows arc length through uneven samples and original direction", () => {
+    var line = Stroke(new(100, 100), new(110, 100), new(500, 100));
+    var plan = new InkReplayPlan(new[] { line }, view);
+    var frame = plan.At(.5);
+    Check(frame.CompletedStrokes == 0 && frame.VisiblePoints == 2 && frame.Tail is { } p && Vector2.Distance(p, new(300, 100)) < .01, "point-count speed or reversed direction");
+    Check(plan.At(0).PartialStroke is null && plan.At(1).CompletedStrokes == 1, "replay endpoints");
+});
+Test("replay preserves stroke order, dots, saved data and page history", () => {
+    var first = Stroke(new(600, 100), new(200, 100)); var second = Stroke(new(100, 400), new(500, 400));
+    var strokes = new[] { first, second }; string original = JsonSerializer.Serialize(strokes);
+    var plan = new InkReplayPlan(strokes, view);
+    Check(ReferenceEquals(plan.At(.25).PartialStroke, first) && plan.At(.25).Tail is { } p && Math.Abs(p.X - 400) < .01, "first stroke direction");
+    Check(plan.At(.75).CompletedStrokes == 1 && ReferenceEquals(plan.At(.75).PartialStroke, second), "second stroke sequence");
+    for (int i = 0; i <= 100; i++) plan.At(i / 100d);
+    Check(original == JsonSerializer.Serialize(strokes), "animation mutated saved ink");
+    var dots = new InkReplayPlan(new[] { new StrokeData(), Stroke(new Vector2(10, 10)), Stroke(new(20, 20), new(20, 20)) }, view);
+    Check(dots.At(.25).PartialStroke?.Dots.Count == 1 && dots.At(1).CompletedStrokes == 3, "dot/empty handling");
+});
+Test("replay path scales with viewport and clamps progress", () => {
+    var stroke = Stroke(new(100, 100), new(500, 100)); var larger = new InkViewport(view.WidthDip * 2, view.HeightDip * 2, 2);
+    var plan = new InkReplayPlan(new[] { stroke }, larger);
+    Check(plan.At(.5).Tail is { } p && Vector2.Distance(p, new(600, 200)) < .01, "DPI/viewport");
+    Check(plan.At(-1).PartialStroke is null && plan.At(2).CompletedStrokes == 1 && plan.At(double.NaN).PartialStroke is null, "progress bounds");
+});
+
 foreach (var test in tests) { try { test.Run(); Console.WriteLine("PASS " + test.Name); } catch (Exception ex) { failures++; Console.WriteLine("FAIL " + test.Name + ": " + ex.Message); } }
 if (failures > 0) return 1;
 var page = Enumerable.Range(0, 500).Select(i => new StrokeData { Dots = Enumerable.Range(0, 400).Select(j => new StrokeData.Dot { X = .1 + j / 500d, Y = .1 + i / 1500d }).ToList() }).ToList();

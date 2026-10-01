@@ -106,12 +106,13 @@ internal sealed class ToolbarOnboardingSession
     {
         _index = index;
         var step = _steps[index];
+        foreach (var window in _windows) window.PreviewGuideCommand(step.Command);
         _host = step.Window;
         _tip = step.Window.CreateGuideTip();
         _tip.Target = step.Target;
         _tip.HeroContent = OnboardingIllustrations.Create(step.Command);
         _tip.Title = $"{step.Title} · {index + 1} / {_steps.Count}";
-        _tipContent = new TextBlock { Text = step.Description, TextWrapping = TextWrapping.Wrap, MaxWidth = 280 };
+        _tipContent = new TextBlock { Text = step.Description, Style = (Style)Application.Current.Resources["BodyTextBlockStyle"], TextWrapping = TextWrapping.Wrap, MaxWidth = 280, Margin = new Thickness(0, 8, 0, 0) };
         _tipContent.Loaded += OnContentLoaded;
         _tip.Content = _tipContent;
         _tip.ActionButtonContent = index == _steps.Count - 1 ? "完成" : "下一步";

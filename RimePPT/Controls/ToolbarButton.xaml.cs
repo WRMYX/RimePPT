@@ -28,6 +28,13 @@ public sealed partial class ToolbarButton : UserControl
     {
         if (_button is null) return;
         bool active = _guidePreview && selected;
+        // 普通 Button 的 PointerOver 会覆盖 Background；使用原生强调样式，
+        // 保证工具按钮在悬停和点击后仍保持蓝色反馈。
+        if (_button is Button)
+        {
+            if (active) _button.Style = (Style)Application.Current.Resources["AccentButtonStyle"];
+            else _button.ClearValue(FrameworkElement.StyleProperty);
+        }
         _button.Background = active ? (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"] : new SolidColorBrush(Microsoft.UI.Colors.Transparent);
         if (active) _button.Foreground = (Brush)Application.Current.Resources["TextOnAccentFillColorPrimaryBrush"];
         else _button.ClearValue(Control.ForegroundProperty);

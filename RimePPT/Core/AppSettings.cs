@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
+using RimePPT.Core.Ink;
 
 namespace RimePPT.Core
 {
@@ -54,6 +55,9 @@ namespace RimePPT.Core
         public string? CustomPenArgb { get; set; }
         public double EraserWidthDip { get; set; } = 56;
         public double EraserHeightDip { get; set; } = 72;
+        public InkPageAnimationMode InkPageAnimation { get; set; } = InkPageAnimationMode.Fade;
+        public int InkFadeDurationMs { get; set; } = 240;
+        public int InkReplayDurationMs { get; set; } = 1000;
         public byte[] GetPenArgb()
         {
             if (PenColor == "custom" && CustomPenArgb is { Length: 8 } text)
@@ -63,6 +67,9 @@ namespace RimePPT.Core
         public void Validate()
         {
             if (!Enum.IsDefined(InkBackend)) InkBackend = InkBackend.Native;
+            if (!Enum.IsDefined(InkPageAnimation)) InkPageAnimation = InkPageAnimationMode.Fade;
+            InkFadeDurationMs = Math.Clamp(InkFadeDurationMs, 100, 1000);
+            InkReplayDurationMs = Math.Clamp(InkReplayDurationMs, 300, 4000);
             PenThickness = double.IsFinite(PenThickness) ? Math.Clamp(PenThickness, 2, 20) : 4;
             EraserWidthDip = double.IsFinite(EraserWidthDip) ? Math.Clamp(EraserWidthDip, 16, 160) : 56;
             EraserHeightDip = double.IsFinite(EraserHeightDip) ? Math.Clamp(EraserHeightDip, 16, 160) : 72;

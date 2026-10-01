@@ -7,6 +7,7 @@ using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.UI.Xaml.Input;
 using RimePPT.Core;
+using RimePPT.Core.Ink;
 using RimePPT.Services;
 using Windows.Graphics;
 using Windows.UI;
@@ -129,6 +130,7 @@ namespace RimePPT.Windows
         private void SettingsUpdated(object? sender, EventArgs e)
         {
             _suppress = true; BackendCombo.SelectedIndex = (int)AppSettings.Instance.InkBackend;
+            LoadInkAnimationValues();
             WindowRoot.RequestedTheme = App.ToolbarTheme; BackendDescription.Text = App.InkBackendStatus + "。原生墨迹由 PowerPoint 管理；自研模式支持多指、尺寸调节和逐页撤销。";
             _suppress = false;
         }
@@ -156,7 +158,7 @@ namespace RimePPT.Windows
                 else if (node is Border border && border.Child is not null) Walk(border.Child);
                 else if (node is ScrollViewer scroll && scroll.Content is DependencyObject content) Walk(content);
             }
-            Walk(AppearancePage); Walk(ToolbarPage); Walk(DebugPage); Walk(AboutPage);
+            Walk(AppearancePage); Walk(InkPage); Walk(ToolbarPage); Walk(DebugPage); Walk(AboutPage);
         }
 
         // ———— 初始化 ————
@@ -165,6 +167,7 @@ namespace RimePPT.Windows
         {
             var settings = AppSettings.Instance;
             BackendCombo.SelectedIndex = (int)settings.InkBackend;
+            LoadInkAnimationValues();
             WindowRoot.RequestedTheme = App.ToolbarTheme;
             ThemeCombo.SelectedIndex = settings.Theme switch
             {
@@ -200,14 +203,40 @@ namespace RimePPT.Windows
             }
 
             string tag = (string)args.SelectedItemContainer.Tag;
-            PageTitle.Text = tag switch { "toolbar" => "工具栏", "debug" => "调试", "about" => "关于", _ => "外观" };
+            PageTitle.Text = tag switch { "ink" => "笔迹", "toolbar" => "工具栏", "debug" => "调试", "about" => "关于", _ => "外观" };
             AppearancePage.Visibility = tag == "appearance" ? Visibility.Visible : Visibility.Collapsed;
+            InkPage.Visibility = tag == "ink" ? Visibility.Visible : Visibility.Collapsed;
             ToolbarPage.Visibility = tag == "toolbar" ? Visibility.Visible : Visibility.Collapsed;
             DebugPage.Visibility = tag == "debug" ? Visibility.Visible : Visibility.Collapsed;
             AboutPage.Visibility = tag == "about" ? Visibility.Visible : Visibility.Collapsed;
         }
 
         // ———— 外观 ————
+
+        private void LoadInkAnimationValues()
+        {
+            var settings = AppSettings.Instance;
+            InkAnimationCombo.SelectedIndex = (int)settings.InkPageAnimation;
+            InkFadeDurationBox.Value = settings.InkFadeDurationMs;
+            InkReplayDurationBox.Value = settings.InkReplayDurationMs;
+            InkFadeDurationBox.IsEnabled = settings.InkPageAnimation != InkPageAnimationMode.None;
+            InkReplayDurationBox.IsEnabled = settings.InkPageAnimation == InkPageAnimationMode.Replay;
+        }
+
+        private void OnInkAnimationChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_suppress || InkAnimationCombo.SelectedIndex < 0) return;
+            AppSettings.Instance.InkPageAnimation = (InkPageAnimationMode)InkAnimationCombo.SelectedIndex;
+            AppSettings.Instance.Save();
+        }
+
+        private void OnInkDurationChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
+        {
+            if (_suppress || !double.IsFinite(args.NewValue)) return;
+            if (sender == InkFadeDurationBox) AppSettings.Instance.InkFadeDurationMs = (int)Math.Round(args.NewValue);
+            else AppSettings.Instance.InkReplayDurationMs = (int)Math.Round(args.NewValue);
+            AppSettings.Instance.Save();
+        }
 
         private void OnThemeChanged(object sender, SelectionChangedEventArgs e)
         {

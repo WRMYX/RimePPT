@@ -41,6 +41,7 @@ public sealed class AnnotationWindow : Window
     private AnnotationTool _tool;
     private bool _enabled, _closed, _isDark;
     private Vector2? _eraserPosition;
+    private readonly DispatcherTimer _animationTimer = new() { Interval = TimeSpan.FromMilliseconds(16) };
 
     public event EventHandler? InkChanged;
     public Action? CompanionsRaise;
@@ -66,6 +67,7 @@ public sealed class AnnotationWindow : Window
     public AnnotationWindow(Dictionary<int, List<StrokeData>> slides)
     {
         _slides = slides; _history = new(slides);
+        _animationTimer.Tick += OnAnimationFrame;
         _canvas = new CanvasControl { ClearColor = default, IsHitTestVisible = false };
         _canvas.CreateResources += OnCreateResources;
         _canvas.Draw += OnDraw;
@@ -103,9 +105,22 @@ public sealed class AnnotationWindow : Window
 
     public void SetActiveSlide(int slideIndex)
     {
-        FinishInput(); _activeSlide = slideIndex; _eraser.Reset(); _eraserPosition = null;
+        FinishInput();
+        if (slideIndex != _activeSlide && _renderer is not null)
+        {
+            var settings = AppSettings.Instance;
+            var mode = new global::Windows.UI.ViewManagement.UISettings().AnimationsEnabled ? settings.InkPageAnimation : InkPageAnimationMode.None;
+            IReadOnlyList<StrokeData> incoming = _slides.TryGetValue(slideIndex, out var strokes) ? strokes : Array.Empty<StrokeData>();
+            _renderer.BeginSlideTransition(Viewport, incoming, mode, settings.InkFadeDurationMs, settings.InkReplayDurationMs);
+            if (_renderer.IsAnimating) _animationTimer.Start();
+        }
+        else StopAnimation();
+        _activeSlide = slideIndex; _eraser.Reset(); _eraserPosition = null;
         _renderer?.InvalidateSlide(); Invalidate();
     }
+
+    private void OnAnimationFrame(object? sender, object args) { Invalidate(); if (_renderer?.IsAnimating != true) _animationTimer.Stop(); }
+    private void StopAnimation() { _animationTimer.Stop(); _renderer?.CancelAnimation(); }
 
     private InkViewport Viewport => new((float)_root.ActualWidth, (float)_root.ActualHeight, (float)(_root.XamlRoot?.RasterizationScale ?? 1));
     private static InkDevice Device(PointerRoutedEventArgs e) => e.Pointer.PointerDeviceType switch
@@ -128,6 +143,7 @@ public sealed class AnnotationWindow : Window
         var point = e.GetCurrentPoint(_root);
         if (!point.IsInContact || (Device(e) == InkDevice.Mouse && !point.Properties.IsLeftButtonPressed)) return;
         if (!Viewport.IsValid) return;
+        StopAnimation();
         bool captured = _root.CapturePointer(e.Pointer);
         var diagnostics = new InkDiagnostics();
         diagnostics.Begin(e.Pointer.PointerId, Device(e), captured, _activeSlide, _tool == AnnotationTool.Pen ? InkTool.Pen : InkTool.Eraser);
@@ -210,7 +226,7 @@ public sealed class AnnotationWindow : Window
     public void Undo() { FinishInput(); if (_history.Undo(_activeSlide)) HistoryChanged(); }
     public void Redo() { FinishInput(); if (_history.Redo(_activeSlide)) HistoryChanged(); }
     public void ClearCurrentSlide() { FinishInput(); if (_history.Clear(_activeSlide)) HistoryChanged(); }
-    private void HistoryChanged() { _eraser.Reset(); _renderer?.InvalidateSlide(); InkChanged?.Invoke(this, EventArgs.Empty); Invalidate(); }
+    private void HistoryChanged() { StopAnimation(); _eraser.Reset(); _renderer?.InvalidateSlide(); InkChanged?.Invoke(this, EventArgs.Empty); Invalidate(); }
     private void Finish(uint id, string reason, InkSample? finalSample)
     {
         var input = _contacts.Find(id); if (input is null) return;
@@ -243,6 +259,7 @@ public sealed class AnnotationWindow : Window
     private IReadOnlyList<StrokeData> CurrentStrokes() => _slides.TryGetValue(_activeSlide, out var list) ? list : Array.Empty<StrokeData>();
     private void OnCreateResources(CanvasControl sender, CanvasCreateResourcesEventArgs args)
     {
+        _animationTimer.Stop();
         _renderer?.Dispose();
         _renderer = new InkRenderer(sender.Device, CurrentStrokes, Previews) { IsDark = _isDark };
     }
@@ -255,12 +272,14 @@ public sealed class AnnotationWindow : Window
         _renderer.EraserSize = new((float)AppSettings.Instance.EraserWidthDip, (float)AppSettings.Instance.EraserHeightDip);
         _renderer.EraserPositions = _eraserPositions.Values.ToArray();
         _renderer.Draw(args.DrawingSession, Viewport);
+        if (!_renderer.IsAnimating) _animationTimer.Stop();
         foreach (var log in _logs.Values) log.Draw(start);
     }
     private void OnSizeChanged(object sender, SizeChangedEventArgs e)
-    { FinishInput(); _eraser.Reset(); _renderer?.InvalidateSlide(); Invalidate(); }
+    { FinishInput(); StopAnimation(); _eraser.Reset(); _renderer?.InvalidateSlide(); Invalidate(); }
     private void OnSettingsChanged(object? sender, EventArgs e)
     {
+        StopAnimation();
         _isDark = ThemeHelper.IsDarkTheme();
         if (_renderer is not null) _renderer.IsDark = _isDark;
         Invalidate();
@@ -268,7 +287,7 @@ public sealed class AnnotationWindow : Window
     private void Invalidate() { if (!_closed) _canvas?.Invalidate(); }
     private void OnClosed(object sender, WindowEventArgs args)
     {
-        _closed = true; FinishInput(); AppSettings.SettingsChanged -= OnSettingsChanged;
+        _closed = true; FinishInput(); StopAnimation(); _animationTimer.Tick -= OnAnimationFrame; AppSettings.SettingsChanged -= OnSettingsChanged;
         _root.PointerPressed -= OnPressed; _root.PointerMoved -= OnMoved; _root.PointerReleased -= OnReleased;
         _root.PointerCanceled -= OnCanceled; _root.PointerCaptureLost -= OnCaptureLost; _root.SizeChanged -= OnSizeChanged;
         _renderer?.Dispose(); _renderer = null; _eraser.Reset();
