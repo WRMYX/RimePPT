@@ -42,9 +42,5 @@
                 </ItemsControl.ItemsPanel>
             </ItemsControl>
         </Border>
-        <TeachingTip x:Name="ToolbarGuideTip"
-                     ShouldConstrainToRootBounds="False"
-                     IsLightDismissEnabled="False"
-                     CloseButtonContent="跳过" />
     </Grid>
 </Window>

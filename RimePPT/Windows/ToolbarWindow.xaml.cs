@@ -87,7 +87,18 @@ namespace RimePPT.Windows
 
         /// <summary>工具条布局（供 App 定位批注箭头窗）。</summary>
         public ToolbarLayout Layout => _layout;
-        internal TeachingTip GuideTip => ToolbarGuideTip;
+        internal TeachingTip CreateGuideTip()
+        {
+            var tip = new TeachingTip
+            {
+                ShouldConstrainToRootBounds = false,
+                IsLightDismissEnabled = false,
+                CloseButtonContent = "跳过",
+            };
+            RootGrid.Children.Add(tip);
+            return tip;
+        }
+        internal void RemoveGuideTip(TeachingTip tip) => RootGrid.Children.Remove(tip);
 
         /// <summary>
         /// 指定命令按钮外侧中点的屏幕物理坐标（弹窗锚点）：

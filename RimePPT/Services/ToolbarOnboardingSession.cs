@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Media;
 using RimePPT.Core;
 using RimePPT.Windows;
 
@@ -22,7 +23,6 @@ internal sealed class ToolbarOnboardingSession
     private bool _waiting;
     private bool _marked;
     private TextBlock? _tipContent;
-    private Task _closing = Task.CompletedTask;
     internal bool IsRunning => _waiting || _tip is not null;
 
     private static readonly (ToolbarCommand Command, string Title, string Description)[] Lessons =
@@ -46,7 +46,7 @@ internal sealed class ToolbarOnboardingSession
         _waiting = true;
         try
         {
-            await Task.WhenAll(windows.Select(ToolbarEntranceAnimator.WaitForEntranceAsync).Append(_closing));
+            await Task.WhenAll(windows.Select(ToolbarEntranceAnimator.WaitForEntranceAsync));
             if (version != _version) return;
             _waiting = false;
             foreach (var lesson in Lessons)
@@ -85,7 +85,7 @@ internal sealed class ToolbarOnboardingSession
         _index = index;
         var step = _steps[index];
         _host = step.Window;
-        _tip = step.Window.GuideTip;
+        _tip = step.Window.CreateGuideTip();
         _tip.Target = step.Target;
         _tip.Title = $"{step.Title} · {index + 1} / {_steps.Count}";
         _tipContent = new TextBlock { Text = step.Description, TextWrapping = TextWrapping.Wrap, MaxWidth = 280 };
@@ -129,19 +129,26 @@ internal sealed class ToolbarOnboardingSession
 
     private void RequestClose(TeachingTip tip)
     {
-        int version = _version, index = _index;
-        var retry = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
-        retry.Tick += (_, _) =>
-        {
-            if (version != _version || index != _index || !ReferenceEquals(_tip, tip))
-            {
-                retry.Stop();
-                return;
-            }
-            if (tip.IsOpen) tip.IsOpen = false;
-        };
-        retry.Start();
+        CloseNativePopup(tip);
+    }
+
+    private static void CloseNativePopup(TeachingTip tip)
+    {
+        var content = tip.Content as DependencyObject;
+        var root = tip.XamlRoot;
         tip.IsOpen = false;
+        if (content is null || root is null) return;
+        // IsOpen 的动画保护可能撤销关闭请求。只关闭包含本提示正文的原生 popup，
+        // 不影响画笔面板、工具菜单或其他窗口的弹出层。
+        foreach (var popup in VisualTreeHelper.GetOpenPopupsForXamlRoot(root))
+        {
+            DependencyObject? ancestor = content;
+            while (ancestor is not null && !ReferenceEquals(ancestor, popup.Child))
+                ancestor = VisualTreeHelper.GetParent(ancestor);
+            if (ancestor is null) continue;
+            popup.IsOpen = false;
+            break;
+        }
     }
 
     private void OnClosed(TeachingTip sender, TeachingTipClosedEventArgs args)
@@ -174,44 +181,15 @@ internal sealed class ToolbarOnboardingSession
         tip.ActionButtonClick -= OnNext;
         tip.CloseButtonClick -= OnSkip;
         tip.Closed -= OnClosed;
-        var content = _tipContent;
         if (_tipContent is not null) _tipContent.Loaded -= OnContentLoaded;
         _tipContent = null;
-        if (tip.IsOpen)
+        try
         {
-            var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            var retry = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(50) };
-            int ticks = 0;
-            bool completed = false;
-            void Complete()
-            {
-                if (completed) return;
-                completed = true;
-                retry.Stop();
-                tip.Closed -= Closed;
-                if (host is not null) host.Closed -= HostClosed;
-                try { tip.Target = null; tip.Content = null; }
-                catch (Exception ex) { CrashReporter.Report(ex, "onboarding-close"); }
-                completion.TrySetResult();
-            }
-            void Closed(TeachingTip sender, TeachingTipClosedEventArgs args) => Complete();
-            void HostClosed(object sender, WindowEventArgs args) => Complete();
-            tip.Closed += Closed;
-            if (host is not null) host.Closed += HostClosed;
-            _closing = completion.Task;
-            // 原生控件会在展开动画期间反转关闭请求，动画结束后重试。
-            retry.Tick += (_, _) =>
-            {
-                ticks++;
-                if (tip.IsOpen) tip.IsOpen = false;
-                else if (ticks >= 2 && content?.IsLoaded != true) Complete();
-            };
-            retry.Start();
-            tip.IsOpen = false;
-            return;
+            CloseNativePopup(tip);
+            host?.RemoveGuideTip(tip);
+            tip.Target = null;
+            tip.Content = null;
         }
-        tip.IsOpen = false;
-        tip.Target = null;
-        tip.Content = null;
+        catch (Exception ex) { CrashReporter.Report(ex, "onboarding-close"); }
     }
 }
