@@ -1,4 +1,4 @@
-namespace RimePPT.Core
+﻿namespace RimePPT.Core
 {
     /// <summary>工具条按钮命令，与鸿合演示助手对齐的最小集合。</summary>
     public enum ToolbarCommand
@@ -9,5 +9,8 @@ namespace RimePPT.Core
         Eraser,
         Tools,
         ExitShow,
+        Pages,
+        Undo,
+        Redo,
     }
 }

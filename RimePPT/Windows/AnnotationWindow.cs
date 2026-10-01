@@ -2,6 +2,7 @@ using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Numerics;
+using System.Linq;
 using Microsoft.Graphics.Canvas.UI;
 using Microsoft.Graphics.Canvas.UI.Xaml;
 using Microsoft.UI.Windowing;
@@ -25,9 +26,15 @@ public sealed class AnnotationWindow : Window
     private readonly Grid _root = new() { Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent), ManipulationMode = ManipulationModes.None };
     private CanvasControl? _canvas;
     private readonly Dictionary<int, List<StrokeData>> _slides;
-    private readonly InkInputSession _input = new();
+    private readonly InkContactManager _contacts = new();
+    private readonly Dictionary<uint, InkDiagnostics> _logs = new();
+    private readonly Dictionary<uint, Microsoft.UI.Xaml.Input.Pointer> _pointers = new();
+    private readonly Dictionary<uint, (float Width, float Height)> _sizes = new();
+    private readonly Dictionary<uint, Vector2> _eraserPositions = new();
+    private StrokeData[]? _eraseBefore;
+    private readonly InkHistory _history;
     private readonly StrokeEraser _eraser = new();
-    private readonly InkDiagnostics _diagnostics = new();
+    
     private readonly List<InkSample> _batch = new();
     private InkRenderer? _renderer;
     private int _activeSlide = 1;
@@ -58,7 +65,7 @@ public sealed class AnnotationWindow : Window
 
     public AnnotationWindow(Dictionary<int, List<StrokeData>> slides)
     {
-        _slides = slides;
+        _slides = slides; _history = new(slides);
         _canvas = new CanvasControl { ClearColor = default, IsHitTestVisible = false };
         _canvas.CreateResources += OnCreateResources;
         _canvas.Draw += OnDraw;
@@ -117,25 +124,30 @@ public sealed class AnnotationWindow : Window
     {
         if (!_enabled || _closed) return;
         e.Handled = true;
-        if (_input.PointerId.HasValue) return;
+        if (_contacts.Find(e.Pointer.PointerId) is not null) return;
         var point = e.GetCurrentPoint(_root);
         if (!point.IsInContact || (Device(e) == InkDevice.Mouse && !point.Properties.IsLeftButtonPressed)) return;
-        _input.Viewport = Viewport;
-        if (!_input.Viewport.IsValid) return;
+        if (!Viewport.IsValid) return;
         bool captured = _root.CapturePointer(e.Pointer);
-        _diagnostics.Begin(e.Pointer.PointerId, Device(e), captured, _activeSlide, _tool == AnnotationTool.Pen ? InkTool.Pen : InkTool.Eraser);
-        if (!captured) { _diagnostics.End("capture-failed", 0); return; }
+        var diagnostics = new InkDiagnostics();
+        diagnostics.Begin(e.Pointer.PointerId, Device(e), captured, _activeSlide, _tool == AnnotationTool.Pen ? InkTool.Pen : InkTool.Eraser);
+        if (!captured) { diagnostics.End("capture-failed", 0); return; }
         var settings = AppSettings.Instance;
         var tool = new InkToolSnapshot(_tool == AnnotationTool.Pen ? InkTool.Pen : InkTool.Eraser, _activeSlide,
-            PenPalette.GetArgb(settings.PenColor), (float)settings.PenThickness);
-        if (!_input.Begin(e.Pointer.PointerId, GetSample(e), tool))
+            settings.GetPenArgb(), (float)settings.PenThickness);
+        if (!_contacts.Begin(e.Pointer.PointerId, GetSample(e), tool, Viewport))
         {
-            _root.ReleasePointerCapture(e.Pointer); _diagnostics.End("begin-failed", 0); return;
+            _root.ReleasePointerCapture(e.Pointer); diagnostics.End("begin-failed", 0); return;
         }
+        _logs[e.Pointer.PointerId] = diagnostics;
+        _pointers[e.Pointer.PointerId] = e.Pointer;
+        _sizes[e.Pointer.PointerId] = ((float)settings.EraserWidthDip, (float)settings.EraserHeightDip);
         if (tool.Tool == InkTool.Eraser)
         {
+            _eraseBefore ??= _history.Snapshot(_activeSlide);
             _eraserPosition = GetSample(e).Position;
-            Erase(_eraserPosition.Value, _eraserPosition.Value);
+            _eraserPositions[e.Pointer.PointerId] = _eraserPosition.Value;
+            Erase(e.Pointer.PointerId, _eraserPosition.Value, _eraserPosition.Value);
         }
         Invalidate();
     }
@@ -144,9 +156,10 @@ public sealed class AnnotationWindow : Window
     {
         if (!_enabled || _closed) return;
         e.Handled = true;
-        if (_input.PointerId != e.Pointer.PointerId)
+        var input = _contacts.Find(e.Pointer.PointerId);
+        if (input is null)
         {
-            if (!_input.PointerId.HasValue && _tool == AnnotationTool.Eraser && Device(e) != InkDevice.Touch)
+            if (_contacts.Count == 0 && _tool == AnnotationTool.Eraser && Device(e) != InkDevice.Touch)
             { _eraserPosition = GetSample(e).Position; Invalidate(); }
             return;
         }
@@ -156,77 +169,93 @@ public sealed class AnnotationWindow : Window
             _batch.Add(new(new Vector2((float)point.Position.X, (float)point.Position.Y), point.Timestamp, Device(e)));
         if (_batch.Count == 0) _batch.Add(GetSample(e));
         _batch.Sort((a, b) => a.Timestamp.CompareTo(b.Timestamp));
-        var previous = _input.LastPosition;
-        if (_input.Tool.Tool == InkTool.Eraser && previous is { } from)
+        var previous = input.LastPosition;
+        if (input.Tool.Tool == InkTool.Eraser && previous is { } from)
         {
             foreach (var sample in _batch)
             {
-                if (sample.Timestamp < _input.LastTimestamp) continue;
-                Erase(from, sample.Position); from = sample.Position;
+                if (sample.Timestamp < input.LastTimestamp) continue;
+                Erase(e.Pointer.PointerId, from, sample.Position); from = sample.Position;
             }
-            _eraserPosition = from;
+            _eraserPosition = from; _eraserPositions[e.Pointer.PointerId] = from;
         }
-        _input.Move(e.Pointer.PointerId, _batch);
-        _diagnostics.Input(start, _batch.Count);
+        input.Move(e.Pointer.PointerId, _batch);
+        _logs[e.Pointer.PointerId].Input(start, _batch.Count);
         Invalidate();
     }
 
     private void OnReleased(object sender, PointerRoutedEventArgs e)
     {
-        if (_input.PointerId != e.Pointer.PointerId) return;
+        if (_contacts.Find(e.Pointer.PointerId) is null) return;
         e.Handled = true;
         OnMoved(sender, e); // A release can carry coalesced samples not seen by the last move.
-        Finish("released", GetSample(e));
+        Finish(e.Pointer.PointerId, "released", GetSample(e));
     }
     private void OnCanceled(object sender, PointerRoutedEventArgs e)
     {
-        if (_input.PointerId != e.Pointer.PointerId) return;
-        e.Handled = true; Finish("canceled", null);
+        if (_contacts.Find(e.Pointer.PointerId) is null) return;
+        e.Handled = true; Finish(e.Pointer.PointerId, "canceled", null);
     }
     private void OnCaptureLost(object sender, PointerRoutedEventArgs e)
     {
-        if (_input.PointerId == e.Pointer.PointerId) Finish("capture-lost", null);
+        if (_contacts.Find(e.Pointer.PointerId) is not null) Finish(e.Pointer.PointerId, "capture-lost", null);
     }
 
-    public void FinishInput() => Finish("transition", null);
-    private void Finish(string reason, InkSample? finalSample)
+    public void FinishInput()
     {
-        if (_input.PointerId is not { } id) return;
-        if (_input.Tool.Tool == InkTool.Eraser && finalSample is { } final && _input.LastPosition is { } last)
-        { Erase(last, final.Position); _eraserPosition = final.Position; }
-        var stroke = _input.End(id, finalSample);
+        foreach (var id in _contacts.Ids()) Finish(id, "transition", null);
+    }
+    public bool CanUndo => _history.CanUndo(_activeSlide);
+    public bool CanRedo => _history.CanRedo(_activeSlide);
+    public void Undo() { FinishInput(); if (_history.Undo(_activeSlide)) HistoryChanged(); }
+    public void Redo() { FinishInput(); if (_history.Redo(_activeSlide)) HistoryChanged(); }
+    public void ClearCurrentSlide() { FinishInput(); if (_history.Clear(_activeSlide)) HistoryChanged(); }
+    private void HistoryChanged() { _eraser.Reset(); _renderer?.InvalidateSlide(); InkChanged?.Invoke(this, EventArgs.Empty); Invalidate(); }
+    private void Finish(uint id, string reason, InkSample? finalSample)
+    {
+        var input = _contacts.Find(id); if (input is null) return;
+        var tool = input.Tool; var diagnostics = _logs[id];
+        if (tool.Tool == InkTool.Eraser && finalSample is { } final && input.LastPosition is { } last) Erase(id, last, final.Position);
+        var before = tool.Tool == InkTool.Pen ? _history.Snapshot(tool.SlideIndex) : null;
+        var stroke = _contacts.End(id, finalSample);
         if (stroke is not null)
         {
             if (!_slides.TryGetValue(stroke.SlideIndex, out var list)) _slides[stroke.SlideIndex] = list = new();
-            list.Add(stroke); _renderer?.Commit(stroke); _diagnostics.Changed(); InkChanged?.Invoke(this, EventArgs.Empty);
+            list.Add(stroke); _history.Record(stroke.SlideIndex, before!); _renderer?.Commit(stroke);
+            diagnostics.Changed(); InkChanged?.Invoke(this, EventArgs.Empty);
         }
-        _diagnostics.End(reason, stroke?.Dots.Count ?? 0);
-        // Clear session before release: CaptureLost can be synchronous and must not commit twice.
-        _root.ReleasePointerCaptures();
+        if (tool.Tool == InkTool.Eraser && _contacts.Count == 0 && _eraseBefore is not null)
+        { _history.Record(tool.SlideIndex, _eraseBefore); _eraseBefore = null; }
+        diagnostics.End(reason, stroke?.Dots.Count ?? 0); _logs.Remove(id); _sizes.Remove(id); _eraserPositions.Remove(id);
+        if (_pointers.Remove(id, out var pointer)) _root.ReleasePointerCapture(pointer);
         if (!_closed) { CompanionsRaise?.Invoke(); Invalidate(); }
     }
-
-    private void Erase(Vector2 from, Vector2 to)
+    private void Erase(uint id, Vector2 from, Vector2 to)
     {
-        if (_slides.TryGetValue(_input.Tool.SlideIndex, out var list) &&
-            _eraser.EraseSweep(list, new(from, to), _input.Viewport).Changed)
-        { _renderer?.InvalidateSlide(); _diagnostics.Changed(); InkChanged?.Invoke(this, EventArgs.Empty); }
+        var input = _contacts.Find(id); if (input is null) return;
+        var size = _sizes[id];
+        if (_slides.TryGetValue(input.Tool.SlideIndex, out var list) &&
+            _eraser.EraseSweep(list, new(from, to, size.Width, size.Height), input.Viewport).Changed)
+        { _renderer?.InvalidateSlide(); _logs[id].Changed(); InkChanged?.Invoke(this, EventArgs.Empty); }
     }
+    private IReadOnlyList<StrokeData> Previews() => _contacts.Contacts.Where(c => c.Value.Preview is not null).Select(c => c.Value.Preview!).ToArray();
 
     private IReadOnlyList<StrokeData> CurrentStrokes() => _slides.TryGetValue(_activeSlide, out var list) ? list : Array.Empty<StrokeData>();
     private void OnCreateResources(CanvasControl sender, CanvasCreateResourcesEventArgs args)
     {
         _renderer?.Dispose();
-        _renderer = new InkRenderer(sender.Device, CurrentStrokes, () => _input.Preview) { IsDark = _isDark };
+        _renderer = new InkRenderer(sender.Device, CurrentStrokes, Previews) { IsDark = _isDark };
     }
     private void OnDraw(CanvasControl sender, CanvasDrawEventArgs args)
     {
         if (_closed) return;
         long start = Stopwatch.GetTimestamp();
-        _renderer ??= new InkRenderer(sender.Device, CurrentStrokes, () => _input.Preview) { IsDark = _isDark };
+        _renderer ??= new InkRenderer(sender.Device, CurrentStrokes, Previews) { IsDark = _isDark };
         _renderer.EraserPosition = _enabled && _tool == AnnotationTool.Eraser ? _eraserPosition : null;
+        _renderer.EraserSize = new((float)AppSettings.Instance.EraserWidthDip, (float)AppSettings.Instance.EraserHeightDip);
+        _renderer.EraserPositions = _eraserPositions.Values.ToArray();
         _renderer.Draw(args.DrawingSession, Viewport);
-        _diagnostics.Draw(start);
+        foreach (var log in _logs.Values) log.Draw(start);
     }
     private void OnSizeChanged(object sender, SizeChangedEventArgs e)
     { FinishInput(); _eraser.Reset(); _renderer?.InvalidateSlide(); Invalidate(); }

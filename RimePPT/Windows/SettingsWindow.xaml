@@ -9,26 +9,24 @@
         <MicaBackdrop />
     </Window.SystemBackdrop>
 
-    <NavigationView
+    <Grid x:Name="WindowRoot">
+      <Grid.RowDefinitions><RowDefinition Height="48"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+      <Grid x:Name="AppTitleBar" Background="Transparent" Padding="16,0,144,0">
+        <StackPanel Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+          <Image x:Name="PaneLogo" Width="24" Height="24"/><TextBlock Text="RimePPT 设置" FontWeight="SemiBold" VerticalAlignment="Center"/>
+        </StackPanel>
+      </Grid>
+    <NavigationView Grid.Row="1"
         x:Name="Nav"
-        PaneDisplayMode="Left"
-        OpenPaneLength="200"
+        PaneDisplayMode="Auto"
+        OpenPaneLength="220"
         IsBackButtonVisible="Collapsed"
         IsSettingsVisible="False"
         IsPaneToggleButtonVisible="True"
         SelectionChanged="OnNavSelectionChanged">
 
-        <NavigationView.PaneHeader>
-            <Grid Margin="10,4,10,4" PointerPressed="OnPaneHeaderPressed" Background="Transparent">
-                <StackPanel Orientation="Horizontal" Spacing="10">
-                    <Image x:Name="PaneLogo" Width="22" Height="22" />
-                    <TextBlock Text="RimePPT 设置" VerticalAlignment="Center" FontWeight="SemiBold" />
-                </StackPanel>
-            </Grid>
-        </NavigationView.PaneHeader>
-
         <NavigationView.Header>
-            <TextBlock Text="设置" FontSize="28" FontWeight="SemiBold" PointerPressed="OnHeaderPressed" />
+            <TextBlock x:Name="PageTitle" Text="外观" FontSize="28" FontWeight="SemiBold" />
         </NavigationView.Header>
 
         <NavigationView.MenuItems>
@@ -66,10 +64,10 @@
                     <Setter Property="CornerRadius" Value="8" />
                 </Style>
                 <Style x:Key="SettingTitle" TargetType="TextBlock">
-                    <Setter Property="FontSize" Value="14" />
+                    <Setter Property="FontSize" Value="14" /><Setter Property="TextWrapping" Value="Wrap" />
                 </Style>
                 <Style x:Key="SettingDesc" TargetType="TextBlock">
-                    <Setter Property="FontSize" Value="12" />
+                    <Setter Property="FontSize" Value="12" /><Setter Property="TextWrapping" Value="Wrap" />
                     <Setter Property="Foreground" Value="{ThemeResource TextFillColorSecondaryBrush}" />
                 </Style>
                 <Style x:Key="Divider" TargetType="Rectangle">
@@ -81,7 +79,16 @@
 
             <!-- ———— 外观 ———— -->
             <ScrollViewer x:Name="AppearancePage" Padding="8,0,16,16">
-                <StackPanel MaxWidth="560" HorizontalAlignment="Left" Spacing="10">
+                <StackPanel MaxWidth="960" HorizontalAlignment="Stretch" Spacing="10">
+                    <Border Style="{StaticResource CardBorder}" Padding="14,12">
+                      <StackPanel Spacing="8">
+                        <TextBlock Text="书写模式" Style="{StaticResource SettingTitle}"/>
+                        <ComboBox x:Name="BackendCombo" HorizontalAlignment="Stretch" SelectionChanged="OnBackendChanged">
+                          <ComboBoxItem Content="PowerPoint 原生（COM）"/><ComboBoxItem Content="RimePPT 自研"/>
+                        </ComboBox>
+                        <TextBlock x:Name="BackendDescription" Text="两套笔与橡皮均保留；原生墨迹由 PowerPoint 管理，自研模式支持多指和撤销。" Style="{StaticResource SettingDesc}"/>
+                      </StackPanel>
+                    </Border>
                     <Border Style="{StaticResource CardBorder}">
                         <StackPanel>
                             <Grid Padding="14,8" MinHeight="60">
@@ -154,7 +161,7 @@
 
             <!-- ———— 工具栏 ———— -->
             <ScrollViewer x:Name="ToolbarPage" Padding="8,0,16,16" Visibility="Collapsed">
-                <StackPanel MaxWidth="560" HorizontalAlignment="Left" Spacing="10">
+                <StackPanel MaxWidth="960" HorizontalAlignment="Stretch" Spacing="10">
 
                     <!-- 显示区域：屏幕示意图选择器 -->
                     <Border Style="{StaticResource CardBorder}">
@@ -164,7 +171,7 @@
                                 <TextBlock Text="点击屏幕示意图上的区域，显示或隐藏对应工具条" Style="{StaticResource SettingDesc}" />
                             </StackPanel>
                             <Rectangle Style="{StaticResource Divider}" />
-                            <Border Margin="14,12" Width="320" Height="180"
+                            <Viewbox Stretch="Uniform" HorizontalAlignment="Center" MaxWidth="420" Margin="14,12"><Border Width="320" Height="180"
                                     CornerRadius="8"
                                     Background="{ThemeResource ControlFillColorDefaultBrush}"
                                     BorderBrush="{ThemeResource CardStrokeColorDefaultBrush}"
@@ -212,7 +219,7 @@
                                     </ToggleButton>
                                 </Grid>
                             </Border>
-                            <TextBlock x:Name="LayoutWarning" Padding="14,0,14,10"
+                            </Viewbox><TextBlock x:Name="LayoutWarning" Padding="14,0,14,10"
                                        Text="当前未选择任何工具条区域，放映时将没有工具条"
                                        Style="{StaticResource SettingDesc}"
                                        Foreground="{ThemeResource SystemFillColorCautionBrush}"
@@ -242,7 +249,18 @@
 
             <!-- ———— 调试 ———— -->
             <ScrollViewer x:Name="DebugPage" Padding="8,0,16,16" Visibility="Collapsed">
-                <StackPanel MaxWidth="560" HorizontalAlignment="Left" Spacing="10">
+                <StackPanel MaxWidth="960" HorizontalAlignment="Stretch" Spacing="10">
+                    <Border Style="{StaticResource CardBorder}" Padding="14,10">
+                        <Grid MinHeight="60" ColumnSpacing="12">
+                            <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
+                            <StackPanel VerticalAlignment="Center" Spacing="2">
+                                <TextBlock Text="工具栏使用引导" Style="{StaticResource SettingTitle}" />
+                                <TextBlock Text="重置后，在实际放映或模拟工具栏的按钮旁重新展示提示" Style="{StaticResource SettingDesc}" />
+                            </StackPanel>
+                            <Button Grid.Column="1" Content="重置引导会话" MinHeight="44" VerticalAlignment="Center" Click="OnResetOnboarding" />
+                        </Grid>
+                    </Border>
+                    <InfoBar x:Name="OnboardingResetInfo" IsOpen="False" IsClosable="True" />
                     <Border Style="{StaticResource CardBorder}">
                         <StackPanel>
                             <Grid Padding="14,10" MinHeight="60">
@@ -287,7 +305,7 @@
 
             <!-- ———— 关于 ———— -->
             <ScrollViewer x:Name="AboutPage" Padding="8,0,16,16" Visibility="Collapsed">
-                <StackPanel MaxWidth="560" HorizontalAlignment="Left" Spacing="10">
+                <StackPanel MaxWidth="960" HorizontalAlignment="Stretch" Spacing="10">
                     <Border Style="{StaticResource CardBorder}">
                         <StackPanel Padding="16,12" Spacing="6">
                             <TextBlock Text="RimePPT" FontSize="18" FontWeight="SemiBold" />
@@ -305,4 +323,5 @@
             </ScrollViewer>
         </Grid>
     </NavigationView>
+    </Grid>
 </Window>

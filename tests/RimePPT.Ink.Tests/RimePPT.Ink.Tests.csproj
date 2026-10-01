@@ -9,5 +9,7 @@
     <Compile Include="../../RimePPT/Core/Ink/StrokeGeometry.cs" Link="Ink/StrokeGeometry.cs" />
     <Compile Include="../../RimePPT/Core/Ink/InkInputSession.cs" Link="Ink/InkInputSession.cs" />
     <Compile Include="../../RimePPT/Core/Ink/StrokeEraser.cs" Link="Ink/StrokeEraser.cs" />
+    <Compile Include="../../RimePPT/Core/Ink/InkContactManager.cs" Link="Ink/InkContactManager.cs" />
+    <Compile Include="../../RimePPT/Core/Ink/InkHistory.cs" Link="Ink/InkHistory.cs" />
   </ItemGroup>
 </Project>

@@ -45,6 +45,17 @@ namespace RimePPT.Core
             ShowEnded?.Invoke(this, reason);
         }
 
+        public PresentationCapabilities Capabilities => new(false, true, false);
+        public Task SetNativePointerAsync(NativePointerTool tool, byte[]? argb) => Task.FromException(new NotSupportedException("模拟放映没有 PowerPoint 原生笔。"));
+        public Task ClearNativeInkAsync() => Task.FromException(new NotSupportedException("模拟放映没有原生墨迹。"));
+        public Task<string> ExportSlideThumbnailAsync(int slideIndex, string destinationPath, int pixelWidth, System.Threading.CancellationToken cancellationToken)
+            => Task.FromException<string>(new NotSupportedException("模拟页面由导航窗口生成示意卡片。"));
+        public Task GoToSlideAsync(int slideIndex)
+        {
+            if (!IsPresenting || slideIndex < 1 || slideIndex > SlideCount) throw new ArgumentOutOfRangeException(nameof(slideIndex));
+            CurrentSlide = slideIndex; SlideChanged?.Invoke(this, slideIndex); return Task.CompletedTask;
+        }
+
         public Task NextAsync()
         {
             Step(1);

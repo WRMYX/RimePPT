@@ -15,7 +15,7 @@ public sealed class InkRenderer : IDisposable
     private const double CacheBudgetBytes = 64 * 1024 * 1024;
     private readonly CanvasDevice _device;
     private readonly Func<IReadOnlyList<StrokeData>> _strokes;
-    private readonly Func<StrokeData?> _preview;
+    private readonly Func<IReadOnlyList<StrokeData>> _preview;
     private readonly List<StrokeData> _pending = new();
     private readonly Dictionary<StrokeData, CanvasGeometry> _geometries = new();
     private readonly CanvasStrokeStyle _style = new() { StartCap = CanvasCapStyle.Round, EndCap = CanvasCapStyle.Round, LineJoin = CanvasLineJoin.Round };
@@ -24,8 +24,10 @@ public sealed class InkRenderer : IDisposable
     private bool _dirty = true;
     public bool IsDark { get; set; }
     public Vector2? EraserPosition { get; set; }
+    public IReadOnlyList<Vector2> EraserPositions { get; set; } = Array.Empty<Vector2>();
+    public Vector2 EraserSize { get; set; } = new(56, 72);
 
-    public InkRenderer(CanvasDevice device, Func<IReadOnlyList<StrokeData>> strokes, Func<StrokeData?> preview)
+    public InkRenderer(CanvasDevice device, Func<IReadOnlyList<StrokeData>> strokes, Func<IReadOnlyList<StrokeData>> preview)
     {
         _device = device; _strokes = strokes; _preview = preview;
     }
@@ -67,8 +69,9 @@ public sealed class InkRenderer : IDisposable
             _pending.Clear(); _dirty = false;
         }
         session.DrawImage(_history);
-        if (_preview() is { } live) DrawStroke(session, live, viewport, false);
-        if (EraserPosition is { } position) DrawEraser(session, position);
+        foreach (var live in _preview()) DrawStroke(session, live, viewport, false);
+        if (EraserPositions.Count > 0) { foreach (var position in EraserPositions) DrawEraser(session, position); }
+        else if (EraserPosition is { } position) DrawEraser(session, position);
     }
 
     private void DrawStroke(CanvasDrawingSession session, StrokeData stroke, InkViewport viewport, bool cache)
@@ -96,7 +99,7 @@ public sealed class InkRenderer : IDisposable
 
     private void DrawEraser(CanvasDrawingSession session, Vector2 point)
     {
-        var rect = new Rect(point.X - 28, point.Y - 36, 56, 72);
+        var rect = new Rect(point.X - EraserSize.X / 2, point.Y - EraserSize.Y / 2, EraserSize.X, EraserSize.Y);
         var body = IsDark ? Color.FromArgb(240, 40, 40, 40) : Color.FromArgb(247, 255, 255, 255);
         var line = IsDark ? Color.FromArgb(255, 255, 255, 255) : Color.FromArgb(255, 27, 27, 27);
         session.FillRoundedRectangle(rect, 8, 8, body);

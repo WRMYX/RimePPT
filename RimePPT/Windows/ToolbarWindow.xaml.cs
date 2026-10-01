@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.UI.Windowing;
@@ -29,34 +29,39 @@ namespace RimePPT.Windows
             [ToolbarCommand.Annotate] = ("\uE70F", "批注"),
             [ToolbarCommand.Eraser] = ("\uE74D", "橡皮"),
             [ToolbarCommand.Tools] = ("\uE90F", "工具"),
+            [ToolbarCommand.Pages] = ("\uE8A5", "页面导航"),
+            [ToolbarCommand.Undo] = ("\uE7A7", "撤销"),
+            [ToolbarCommand.Redo] = ("\uE7A6", "重做"),
             [ToolbarCommand.ExitShow] = ("\uE711", "退出"),
         };
 
-        private static readonly Color LightForeground = Color.FromArgb(0xFF, 0x1B, 0x1B, 0x1B);
-        private static readonly Color DarkForeground = Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF);
-        private static readonly Color LightStroke = Color.FromArgb(0x14, 0x00, 0x00, 0x00);
-        private static readonly Color DarkStroke = Color.FromArgb(0x2E, 0xFF, 0xFF, 0xFF);
-        private static readonly Color LightBar = Color.FromArgb(0xF7, 0xFF, 0xFF, 0xFF);
-        private static readonly Color DarkBar = Color.FromArgb(0xF0, 0x28, 0x28, 0x28);
 
         // 点击反馈：亮色 #005FB8（内容白），暗色 #60CDFF（内容黑）——在 ToolbarButton 内实现
-        private static readonly Color LightPressedBackground = Color.FromArgb(0xFF, 0x00, 0x5F, 0xB8);
-        private static readonly Color DarkPressedBackground = Color.FromArgb(0xFF, 0x60, 0xCD, 0xFF);
-        private static readonly Color LightPressedForeground = Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF);
-        private static readonly Color DarkPressedForeground = Color.FromArgb(0xFF, 0x00, 0x00, 0x00);
 
         private readonly ToolbarLayout _layout;
         private readonly List<ToolbarButton> _buttons = new();
         private ElementTheme _theme = ElementTheme.Default;
         private DisplayArea? _targetArea;
+        private bool _firstPlacement = true;
+        private PointInt32 _entranceTarget;
+        public void BeginEntrance()
+        {
+            if (!_firstPlacement || _closing || _targetArea is null) return;
+            _firstPlacement = false;
+            ToolbarEntranceAnimator.Start(this, _layout, _targetArea.OuterBounds, _entranceTarget);
+        }
+        private bool _closing;
+        private ToolArrowWindow? _toolArrow;
+        private ToolbarCommand? _arrowCommand;
 
         public event EventHandler<ToolbarCommand>? ToolbarClicked;
+        public event EventHandler<ToolbarCommand>? ToolSettingsRequested;
 
         public ToolbarWindow(ToolbarLayout layout, IReadOnlyList<ToolbarCommand> commands)
         {
             _layout = layout;
             InitializeComponent();
-            SystemBackdrop = new TransparentBackdrop();
+            SystemBackdrop = new DesktopAcrylicBackdrop();
             BuildContent(commands);
 
             if (AppWindow.Presenter is OverlappedPresenter presenter)
@@ -75,11 +80,14 @@ namespace RimePPT.Windows
 
             HostCard().SizeChanged += (_, _) => UpdatePlacement();
 
+            ThemeResources.Attach(this, RootGrid, HostCard());
             ApplyTheme();
+            Closed += (_, _) => { _toolArrow?.Dismiss(); _toolArrow = null; };
         }
 
         /// <summary>工具条布局（供 App 定位批注箭头窗）。</summary>
         public ToolbarLayout Layout => _layout;
+        internal TeachingTip GuideTip => ToolbarGuideTip;
 
         /// <summary>
         /// 指定命令按钮外侧中点的屏幕物理坐标（弹窗锚点）：
@@ -125,6 +133,40 @@ namespace RimePPT.Windows
             return GetButtonAnchor(ToolbarCommand.Annotate);
         }
 
+        internal int GetButtonCenterX(ToolbarCommand command)
+        {
+            var button = _buttons.First(b => b.Command == command);
+            var point = button.TransformToVisual(RootGrid).TransformPoint(new global::Windows.Foundation.Point());
+            double scale = RootGrid.XamlRoot?.RasterizationScale ?? 1;
+            return AppWindow.Position.X + (int)Math.Round((point.X + button.ActualWidth / 2) * scale);
+        }
+
+        public FrameworkElement? GetCommandTarget(ToolbarCommand command) => _buttons.FirstOrDefault(b => b.Command == command);
+        public void UpdatePresentation(int current, int total, bool canUndo, bool canRedo)
+        {
+            foreach (var button in _buttons)
+            {
+                if (button.Command == ToolbarCommand.Pages) button.SetPageNumber(current, total);
+                if (button.Command == ToolbarCommand.Undo) button.SetEnabled(canUndo);
+                if (button.Command == ToolbarCommand.Redo) button.SetEnabled(canRedo);
+            }
+            UpdatePlacement();
+        }
+        public async void Dismiss()
+        {
+            if (_closing) return;
+            _closing = true; RootGrid.IsHitTestVisible = false;
+            _toolArrow?.Dismiss(); _toolArrow = null;
+            try { if (_targetArea is not null) await ToolbarEntranceAnimator.ExitAsync(this, _layout, _targetArea.OuterBounds); }
+            catch (Exception ex) { CrashReporter.Log($"toolbar exit: {ex.Message}"); }
+            finally { Close(); }
+        }
+        public void RaiseArrow() => _toolArrow?.Raise();
+        public FrameworkElement? GetToolSettingsTarget(ToolbarCommand command)
+            => _arrowCommand == command ? _toolArrow?.SettingsTarget : null;
+        public (global::Windows.Foundation.Point Anchor, bool PointRight) GetSettingsAnchor(ToolbarCommand command)
+            => _arrowCommand == command && _toolArrow is not null ? _toolArrow.SettingsAnchor() : GetButtonAnchor(command);
+
         /// <summary>应用用户设置（主题/按钮文字/边距），并重新定位。</summary>
         public void ApplySettings()
         {
@@ -154,12 +196,12 @@ namespace RimePPT.Windows
         public void ShowOn(DisplayArea area)
         {
             _targetArea = area;
-            WindowPlumbing.ApplyNoActivate(this);
+            WindowPlumbing.ApplyPointerNoActivate(this);
             WindowPlumbing.EnableTransparency(this);
             WindowPlumbing.RemoveWindowBorder(this);
             WindowPlumbing.RemoveResizableFrame(this);
-            Activate();
             UpdatePlacement();
+            Activate();
             ApplyTheme();
         }
 
@@ -172,6 +214,16 @@ namespace RimePPT.Windows
                 {
                     button.SetChecked(isChecked);
                 }
+            }
+            if (!_buttons.Any(b => b.Command == command)) return;
+            if (isChecked && _arrowCommand != command)
+            {
+                _toolArrow?.Dismiss(); _arrowCommand = command;
+                _toolArrow = new ToolArrowWindow(this, command, () => ToolSettingsRequested?.Invoke(this, command));
+            }
+            else if (!isChecked && _arrowCommand == command)
+            {
+                _toolArrow?.Dismiss(); _toolArrow = null; _arrowCommand = null;
             }
         }
 
@@ -186,7 +238,7 @@ namespace RimePPT.Windows
                     break;
                 case ToolbarLayout.BottomLeft:
                     BottomCard.Visibility = Visibility.Visible;
-                    FillList(BottomList, new[] { ToolbarCommand.Prev, ToolbarCommand.Next });
+                    FillList(BottomList, new[] { ToolbarCommand.Prev, ToolbarCommand.Pages, ToolbarCommand.Next });
                     break;
                 case ToolbarLayout.BottomCenter:
                     BottomCard.Visibility = Visibility.Visible;
@@ -194,13 +246,15 @@ namespace RimePPT.Windows
                     {
                         ToolbarCommand.Annotate,
                         ToolbarCommand.Eraser,
+                        ToolbarCommand.Undo,
+                        ToolbarCommand.Redo,
                         ToolbarCommand.Tools,
                         ToolbarCommand.ExitShow,
                     });
                     break;
                 default: // BottomRight
                     BottomCard.Visibility = Visibility.Visible;
-                    FillList(BottomList, new[] { ToolbarCommand.Prev, ToolbarCommand.Next });
+                    FillList(BottomList, new[] { ToolbarCommand.Prev, ToolbarCommand.Pages, ToolbarCommand.Next });
                     break;
             }
         }
@@ -229,34 +283,13 @@ namespace RimePPT.Windows
 
         private void ApplyTheme()
         {
-            bool isDark = _theme == ElementTheme.Default
-                ? RootGrid.ActualTheme == ElementTheme.Dark
-                : _theme == ElementTheme.Dark;
-
-            var bar = new AcrylicBrush
-            {
-                TintColor = isDark ? DarkBar : LightBar,
-                TintOpacity = 1,
-                FallbackColor = isDark ? DarkBar : LightBar,
-            };
-            var stroke = new SolidColorBrush(isDark ? DarkStroke : LightStroke);
-            var foreground = new SolidColorBrush(isDark ? DarkForeground : LightForeground);
-
-            var card = HostCard();
-            card.Background = bar;
-            card.BorderBrush = stroke;
-            card.BorderThickness = new Thickness(1);
-
-            foreach (var button in _buttons)
-            {
-                button.SetThemeColors(isDark);
-                button.ApplyForeground(foreground);
-            }
+            RootGrid.RequestedTheme = _theme;
+            HostCard().BorderThickness = new Thickness(1);
         }
 
         private void UpdatePlacement()
         {
-            if (_targetArea is null)
+            if (_targetArea is null || _closing)
             {
                 return;
             }
@@ -305,7 +338,18 @@ namespace RimePPT.Windows
                     break;
             }
 
-            AppWindow.Move(new PointInt32(x, y));
+            var target = new PointInt32(x,y);
+            if (_firstPlacement)
+            {
+                _entranceTarget = target;
+                AppWindow.Move(_layout switch
+                {
+                    ToolbarLayout.LeftRail => new PointInt32(bounds.X - width, y),
+                    ToolbarLayout.RightRail => new PointInt32(bounds.X + bounds.Width, y),
+                    _ => new PointInt32(x, bounds.Y + bounds.Height)
+                });
+            }
+            else if (!ToolbarEntranceAnimator.Retarget(this, target)) AppWindow.Move(target);
             WindowPlumbing.RemoveWindowBorder(this);
         }
     }

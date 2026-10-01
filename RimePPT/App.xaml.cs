@@ -1,4 +1,4 @@
-using Microsoft.UI.Dispatching;
+﻿using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Windowing;
@@ -34,7 +34,33 @@ namespace RimePPT
         private bool _erasing;
         private bool _inkDirty;      // 本次放映墨迹有变化（含擦除，加载恢复的不算）
         private bool _saveSettled;   // 保存询问已处理过，避免重复弹窗
-        private readonly List<PenChevronWindow> _penChevrons = new();
+        private InkBackendCoordinator? _backend;
+        private PenPickerWindow? _picker;
+        private bool _settingsPending, _settingsApplying;
+        private string? _toolbarSettingsSnapshot, _nativeColorSnapshot;
+        private SlideNavigatorWindow? _navigator;
+        private SpotlightWindow? _spotlight;
+        private int _toolTransitionVersion;
+        private static App? _instance;
+        private readonly ToolbarOnboardingSession _onboarding = new();
+        public static bool ResetToolbarOnboarding()
+        {
+            if (!OnboardingState.TryReset()) return false;
+            if (_instance is { } app)
+            {
+                app._onboarding.Stop();
+                if (ActiveToolbars.Count > 0) _ = app._onboarding.StartAsync(ActiveToolbars.ToArray());
+            }
+            return true;
+        }
+        public static InkBackend EffectiveInkBackend => _instance?._backend?.EffectiveBackend ?? AppSettings.Instance.InkBackend;
+        public static string InkBackendStatus => _instance?._backend?.Status ?? (AppSettings.Instance.InkBackend == InkBackend.Native ? "PowerPoint 原生（需正在放映）" : "RimePPT 自研");
+        public static async Task ClearInkAsync()
+        {
+            if (_instance?._backend is not { } backend) return;
+            try { await backend.ClearCurrentSlideAsync(); }
+            catch (Exception ex) { await _instance.ShowPromptAsync(_instance._showArea, "无法清屏", ex.Message, "确定", "关闭"); }
+        }
         private H.NotifyIcon.TaskbarIcon? _trayIcon;
 
         /// <summary>当前存活的工具条浮窗集合。</summary>
@@ -85,7 +111,7 @@ namespace RimePPT
 
         public App()
         {
-            InitializeComponent();
+            InitializeComponent(); _instance = this;
         }
 
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
@@ -104,26 +130,11 @@ namespace RimePPT
             }
 
             _dispatcher = DispatcherQueue.GetForCurrentThread();
+            // 首次使用先持久化待展示状态，之后即使设置文件生成仍保留引导资格。
+            if (OnboardingState.ShouldShow()) OnboardingState.TryReset();
             AppSettings.Load();
-            AppSettings.SettingsChanged += (_, _) => _dispatcher?.TryEnqueue(() =>
-            {
-                try
-                {
-                    foreach (var toolbar in ActiveToolbars)
-                    {
-                        toolbar.ApplySettings();
-                    }
-                    foreach (var chevron in _penChevrons)
-                    {
-                        chevron.Show(); // 重刷主题配色（Show 内部会 ApplyTheme）
-                    }
-                    RebuildToolbars(); // 布局集合变化时重建，未变化时内部空转
-                }
-                catch (Exception ex)
-                {
-                    CrashReporter.Report(ex, "settings-changed");
-                }
-            });
+            _toolbarSettingsSnapshot = ToolbarSettingsSignature();
+            AppSettings.SettingsChanged += (_, _) => QueueSettingsRefresh();
 
             PowerPoint.ShowStarted += OnShowStarted;
             PowerPoint.ShowEnded += OnShowEnded;
@@ -162,6 +173,21 @@ namespace RimePPT
             }
 
             InitializeTray();
+            // 独立预览诊断入口，不读写课件或墨迹，用于验证原生询问框。
+            var promptPreview = cliArgs.FirstOrDefault(a => a.StartsWith("--prompt-preview=", StringComparison.OrdinalIgnoreCase));
+            if (promptPreview is not null)
+                _dispatcher.TryEnqueue(async () =>
+                {
+                    try
+                    {
+                        bool load = promptPreview.EndsWith("=load", StringComparison.OrdinalIgnoreCase);
+                        var choice = await ShowPromptAsync(DisplayArea.Primary, load ? "打开已保存的墨迹" : "保存墨迹",
+                            load ? "发现这个课件之前保存的批注墨迹。是否打开并恢复到对应页面？" : "本次放映的批注墨迹是否保存到本地，以便下次打开课件时恢复？",
+                            load ? "打开" : "保存", load ? "不打开" : "不保存", "删除墨迹");
+                        CrashReporter.Log($"prompt preview result: {choice}");
+                    }
+                    catch (Exception ex) { CrashReporter.Report(ex, "prompt-preview"); }
+                });
         }
 
         // ———— 放映事件 ————
@@ -211,6 +237,7 @@ namespace RimePPT
                 {
                     var toolbar = new ToolbarWindow(layout, DefaultCommands);
                     toolbar.ToolbarClicked += OnToolbarClicked;
+                    toolbar.ToolSettingsRequested += OpenToolSettings;
                     toolbar.ApplySettings();
                     toolbar.ShowOn(area);
                     ActiveToolbars.Add(toolbar);
@@ -219,9 +246,14 @@ namespace RimePPT
                 // 批注层最后创建（创建顺序影响置顶带内的输入路由稳定性）；
                 // 书写时批注层会盖住工具条，笔画结束（松开）后 App 会把工具条重提上来
                 _annotation = new AnnotationWindow(SessionInk);
-                _annotation.InkChanged += (_, _) => _inkDirty = true;
+                _annotation.InkChanged += (_, _) => { _inkDirty = true; SyncPresentationControls(); };
                 _annotation.CompanionsRaise = RaiseCompanions;
                 _annotation.ShowOn(area);
+                _annotation.SetActiveSlide(_presenting.CurrentSlide);
+                SyncPresentationControls();
+                _backend = new InkBackendCoordinator(_presenting, _annotation);
+                await _backend.SwitchBackendAsync(AppSettings.Instance.InkBackend);
+                foreach (var toolbar in ActiveToolbars) toolbar.BeginEntrance();
 
                 // 墨迹持久化：放映开始时询问是否加载之前保存的墨迹
                 var path = _presenting.ShowFilePath;
@@ -229,6 +261,7 @@ namespace RimePPT
                 {
                     await HandleInkLoadAsync(path, _presenting.CurrentSlide, area);
                 }
+                _ = _onboarding.StartAsync(ActiveToolbars.ToArray());
         }
 
         private void OnSlideChanged(object? sender, int slide)
@@ -238,7 +271,10 @@ namespace RimePPT
             {
                 try
                 {
+                    if (sender != _presenting) return;
+                    _spotlight?.Close(); _spotlight = null;
                     _annotation?.SetActiveSlide(slide);
+                    SyncPresentationControls();
                 }
                 catch (Exception ex)
                 {
@@ -265,6 +301,9 @@ namespace RimePPT
         private async Task OnShowEndedCore()
         {
             var path = _presenting?.ShowFilePath;
+            _toolTransitionVersion++;
+            _backend = null;
+            _navigator?.Close(); _navigator = null; _spotlight?.Close(); _spotlight = null;
 
             CloseAllToolbars();
             CloseAnnotation();
@@ -347,13 +386,24 @@ namespace RimePPT
                         break;
                     }
                     case ToolbarCommand.Annotate:
-                        ToggleAnnotate();
+                        await ToggleToolAsync(AnnotationTool.Pen);
                         break;
                     case ToolbarCommand.Eraser:
-                        ToggleEraser();
+                        await ToggleToolAsync(AnnotationTool.Eraser);
                         break;
                     case ToolbarCommand.Tools:
                         ToggleToolsMenu((ToolbarWindow)sender!);
+                        break;
+                    case ToolbarCommand.Pages:
+                        await OpenNavigatorAsync((ToolbarWindow)sender!);
+                        break;
+                    case ToolbarCommand.Undo:
+                        if (EffectiveInkBackend == InkBackend.Rime) _annotation?.Undo();
+                        SyncPresentationControls();
+                        break;
+                    case ToolbarCommand.Redo:
+                        if (EffectiveInkBackend == InkBackend.Rime) _annotation?.Redo();
+                        SyncPresentationControls();
                         break;
                 }
             }
@@ -365,116 +415,101 @@ namespace RimePPT
 
         // ———— 批注开关 ————
 
-        private void ToggleAnnotate()
+        private static string ToolbarSettingsSignature()
         {
-            if (_annotating && !_erasing)
+            var s = AppSettings.Instance;
+            return $"{s.Theme}|{s.ShowToolbarText}|{s.EdgeMargin}|{string.Join(',', s.GetEnabledToolbarLayouts())}";
+        }
+        private void QueueSettingsRefresh()
+        {
+            _settingsPending = true;
+            if (_settingsApplying || _dispatcher is null) return;
+            _settingsApplying = true;
+            if (!_dispatcher.TryEnqueue(ProcessSettingsRefresh)) _settingsApplying = false;
+        }
+        private async void ProcessSettingsRefresh()
+        {
+            try
             {
-                _annotating = false;
-                if (_annotation is not null)
+                while (_settingsPending)
                 {
-                    _annotation.AnnotationEnabled = false;
+                    _settingsPending = false;
+                    var signature = ToolbarSettingsSignature();
+                    if (_toolbarSettingsSnapshot != signature)
+                    {
+                        _toolbarSettingsSnapshot = signature;
+                        foreach (var toolbar in ActiveToolbars) toolbar.ApplySettings();
+                        RebuildToolbars();
+                    }
+                    if (_backend is not null && _presenting is not null)
+                    {
+                        var desired = _presenting is DebugPresentationController ? InkBackend.Rime : AppSettings.Instance.InkBackend;
+                        bool switched = _backend.EffectiveBackend != desired;
+                        if (switched) await _backend.SwitchBackendAsync(desired);
+                        string color = Convert.ToHexString(AppSettings.Instance.GetPenArgb());
+                        if (switched || (_backend.EffectiveBackend == InkBackend.Native && _annotating && !_erasing && _nativeColorSnapshot != color))
+                        {
+                            await _backend.SetToolAsync(_annotating ? (_erasing ? AnnotationTool.Eraser : AnnotationTool.Pen) : null);
+                            _nativeColorSnapshot = color;
+                            SyncAnnotationChecks();
+                        }
+                    }
+                    _picker?.RefreshBackendState();
                 }
-                ClosePenChevron(); // 取消批注：箭头窗必须一起撤掉
-                SyncAnnotationChecks();
-                return;
             }
-
-            _annotating = true;
-            _erasing = false;
-            EnableAnnotation(AnnotationTool.Pen);
-            ShowPenChevron();
-            SyncAnnotationChecks();
+            catch (Exception ex) { CrashReporter.Report(ex, "settings-changed"); }
+            finally { _settingsApplying = false; if (_settingsPending) QueueSettingsRefresh(); }
         }
 
-        private void ToggleEraser()
+        private async Task ToggleToolAsync(AnnotationTool tool)
         {
-            if (_annotating && _erasing)
+            if (_backend is null) return;
+            bool selected = _annotating && _erasing == (tool == AnnotationTool.Eraser);
+            _picker?.Dismiss(); _picker = null;
+            try
             {
-                _annotating = false;
-                _erasing = false;
-                if (_annotation is not null)
-                {
-                    _annotation.AnnotationEnabled = false;
-                }
-                ClosePenChevron();
-                SyncAnnotationChecks();
-                return;
+                await _backend.SetToolAsync(selected ? null : tool);
+                _annotating = !selected; _erasing = !selected && tool == AnnotationTool.Eraser;
             }
-
-            _annotating = true;
-            _erasing = true;
-            EnableAnnotation(AnnotationTool.Eraser);
-            ShowPenChevron();
-            SyncAnnotationChecks();
+            catch (Exception ex)
+            {
+                _annotating = false; _erasing = false;
+                await ShowPromptAsync(_showArea, "工具切换失败", ex.Message, "确定", "关闭");
+            }
+            SyncAnnotationChecks(); RaiseCompanions();
         }
-
-        private void ShowPenChevron()
+        private void OpenToolSettings(object? sender, ToolbarCommand command)
         {
-            // 先撤旧的再建：批注/橡皮互切或反复开关时不叠窗
-            ClosePenChevron();
-
-            // 每个侧栏各一个箭头窗（左右镜像，指向幻灯片方向）
-            foreach (var rail in ActiveToolbars)
-            {
-                if (rail.Layout != ToolbarLayout.LeftRail && rail.Layout != ToolbarLayout.RightRail)
-                {
-                    continue;
-                }
-
-                var (anchor, pointRight) = rail.GetPenAnchor();
-                var chevron = new PenChevronWindow(pointRight);
-                chevron.PositionAt((int)anchor.X, (int)anchor.Y, pointRight);
-                _penChevrons.Add(chevron);
-            }
-
-            foreach (var chevron in _penChevrons)
-            {
-                chevron.Show();
-            }
+            if (sender is not ToolbarWindow toolbar) return;
+            if (toolbar.GetToolSettingsTarget(command) is not { } anchor) return;
+            if (_picker is { IsShowing: true } && _picker.Owns(anchor)) { ClosePenChevron(); return; }
+            _picker?.Dismiss();
+            var picker = command == ToolbarCommand.Eraser ? new EraserPickerWindow() : new PenPickerWindow();
+            _picker = picker;
+            picker.Closed += (_, _) => { if (ReferenceEquals(_picker, picker)) _picker = null; };
+            picker.ShowAt(anchor, toolbar.Layout);
         }
-
-        private void ClosePenChevron()
-        {
-            foreach (var chevron in _penChevrons)
-            {
-                chevron.Close();
-            }
-            _penChevrons.Clear();
-        }
-
+        private void ShowPenChevron() { }
+        private void ClosePenChevron() { _picker?.Dismiss(); _picker = null; }
         private void RaiseCompanions()
         {
-            foreach (var toolbar in ActiveToolbars)
-            {
-                WindowPlumbing.RaiseToTopmost(toolbar);
-            }
-            foreach (var chevron in _penChevrons)
-            {
-                chevron.Raise();
-            }
+            if (_blackout is not null) { WindowPlumbing.RaiseToTopmost(_blackout); return; }
+            if (_spotlight is not null) { WindowPlumbing.RaiseToTopmost(_spotlight); return; }
+            foreach (var toolbar in ActiveToolbars) { WindowPlumbing.RaiseToTopmost(toolbar); toolbar.RaiseArrow(); }
+            if (_timer is not null) WindowPlumbing.RaiseToTopmost(_timer);
         }
 
-        private void EnableAnnotation(AnnotationTool tool)
+        private void SyncPresentationControls()
         {
-            if (_annotation is null)
-            {
-                return;
-            }
-
-            _annotation.Tool = tool;
-            // 注意：SetClickThrough 修改扩展样式会把批注层重新插到置顶带里，
-            // 且实测插入位置不稳定（可能压住某一侧工具条）——
-            // 启用后必须显式把全部工具条重提到批注层之上，否则批注状态下
-            // 点击上一页/下一页会被全屏批注层吃掉（表现为"点了没反应"）
-            _annotation.AnnotationEnabled = true;
+            if (_presenting is null) return;
+            bool custom = EffectiveInkBackend == InkBackend.Rime;
             foreach (var toolbar in ActiveToolbars)
-            {
-                WindowPlumbing.RaiseToTopmost(toolbar);
-            }
+                toolbar.UpdatePresentation(_presenting.CurrentSlide, _presenting.SlideCount,
+                    custom && (_annotation?.CanUndo ?? false), custom && (_annotation?.CanRedo ?? false));
         }
-
         private void SyncAnnotationChecks()
         {
+            SyncPresentationControls();
             foreach (var toolbar in ActiveToolbars)
             {
                 toolbar.SetCommandChecked(ToolbarCommand.Annotate, _annotating && !_erasing);
@@ -498,17 +533,57 @@ namespace RimePPT
                 return;
             }
 
-            var (toolAnchor, pointRight) = anchor.GetButtonAnchor(ToolbarCommand.Tools);
-            _toolsMenu = new ToolsMenuWindow(new List<(string, string, Action)>
+            if (anchor.GetCommandTarget(ToolbarCommand.Tools) is not { } target) return;
+            ClosePenChevron(); _navigator?.Close(); _navigator = null;
+            var menu = new ToolsMenuWindow(new List<(string, string, Action)>
             {
-                ("\uE708", "黑屏模式", () => { CloseToolsMenu(); ToggleBlackout(); }),
-                ("\uE916", "计时器", () => { CloseToolsMenu(); ToggleTimer(anchor); }),
-                ("\uE713", "设置", () => { CloseToolsMenu(); SettingsWindow.Open(); }),
+                ("\uE7B3", "聚光与放大", () => RunFeatureAsync(OpenSpotlightAsync)),
+                ("\uE708", "黑屏模式", () => RunFeatureAsync(ToggleBlackoutAsync)),
+                ("\uE916", "计时器", () => ToggleTimer(anchor)),
+                ("\uE713", "设置", SettingsWindow.Open),
             });
-            if (!_toolsMenu.ShowAt((int)toolAnchor.X, (int)toolAnchor.Y, pointRight))
+            _toolsMenu = menu;
+            menu.Closed += (_, _) => { if (ReferenceEquals(_toolsMenu, menu)) _toolsMenu = null; };
+            menu.ShowAt(target, anchor.Layout);
+        }
+
+        private async void RunFeatureAsync(Func<Task> action)
+        {
+            try { await action(); }
+            catch (Exception ex) { await ShowPromptAsync(_showArea, "无法打开工具", ex.Message, "确定", "关闭"); }
+        }
+        private Task OpenNavigatorAsync(ToolbarWindow toolbar)
+        {
+            if (_presenting is null || toolbar.GetCommandTarget(ToolbarCommand.Pages) is not { } anchor) return Task.CompletedTask;
+            if (_navigator is { IsShowing: true } && ReferenceEquals(_navigator.Anchor, anchor))
+            { _navigator.Close(); _navigator = null; return Task.CompletedTask; }
+            CloseToolsMenu(); ClosePenChevron(); _navigator?.Close(); _annotation?.FinishInput();
+            var navigator = new SlideNavigatorWindow(_presenting);
+            _navigator = navigator;
+            navigator.Closed += (_, _) => { if (ReferenceEquals(_navigator, navigator)) _navigator = null; };
+            navigator.ShowAt(anchor, _showArea, toolbar.AppWindow.Size.Width);
+            return Task.CompletedTask;
+        }
+        private async Task OpenSpotlightAsync()
+        {
+            if (_showArea is null || _backend is null) return;
+            int version = ++_toolTransitionVersion;
+            var backend = _backend;
+            var area = _showArea;
+            var oldBlackout = _blackout; _blackout = null; oldBlackout?.Close();
+            var old = _spotlight; _spotlight = null; old?.Close();
+            _annotation?.FinishInput(); await backend.SetToolAsync(null);
+            if (version != _toolTransitionVersion || !ReferenceEquals(_backend, backend)) return;
+            var spotlight = new SpotlightWindow(area);
+            _spotlight = spotlight;
+            spotlight.Closed += async (_, _) =>
             {
-                _toolsMenu = null;
-            }
+                if (!ReferenceEquals(_spotlight, spotlight)) return;
+                _spotlight = null;
+                try { if (version == _toolTransitionVersion && ReferenceEquals(_backend, backend) && _blackout is null) await backend.SetToolAsync(_annotating ? (_erasing ? AnnotationTool.Eraser : AnnotationTool.Pen) : null); RaiseCompanions(); }
+                catch (Exception ex) { Log(ex.Message); }
+            };
+            try { spotlight.Show(); } catch { spotlight.Close(); throw; }
         }
 
         private void CloseToolsMenu()
@@ -517,7 +592,7 @@ namespace RimePPT
             _toolsMenu = null;
         }
 
-        private void ToggleBlackout()
+        private async Task ToggleBlackoutAsync()
         {
             if (_blackout is not null)
             {
@@ -525,9 +600,23 @@ namespace RimePPT
                 return;
             }
 
-            _blackout = new BlackoutWindow();
-            _blackout.ExitRequested += (_, _) => CloseBlackout();
-            _blackout.ShowOn(_showArea ?? Microsoft.UI.Windowing.DisplayArea.Primary);
+            var oldSpotlight = _spotlight; _spotlight = null; oldSpotlight?.Close();
+            int version = ++_toolTransitionVersion;
+            var backend = _backend;
+            _annotation?.FinishInput();
+            if (backend is not null) await backend.SetToolAsync(null);
+            if (version != _toolTransitionVersion || !ReferenceEquals(_backend, backend) || _presenting is null) return;
+            var blackout = new BlackoutWindow();
+            _blackout = blackout;
+            blackout.ExitRequested += (_, _) => CloseBlackout();
+            blackout.Closed += async (_, _) =>
+            {
+                if (!ReferenceEquals(_blackout, blackout)) return;
+                _blackout = null;
+                try { if (version == _toolTransitionVersion && backend is not null && ReferenceEquals(_backend, backend) && _spotlight is null) await backend.SetToolAsync(_annotating ? (_erasing ? AnnotationTool.Eraser : AnnotationTool.Pen) : null); RaiseCompanions(); }
+                catch (Exception ex) { Log(ex.Message); }
+            };
+            try { blackout.ShowOn(_showArea ?? DisplayArea.Primary); } catch { blackout.Close(); throw; }
         }
 
         private void CloseBlackout()
@@ -544,12 +633,10 @@ namespace RimePPT
                 return;
             }
 
-            var (toolAnchor, pointRight) = anchor.GetButtonAnchor(ToolbarCommand.Tools);
-            _timer = new TimerWindow();
-            if (!_timer.ShowAt((int)toolAnchor.X, (int)toolAnchor.Y, pointRight))
-            {
-                _timer = null;
-            }
+            var timer = new TimerWindow();
+            _timer = timer;
+            timer.Closed += (_, _) => { if (ReferenceEquals(_timer, timer)) _timer = null; };
+            timer.ShowCentered(_showArea ?? DisplayArea.Primary);
         }
 
         private void CloseTimer()
@@ -681,9 +768,10 @@ namespace RimePPT
 
         public static void CloseAllToolbars()
         {
+            _instance?._onboarding.Stop();
             foreach (var toolbar in ActiveToolbars)
             {
-                toolbar.Close();
+                toolbar.Dismiss();
             }
             ActiveToolbars.Clear();
         }
@@ -707,22 +795,27 @@ namespace RimePPT
                 return;
             }
 
+            CloseToolsMenu(); ClosePenChevron(); _navigator?.Close(); _navigator = null;
+            bool resumeGuide = _onboarding.IsRunning;
             CloseAllToolbars();
             foreach (var layout in target)
             {
                 var toolbar = new ToolbarWindow(layout, DefaultCommands);
                 toolbar.ToolbarClicked += OnToolbarClicked;
+                    toolbar.ToolSettingsRequested += OpenToolSettings;
                 toolbar.ApplySettings();
                 toolbar.ShowOn(_showArea);
                 ActiveToolbars.Add(toolbar);
             }
 
+            foreach (var toolbar in ActiveToolbars) toolbar.BeginEntrance();
             if (_annotating)
             {
                 ShowPenChevron();
             }
             SyncAnnotationChecks();
             RaiseCompanions();
+            _ = _onboarding.StartAsync(ActiveToolbars.ToArray(), resumeGuide);
         }
 
         private static readonly object LogLock = new();

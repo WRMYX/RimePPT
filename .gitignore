@@ -1,3 +1,12 @@
 /.tasks
 /.vs
 /Luminalium-1.4.1.0
+/promo
+/RimePPT/bin
+/RimePPT/obj
+/tools/RimePPT.TouchProbe/obj
+/tools/RimePPT.TouchProbe/bin
+/tools/RimePPT.OfficeProbe/obj
+/tests/RimePPT.Ink.Tests/obj
+/tools/RimePPT.OfficeProbe/bin
+/tests/RimePPT.Ink.Tests/bin

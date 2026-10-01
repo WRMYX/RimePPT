@@ -1,181 +1,57 @@
-using System;
+﻿using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
-using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using RimePPT.Core;
-using Windows.UI;
 
-namespace RimePPT.Controls
+namespace RimePPT.Controls;
+public sealed partial class ToolbarButton : UserControl
 {
-    /// <summary>
-    /// 工具条按钮：图标+文字的原生 Button 封装。
-    /// 按压反馈用指针事件直接换色（亮 #005FB8/白字，暗 #60CDFF/黑字），
-    /// 不走模板按压态——Fluent 的 Pressed 状态会叠烟雾层导致颜色偏差。
-    /// </summary>
-    public sealed partial class ToolbarButton : UserControl
+    public event EventHandler<ToolbarCommand>? Clicked;
+    private readonly Grid _host = new();
+    private readonly FontIcon _icon = new() { FontSize = 20, FontFamily = new FontFamily("Segoe Fluent Icons") };
+    private readonly TextBlock _label = new() { FontSize = 11, HorizontalAlignment = HorizontalAlignment.Center };
+    private ButtonBase? _button;
+    public static readonly DependencyProperty IconProperty = DependencyProperty.Register(nameof(Icon), typeof(string), typeof(ToolbarButton), new PropertyMetadata("", (d,e) => ((ToolbarButton)d)._icon.Glyph = (string)e.NewValue));
+    public static readonly DependencyProperty LabelProperty = DependencyProperty.Register(nameof(Label), typeof(string), typeof(ToolbarButton), new PropertyMetadata("", (d,e) => ((ToolbarButton)d)._label.Text = (string)e.NewValue));
+    public string Icon { get => (string)GetValue(IconProperty); set => SetValue(IconProperty,value); }
+    public string Label { get => (string)GetValue(LabelProperty); set => SetValue(LabelProperty,value); }
+    private ToolbarCommand _command;
+    public ToolbarCommand Command { get => _command; set { _command = value; Build(); } }
+    public ToolbarButton() { Content = _host; Loaded += (_,_) => Build(); }
+    private void Build()
     {
-        public event EventHandler<ToolbarCommand>? Clicked;
-
-        private static readonly Color LightPressed = Color.FromArgb(0xFF, 0x00, 0x5F, 0xB8);
-        private static readonly Color DarkPressed = Color.FromArgb(0xFF, 0x60, 0xCD, 0xFF);
-        private static readonly Color LightPressedForeground = Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF);
-        private static readonly Color DarkPressedForeground = Color.FromArgb(0xFF, 0x00, 0x00, 0x00);
-        private static readonly Color NormalBackground = Color.FromArgb(0x00, 0x00, 0x00, 0x00);
-
-        private bool _isDark;
-        private bool _captured;
-        private bool _isChecked;
-        private Brush? _normalForeground;
-        private readonly DispatcherTimer _restoreTimer;
-
-        public static readonly DependencyProperty IconProperty =
-            DependencyProperty.Register(nameof(Icon), typeof(string), typeof(ToolbarButton), new PropertyMetadata(string.Empty, OnIconChanged));
-
-        public static readonly DependencyProperty LabelProperty =
-            DependencyProperty.Register(nameof(Label), typeof(string), typeof(ToolbarButton), new PropertyMetadata(string.Empty, OnLabelChanged));
-
-        public static readonly DependencyProperty CommandProperty =
-            DependencyProperty.Register(nameof(Command), typeof(ToolbarCommand), typeof(ToolbarButton), new PropertyMetadata(ToolbarCommand.Tools));
-
-        public string Icon
+        if (_button is not null) return;
+        var content = new StackPanel { Spacing = 2 }; content.Children.Add(_icon); content.Children.Add(_label);
+        _button = Command is ToolbarCommand.Annotate or ToolbarCommand.Eraser ? new ToggleButton() : new Button();
+        _button.Content = content;
+        _button.MinWidth = 44; _button.MinHeight = 44;
+        _button.Padding = new Thickness(10, 8, 10, 8);
+        _button.BorderThickness = new Thickness(0);
+        _button.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        _button.HorizontalAlignment = HorizontalAlignment.Stretch;
+        _button.HorizontalContentAlignment = HorizontalAlignment.Center;
+        _button.VerticalContentAlignment = VerticalAlignment.Center;
+        _button.Click += (_,_) => Clicked?.Invoke(this, Command);
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(_button, Label);
+        if (Command == ToolbarCommand.Pages)
         {
-            get => (string)GetValue(IconProperty);
-            set => SetValue(IconProperty, value);
+            // ThemeResource 保留动态主题绑定，页码区域与翻页按钮明确分开。
+            var frame = (Border)Microsoft.UI.Xaml.Markup.XamlReader.Load("<Border xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' Background='{ThemeResource SubtleFillColorSecondaryBrush}' BorderBrush='{ThemeResource CardStrokeColorDefaultBrush}' BorderThickness='1' CornerRadius='4' Margin='2,4'/>" );
+            frame.Child = _button;
+            _host.Children.Add(frame);
         }
-
-        public string Label
-        {
-            get => (string)GetValue(LabelProperty);
-            set => SetValue(LabelProperty, value);
-        }
-
-        public ToolbarCommand Command
-        {
-            get => (ToolbarCommand)GetValue(CommandProperty);
-            set => SetValue(CommandProperty, value);
-        }
-
-        public ToolbarButton()
-        {
-            InitializeComponent();
-
-            // 按压反馈由 UserControl 层接管（RootButton 退出命中测试）：
-            // Button 的 Pressed 视觉状态会强制回写背景色，无法精确控制颜色
-            Background = new SolidColorBrush(NormalBackground);
-            RootButton.IsHitTestVisible = false;
-
-            // 反馈色保持 150ms 再恢复：足以感知点击，又不拖沓
-            _restoreTimer = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
-            _restoreTimer.Tick += OnRestoreTimerTick;
-
-            PointerPressed += OnPointerPressed;
-            PointerReleased += OnPointerReleased;
-            PointerCanceled += OnPointerReleased;
-            PointerCaptureLost += OnPointerReleased;
-        }
-
-        /// <summary>常规态前景色（由宿主窗口按主题下发）。</summary>
-        public void ApplyForeground(SolidColorBrush brush)
-        {
-            _normalForeground = brush;
-            IconGlyph.Foreground = brush;
-            LabelText.Foreground = brush;
-        }
-
-        /// <summary>主题标记（由宿主窗口按主题下发，决定按压强调色）。</summary>
-        public void SetThemeColors(bool isDark)
-        {
-            _isDark = isDark;
-            if (_isChecked)
-            {
-                ApplyCheckedVisual();
-            }
-        }
-
-        /// <summary>是否显示按钮文字（显示文字关闭时只留图标）。</summary>
-        public void SetShowText(bool show)
-        {
-            LabelText.Visibility = show ? Visibility.Visible : Visibility.Collapsed;
-        }
-
-        /// <summary>开关型按钮的选中态（批注/橡皮）：选中即以强调色常驻。</summary>
-        public void SetChecked(bool isChecked)
-        {
-            _isChecked = isChecked;
-            if (isChecked)
-            {
-                _restoreTimer.Stop();
-                ApplyCheckedVisual();
-            }
-            else
-            {
-                RestoreNormalVisual();
-            }
-        }
-
-        private void ApplyCheckedVisual()
-        {
-            RootButton.Background = new SolidColorBrush(_isDark ? DarkPressed : LightPressed);
-            var foreground = new SolidColorBrush(_isDark ? DarkPressedForeground : LightPressedForeground);
-            IconGlyph.Foreground = foreground;
-            LabelText.Foreground = foreground;
-        }
-
-        private void OnPointerPressed(object sender, PointerRoutedEventArgs e)
-        {
-            _restoreTimer.Stop();
-            RootButton.Background = new SolidColorBrush(_isDark ? DarkPressed : LightPressed);
-            var foreground = new SolidColorBrush(_isDark ? DarkPressedForeground : LightPressedForeground);
-            IconGlyph.Foreground = foreground;
-            LabelText.Foreground = foreground;
-            CapturePointer(e.Pointer);
-            _captured = true;
-        }
-
-        private void OnPointerReleased(object sender, PointerRoutedEventArgs e)
-        {
-            if (_captured)
-            {
-                _captured = false;
-                ReleasePointerCapture(e.Pointer);
-                Clicked?.Invoke(this, Command);
-            }
-
-            // 反馈色保持 150ms 再恢复，避免松手瞬间颜色立即消失
-            _restoreTimer.Stop();
-            _restoreTimer.Start();
-        }
-
-        private void OnRestoreTimerTick(object? sender, object e)
-        {
-            _restoreTimer.Stop();
-            if (_isChecked)
-            {
-                ApplyCheckedVisual();
-                return;
-            }
-            RestoreNormalVisual();
-        }
-
-        private void RestoreNormalVisual()
-        {
-            RootButton.Background = new SolidColorBrush(NormalBackground);
-            if (_normalForeground is not null)
-            {
-                IconGlyph.Foreground = _normalForeground;
-                LabelText.Foreground = _normalForeground;
-            }
-        }
-
-        private static void OnIconChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-        {
-            ((ToolbarButton)d).IconGlyph.Glyph = (string)e.NewValue;
-        }
-
-        private static void OnLabelChanged(DependencyObject d, DependencyPropertyChangedEventArgs e)
-        {
-            ((ToolbarButton)d).LabelText.Text = (string)e.NewValue;
-        }
+        else _host.Children.Add(_button);
     }
+    public void SetShowText(bool show) => _label.Visibility = show || Command == ToolbarCommand.Pages ? Visibility.Visible : Visibility.Collapsed;
+    public void SetEnabled(bool enabled) { if (_button is not null) _button.IsEnabled = enabled; }
+    public void SetPageNumber(int current, int total)
+    {
+        _icon.Visibility = Visibility.Collapsed;
+        _label.FontSize = 14;
+        Label = total > 0 ? $"{current} / {total}" : $"{current} / —";
+        _label.Visibility = Visibility.Visible;
+    }
+    public void SetChecked(bool value) { if (_button is ToggleButton toggle) toggle.IsChecked = value; }
 }

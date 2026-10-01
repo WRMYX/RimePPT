@@ -1,0 +1,8 @@
+<Project Sdk="Microsoft.NET.Sdk">
+ <PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0-windows</TargetFramework><ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable></PropertyGroup>
+ <ItemGroup>
+  <Compile Include="../../RimePPT/Core/PowerPointController.cs" Link="PowerPointController.cs"/>
+  <Compile Include="../../RimePPT/Core/IPresentationController.cs" Link="IPresentationController.cs"/>
+  <Compile Include="../../RimePPT/Core/PresentationCapabilities.cs" Link="PresentationCapabilities.cs"/>
+ </ItemGroup>
+</Project>

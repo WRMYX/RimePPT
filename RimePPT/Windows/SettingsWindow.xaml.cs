@@ -47,6 +47,11 @@ namespace RimePPT.Windows
             Title = "RimePPT 设置";
             // WinUI 一体化标题栏：内容贯通顶条，Mica 直达窗口上缘
             ExtendsContentIntoTitleBar = true;
+            SetTitleBar(AppTitleBar);
+            WindowRoot.SizeChanged += (_, _) => AdaptLayout();
+            Nav.Loaded += (_, _) => AdaptLayout();
+            Nav.PaneOpened += (_, _) => AdaptLayout(); Nav.PaneClosed += (_, _) => AdaptLayout();
+            AppSettings.SettingsChanged += SettingsUpdated;
             Nav.ActualThemeChanged += (_, _) =>
             {
                 ApplyTitleBarButtonsTheme();
@@ -70,6 +75,7 @@ namespace RimePPT.Windows
                     _previewing = false;
                     App.Debug.RaiseShowEnded();
                 }
+                AppSettings.SettingsChanged -= SettingsUpdated;
                 _instance = null;
             };
             _suppress = false;
@@ -120,11 +126,46 @@ namespace RimePPT.Windows
                 bounds.Y + Math.Max(0, (bounds.Height - size.Height) / 2)));
         }
 
+        private void SettingsUpdated(object? sender, EventArgs e)
+        {
+            _suppress = true; BackendCombo.SelectedIndex = (int)AppSettings.Instance.InkBackend;
+            WindowRoot.RequestedTheme = App.ToolbarTheme; BackendDescription.Text = App.InkBackendStatus + "。原生墨迹由 PowerPoint 管理；自研模式支持多指、尺寸调节和逐页撤销。";
+            _suppress = false;
+        }
+        private void OnBackendChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_suppress || BackendCombo.SelectedIndex < 0) return;
+            AppSettings.Instance.InkBackend = (InkBackend)BackendCombo.SelectedIndex; AppSettings.Instance.Save();
+        }
+        private void AdaptLayout()
+        {
+            double scale = WindowRoot.XamlRoot?.RasterizationScale ?? 1;
+            AppTitleBar.Padding = new Thickness(16, 0, Math.Max(144, AppWindow.TitleBar.RightInset / scale), 0);
+            void Walk(DependencyObject node)
+            {
+                if (node is Grid grid && grid.ColumnDefinitions.Count == 2 && grid.Children.Count > 1 && grid.Children[0] is StackPanel)
+                {
+                    bool narrow = Nav.ActualWidth - (Nav.IsPaneOpen ? Nav.OpenPaneLength : 48) < 500;
+                    if (grid.RowDefinitions.Count == 0) { grid.RowDefinitions.Add(new() { Height = GridLength.Auto }); grid.RowDefinitions.Add(new() { Height = GridLength.Auto }); }
+                    foreach (var child in grid.Children)
+                        if (child is FrameworkElement element && element is not StackPanel)
+                        { Grid.SetRow(element, narrow ? 1 : 0); Grid.SetColumn(element, narrow ? 0 : 1); element.HorizontalAlignment = narrow ? HorizontalAlignment.Stretch : HorizontalAlignment.Right; element.Margin = narrow ? new Thickness(0,8,0,0) : new Thickness(12,0,0,0); }
+                }
+                // Walk our logical setting rows only, never NavigationView/control templates.
+                if (node is Panel panel) foreach (var child in panel.Children) Walk(child);
+                else if (node is Border border && border.Child is not null) Walk(border.Child);
+                else if (node is ScrollViewer scroll && scroll.Content is DependencyObject content) Walk(content);
+            }
+            Walk(AppearancePage); Walk(ToolbarPage); Walk(DebugPage); Walk(AboutPage);
+        }
+
         // ———— 初始化 ————
 
         private void LoadValues()
         {
             var settings = AppSettings.Instance;
+            BackendCombo.SelectedIndex = (int)settings.InkBackend;
+            WindowRoot.RequestedTheme = App.ToolbarTheme;
             ThemeCombo.SelectedIndex = settings.Theme switch
             {
                 "light" => 1,
@@ -159,6 +200,7 @@ namespace RimePPT.Windows
             }
 
             string tag = (string)args.SelectedItemContainer.Tag;
+            PageTitle.Text = tag switch { "toolbar" => "工具栏", "debug" => "调试", "about" => "关于", _ => "外观" };
             AppearancePage.Visibility = tag == "appearance" ? Visibility.Visible : Visibility.Collapsed;
             ToolbarPage.Visibility = tag == "toolbar" ? Visibility.Visible : Visibility.Collapsed;
             DebugPage.Visibility = tag == "debug" ? Visibility.Visible : Visibility.Collapsed;
@@ -281,6 +323,17 @@ namespace RimePPT.Windows
         }
 
         // ———— 调试 ————
+
+        private void OnResetOnboarding(object sender, RoutedEventArgs e)
+        {
+            bool reset = App.ResetToolbarOnboarding();
+            OnboardingResetInfo.Severity = reset ? InfoBarSeverity.Success : InfoBarSeverity.Error;
+            OnboardingResetInfo.Title = reset ? "引导会话已重置" : "无法重置引导会话";
+            OnboardingResetInfo.Message = reset
+                ? (App.ActiveToolbars.Count > 0 ? "正在从第一个工具栏按钮重新开始引导。" : "下次工具栏出现时开始引导，也可以在下方启动模拟放映。")
+                : "无法保存引导记录，请检查本地数据目录的写入权限后重试。";
+            OnboardingResetInfo.IsOpen = true;
+        }
 
         private void OnDebugSide(object sender, RoutedEventArgs e)
         {

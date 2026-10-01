@@ -75,6 +75,88 @@ namespace RimePPT.Core
             _thread.Start();
         }
 
+        // Clear stays unavailable until the Office probe confirms current-page scope.
+        public PresentationCapabilities Capabilities => new(IsPresenting, IsPresenting, NativeClearValidated);
+        public static bool NativeClearValidated { get; set; }
+        public Task SetNativePointerAsync(NativePointerTool tool, byte[]? argb) => RunForShow(() =>
+        {
+            dynamic show = ((dynamic)_ppt!).SlideShowWindows(1);
+            dynamic view = show.View;
+            // 仅换工具时激活放映；即时选色不能抢走颜色弹层的焦点。
+            bool changingTool = (int)view.PointerType != (int)tool;
+            if (changingTool) show.Activate();
+            if (argb is { Length: 4 }) view.PointerColor.RGB = argb[1] | (argb[2] << 8) | (argb[3] << 16);
+            if (changingTool) view.PointerType = (int)tool;
+            if ((int)view.PointerType != (int)tool) throw new InvalidOperationException("PowerPoint 未接受所选指针。请在 PowerPoint 中检查笔工具。" );
+        });
+        public Task ClearNativeInkAsync() => RunForShow(() =>
+        {
+            if (!NativeClearValidated) throw new NotSupportedException("原生清屏范围尚未通过当前 Office 验证，请使用 PowerPoint 的清除本页墨迹。" );
+            ((dynamic)_ppt!).SlideShowWindows(1).View.EraseDrawing();
+        });
+        public Task GoToSlideAsync(int slideIndex) => RunForShow(() =>
+        {
+            dynamic show = ((dynamic)_ppt!).SlideShowWindows(1);
+            if (slideIndex < 1 || slideIndex > (int)show.Presentation.Slides.Count) throw new ArgumentOutOfRangeException(nameof(slideIndex));
+            // A named custom show can exclude slides from the full presentation.
+            string name = (string)show.View.SlideShowName;
+            if (!string.IsNullOrEmpty(name))
+            {
+                Array ids = (Array)show.Presentation.SlideShowSettings.NamedSlideShows.Item(name).SlideIDs;
+                int targetId = (int)show.Presentation.Slides(slideIndex).SlideID;
+                bool included = false; foreach (var id in ids) if (Convert.ToInt32(id) == targetId) included = true;
+                if (!included) throw new InvalidOperationException("该页不在当前自定义放映范围内。" );
+            }
+            show.View.GotoSlide(slideIndex, -1);
+        });
+        public Task<string> ExportSlideThumbnailAsync(int slideIndex, string destinationPath, int pixelWidth, CancellationToken cancellationToken)
+            => RunForShow(() =>
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                dynamic presentation = ((dynamic)_ppt!).SlideShowWindows(1).Presentation;
+                if (slideIndex < 1 || slideIndex > (int)presentation.Slides.Count) throw new ArgumentOutOfRangeException(nameof(slideIndex));
+                int height = Math.Max(1, (int)(pixelWidth * (double)presentation.PageSetup.SlideHeight / (double)presentation.PageSetup.SlideWidth));
+                presentation.Slides(slideIndex).Export(destinationPath, "PNG", pixelWidth, height);
+                cancellationToken.ThrowIfCancellationRequested(); return destinationPath;
+            });
+        private Task RunForShow(Action action) => RunForShow(() => { action(); return true; });
+        private Task<T> RunForShow<T>(Func<T> action)
+        {
+            var handle = _hwnd; var path = _showPath;
+            return RunOnComThread(() =>
+            {
+                if (!_isPresenting || _ppt is null || _hwnd != handle || _showPath != path)
+                    throw new InvalidOperationException("放映已结束或切换，请重新打开工具。" );
+                return action();
+            });
+        }
+        private Task<T> RunOnComThread<T>(Func<T> action)
+        {
+            if (!_running || _threadId == 0) return Task.FromException<T>(new InvalidOperationException("PowerPoint 控制线程尚未就绪。"));
+            var completion = new TaskCompletionSource<T>(TaskCreationOptions.RunContinuationsAsynchronously);
+            _work.Enqueue(() =>
+            {
+                if (completion.Task.IsCompleted) return;
+                try
+                {
+                    if (!_running) throw new InvalidOperationException("PowerPoint 控制线程已关闭。" );
+                    for (int attempt = 0; ; attempt++)
+                    {
+                        try { completion.TrySetResult(action()); break; }
+                        catch (COMException ex) when (attempt < 2 && (ex.HResult == unchecked((int)0x80010001) || ex.HResult == unchecked((int)0x8001010A))) { Thread.Sleep(50); }
+                    }
+                }
+                catch (Exception ex) { completion.TrySetException(ex); }
+            });
+            if (!PostThreadMessage(_threadId, WM_APP_WORK, IntPtr.Zero, IntPtr.Zero)) completion.TrySetException(new InvalidOperationException("无法发送 PowerPoint 控制请求。"));
+            return AwaitCompletion();
+            async Task<T> AwaitCompletion()
+            {
+                try { return await completion.Task.WaitAsync(TimeSpan.FromSeconds(15)); }
+                catch (TimeoutException ex) { completion.TrySetException(ex); throw; }
+            }
+        }
+
         public Task NextAsync() => RunOnComThread(() =>
         {
             if (_isPresenting && _ppt is not null)
@@ -146,6 +228,7 @@ namespace RimePPT.Core
             }
             finally
             {
+                _running = false; while (_work.TryDequeue(out var pending)) pending();
                 _ppt = null;
             }
         }
@@ -230,6 +313,19 @@ namespace RimePPT.Core
                     {
                     }
 
+                    if (hwnd == IntPtr.Zero)
+                    {
+                        // Some Office builds do not expose SlideShowWindow.HWND over IDispatch.
+                        var matches = new List<IntPtr>();
+                        EnumWindows((window, state) =>
+                        {
+                            var kind = new System.Text.StringBuilder(128); GetClassName(window, kind, kind.Capacity);
+                            var title = new System.Text.StringBuilder(512); GetWindowText(window, title, title.Capacity);
+                            if (kind.ToString() == "screenClass" && IsWindowVisible(window) && path is not null && title.ToString().Contains(Path.GetFileNameWithoutExtension(path), StringComparison.OrdinalIgnoreCase)) matches.Add(window);
+                            return true;
+                        }, IntPtr.Zero);
+                        if (matches.Count == 1) hwnd = matches[0];
+                    }
                     _showPath = path;
                     _currentSlide = slide;
                     _slideCount = count;
@@ -318,6 +414,14 @@ namespace RimePPT.Core
             }
 
             _ppt = best;
+            try
+            {
+                string stampPath = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RimePPT", "native-clear-validation.json");
+                string version = (string)((dynamic)_ppt!).Version + "|" + Convert.ToString(((dynamic)_ppt!).Build);
+                using var stamp = System.Text.Json.JsonDocument.Parse(File.ReadAllText(stampPath));
+                NativeClearValidated = stamp.RootElement.GetProperty("version").GetString() == version && stamp.RootElement.GetProperty("scope").GetString() == "current-page";
+            }
+            catch { NativeClearValidated = false; }
             Log($"attached, bestScore={bestScore}");
             return _ppt is not null;
         }
@@ -382,24 +486,7 @@ namespace RimePPT.Core
             return result;
         }
 
-        private Task RunOnComThread(Action action)
-        {
-            var tcs = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            _work.Enqueue(() =>
-            {
-                try
-                {
-                    action();
-                    tcs.SetResult();
-                }
-                catch (Exception ex)
-                {
-                    tcs.SetException(ex);
-                }
-            });
-            PostThreadMessage(_threadId, WM_APP_WORK, IntPtr.Zero, IntPtr.Zero);
-            return tcs.Task;
-        }
+        private Task RunOnComThread(Action action) => RunOnComThread(() => { action(); return true; });
 
         [DllImport("ole32.dll", PreserveSig = false)]
         private static extern void CLSIDFromProgID(
@@ -411,6 +498,12 @@ namespace RimePPT.Core
 
         [DllImport("ole32.dll", PreserveSig = false)]
         private static extern void CreateBindCtx(uint reserved, out IBindCtx bindCtx);
+
+        private delegate bool WindowCallback(IntPtr window, IntPtr state);
+        [DllImport("user32.dll")] private static extern bool EnumWindows(WindowCallback callback, IntPtr state);
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetClassName(IntPtr window, System.Text.StringBuilder text, int count);
+        [DllImport("user32.dll", CharSet = CharSet.Unicode)] private static extern int GetWindowText(IntPtr window, System.Text.StringBuilder text, int count);
+        [DllImport("user32.dll")] private static extern bool IsWindowVisible(IntPtr window);
 
         // ———— Win32 消息管道 ————
 

@@ -1,271 +1,195 @@
 using System;
-using System.Collections.Generic;
-using System.Runtime.InteropServices;
-using Microsoft.UI.Windowing;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
+using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
+using Microsoft.UI.Xaml.Shapes;
 using RimePPT.Core;
-using RimePPT.Services;
-using Windows.Graphics;
 using Windows.UI;
 
-namespace RimePPT.Windows
+namespace RimePPT.Windows;
+
+/// <summary>笔/橡皮设置原生弹层，保留旧类型名以兼容调用方。</summary>
+public class PenPickerWindow : Flyout
 {
-    /// <summary>
-    /// 笔设置卡片窗（替代 Flyout——Flyout 会被裁剪在 30×66 的箭头小窗内显示不全）：
-    /// 可激活的无边框亚克力卡，承载 6 个笔色圆点与粗细滑杆，实时写回设置。
-    /// 全局同一时刻只保留一个实例（打开新的会关掉旧的）。
-    /// </summary>
-    public sealed class PenPickerWindow : Window
+    private readonly bool _eraser;
+    private readonly StackPanel _panel = new() { Spacing = 12, Width = 320 };
+    private readonly ComboBox _backend = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
+    private readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap, FontSize = 12 };
+    private readonly Slider _width;
+    private readonly Slider? _height;
+    private readonly Rectangle _preview = new() { RadiusX = 4, RadiusY = 4, HorizontalAlignment = HorizontalAlignment.Center };
+    private readonly TextBlock _size = new();
+    private readonly Ellipse? _currentColor;
+    private readonly DispatcherTimer _saveTimer = new() { Interval = TimeSpan.FromMilliseconds(250) };
+    private Flyout? _colorFlyout;
+    private ColorPicker? _colorPicker;
+    private bool _suppress, _dirty, _subscribed;
+    private FrameworkElement? _anchor;
+    public bool IsShowing { get; private set; }
+    public bool Owns(FrameworkElement anchor) => ReferenceEquals(_anchor, anchor);
+    public PenPickerWindow() : this(false) { }
+    protected PenPickerWindow(bool eraser)
     {
-        private static PenPickerWindow? _active;
-
-        private readonly Grid _root = new();
-        private readonly Border _card = new()
+        _eraser = eraser;
+        ShouldConstrainToRootBounds = false;
+        AreOpenCloseAnimationsEnabled = true;
+        SystemBackdrop = new DesktopAcrylicBackdrop();
+        FlyoutPresenterStyle = PresenterStyle();
+        _panel.Children.Add(new TextBlock { Text = eraser ? "橡皮设置" : "笔设置", FontSize = 20 });
+        _panel.Children.Add(_backend); _panel.Children.Add(_status);
+        _backend.Items.Add("PowerPoint 原生（COM）"); _backend.Items.Add("RimePPT 自研");
+        _backend.SelectionChanged += (_, _) =>
         {
-            CornerRadius = new CornerRadius(8),
-            Padding = new Thickness(14),
+            if (_suppress || _backend.SelectedIndex < 0) return;
+            AppSettings.Instance.InkBackend = (InkBackend)_backend.SelectedIndex; ChangedLive();
         };
-        private readonly StackPanel _swatches = new() { Orientation = Orientation.Horizontal, Spacing = 6 };
-        private readonly TextBlock _colorLabel = new() { Text = "笔颜色", FontSize = 12, Opacity = 0.7 };
-        private readonly TextBlock _thicknessLabel = new()
+        if (!eraser)
         {
-            Text = "笔粗细",
-            FontSize = 12,
-            Opacity = 0.7,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        private readonly Slider _thickness = new()
-        {
-            Minimum = 2,
-            Maximum = 10,
-            StepFrequency = 1,
-            Width = 150,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        private readonly TextBlock _thicknessValue = new()
-        {
-            FontSize = 12,
-            MinWidth = 16,
-            VerticalAlignment = VerticalAlignment.Center,
-        };
-        private readonly List<Button> _swatchButtons = new();
-        private bool _suppress = true;
-
-        // 锚点：箭头窗外缘中点（ShowAt 时记录，布局回调重算位置用）
-        private int _edgeX;
-        private int _centerY;
-        private bool _pointRight = true;
-
-        private static readonly Color LightBar = Color.FromArgb(0xF7, 0xFF, 0xFF, 0xFF);
-        private static readonly Color DarkBar = Color.FromArgb(0xF0, 0x28, 0x28, 0x28);
-        private static readonly Color LightStroke = Color.FromArgb(0x14, 0x00, 0x00, 0x00);
-        private static readonly Color DarkStroke = Color.FromArgb(0x2E, 0xFF, 0xFF, 0xFF);
-
-        public PenPickerWindow()
-        {
-            Title = "RimePPT";
-            SystemBackdrop = new TransparentBackdrop();
-
-            // 拾取窗是交互卡：可激活（与 PromptWindow 同规则）；
-            // DWM alpha 路径必须开，否则透明/亚克力会透出黑底
-            WindowPlumbing.EnableTransparency(this);
-            WindowPlumbing.RemoveWindowBorder(this);
-            WindowPlumbing.RemoveResizableFrame(this);
-
-            if (AppWindow.Presenter is OverlappedPresenter presenter)
-            {
-                presenter.IsAlwaysOnTop = true;
-                presenter.IsResizable = false;
-                presenter.IsMinimizable = false;
-                presenter.IsMaximizable = false;
-            }
-            AppWindow.IsShownInSwitchers = false;
-            AppWindow.SetIcon(System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "icon.ico"));
-
-            BuildContent();
-            _root.Children.Add(_card);
-            Content = _root;
-
-            // 内容真实布局完成后再次量测撑窗（与 ToolbarWindow/PromptWindow 同模式）
-            _root.SizeChanged += (_, _) => UpdatePlacement();
-
-            Closed += (_, _) =>
-            {
-                if (ReferenceEquals(_active, this))
-                {
-                    _active = null;
-                }
-            };
-
-            ApplyTheme();
-        }
-
-        /// <summary>当前是否已有打开的拾取窗。</summary>
-        public static bool IsOpen => _active is not null;
-
-        private void BuildContent()
-        {
-            var panel = new StackPanel { Spacing = 10 };
-
-            panel.Children.Add(_colorLabel);
-            panel.Children.Add(_swatches);
-
-            var thicknessRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
-            thicknessRow.Children.Add(_thicknessLabel);
-            _thickness.ValueChanged += OnThicknessChanged;
-            thicknessRow.Children.Add(_thickness);
-            thicknessRow.Children.Add(_thicknessValue);
-            panel.Children.Add(thicknessRow);
-
-            _card.Child = panel;
-
+            var swatches = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
             foreach (var (name, argb) in PenPalette.Presets)
             {
-                var color = Color.FromArgb(argb[0], argb[1], argb[2], argb[3]);
-                var swatch = new Button
+                var b = new Button
                 {
-                    Width = 44,
-                    Height = 44,
-                    CornerRadius = new CornerRadius(22),
-                    Background = new SolidColorBrush(color),
-                    Padding = new Thickness(0),
-                    BorderThickness = new Thickness(0),
-                    Tag = name,
+                    Width = 44, Height = 44, Padding = new Thickness(0), CornerRadius = new CornerRadius(22),
+                    Background = new SolidColorBrush(Color.FromArgb(argb[0], argb[1], argb[2], argb[3])),
                 };
-                ToolTipService.SetToolTip(swatch, name);
-                swatch.Click += (_, _) =>
-                {
-                    AppSettings.Instance.PenColor = name;
-                    AppSettings.Instance.Save();
-                    HighlightSwatch(name);
-                };
-                _swatchButtons.Add(swatch);
-                _swatches.Children.Add(swatch);
+                Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(b, name);
+                b.Click += (_, _) => { AppSettings.Instance.PenColor = name; ChangedLive(); };
+                swatches.Children.Add(b);
             }
+            _panel.Children.Add(swatches);
+            var rainbow = new LinearGradientBrush { StartPoint = new(0, 0), EndPoint = new(1, 1) };
+            Color[] colors = { Microsoft.UI.Colors.Red, Microsoft.UI.Colors.Orange, Microsoft.UI.Colors.Yellow, Microsoft.UI.Colors.LimeGreen, Microsoft.UI.Colors.DeepSkyBlue, Microsoft.UI.Colors.BlueViolet, Microsoft.UI.Colors.DeepPink };
+            for (int i = 0; i < colors.Length; i++) rainbow.GradientStops.Add(new GradientStop { Color = colors[i], Offset = i / (double)(colors.Length - 1) });
+            var circle = new Grid { Width = 44, Height = 44 };
+            circle.Children.Add(new Ellipse { Fill = rainbow });
+            _currentColor = new Ellipse { Width = 26, Height = 26 };
+            circle.Children.Add(_currentColor);
+            var custom = new Button { Width = 44, Height = 44, Padding = new Thickness(0), BorderThickness = new Thickness(0), CornerRadius = new CornerRadius(22), Content = circle };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(custom, "自定义颜色");
+            custom.Click += (_, _) => ShowColorPicker(custom);
+            var colorRow = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 12 };
+            colorRow.Children.Add(custom);
+            colorRow.Children.Add(new TextBlock { Text = "自定义颜色", VerticalAlignment = VerticalAlignment.Center });
+            _panel.Children.Add(colorRow);
         }
-
-        /// <summary>在箭头窗外缘打开（全局唯一，重复打开会先关掉旧的）。
-        /// 失败返回 false（窗口对象已失效，调用方应丢弃并重建）。</summary>
-        public bool ShowAt(int edgeX, int centerY, bool pointRight)
+        _panel.Children.Add(new TextBlock { Text = eraser ? "橡皮宽度 / 高度（DIP）" : "笔粗细（DIP）" });
+        _width = new Slider { Minimum = eraser ? 16 : 2, Maximum = eraser ? 160 : 20, StepFrequency = 1 };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(_width, eraser ? "橡皮宽度" : "笔粗细");
+        _panel.Children.Add(_width);
+        if (eraser)
         {
-            if (_active is not null && !ReferenceEquals(_active, this))
-            {
-                _active.Close();
-            }
-
-            _edgeX = edgeX;
-            _centerY = centerY;
-            _pointRight = pointRight;
-
-            ApplyTheme();
-            RefreshFromSettings();
-
-            // 先定位后激活：Activate 进行中触发布局回调再 Resize 会把
-            // 激活状态打断（实测报 "Desktop Window object has already been closed"）
-            UpdatePlacement();
-            try
-            {
-                Activate();
-            }
-            catch (Exception ex)
-            {
-                CrashReporter.Log($"picker activate failed: {ex.Message}");
-                Close();
-                return false;
-            }
-
-            _active = this;
-            return true;
+            _height = new Slider { Minimum = 16, Maximum = 160, StepFrequency = 1 };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(_height, "橡皮高度");
+            _panel.Children.Add(_height);
         }
-
-        public void Dismiss()
+        _width.ValueChanged += (_, _) => SizeChangedLive();
+        if (_height is not null) _height.ValueChanged += (_, _) => SizeChangedLive();
+        _panel.Children.Add(_size); _panel.Children.Add(_preview);
+        if (eraser)
         {
-            Close();
+            var clear = new Button { Content = "清除当前页墨迹", HorizontalAlignment = HorizontalAlignment.Stretch };
+            clear.Click += async (_, _) => await App.ClearInkAsync();
+            _panel.Children.Add(clear);
         }
-
-        /// <summary>书写置顶时随工具条同步重提。</summary>
-        public void Raise()
+        Content = new ScrollViewer { Content = _panel, MaxHeight = 600, HorizontalScrollBarVisibility = ScrollBarVisibility.Disabled };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(_panel, eraser ? "橡皮设置" : "笔设置");
+        _saveTimer.Tick += (_, _) => Flush();
+        Opening += (_, _) =>
         {
-            WindowPlumbing.RaiseToTopmost(this);
-        }
-
-        private void UpdatePlacement()
+            IsShowing = true;
+            if (!_subscribed) { AppSettings.SettingsChanged += SettingsChanged; _subscribed = true; }
+            RefreshBackendState();
+        };
+        Closed += (_, _) =>
         {
-            // 窗口与卡片同尺寸：Measure(∞) 后按窗口 DPI 换算成物理像素
-            // （XamlRoot 在 NOACTIVATE/未激活窗口上不可靠，统一用 GetDpiForWindow）
-            _card.Measure(new global::Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity));
-            double scale = GetDpiForWindow(WinRT.Interop.WindowNative.GetWindowHandle(this)) / 96.0;
-            int width = (int)Math.Ceiling(_card.DesiredSize.Width * scale);
-            int height = (int)Math.Ceiling(_card.DesiredSize.Height * scale);
-            if (width <= 0 || height <= 0)
-            {
-                return;
-            }
-
-            AppWindow.Resize(new SizeInt32(width, height));
-            int x = _pointRight ? _edgeX + 4 : _edgeX - width - 4;
-            int y = Math.Max(0, _centerY - height / 2);
-            AppWindow.Move(new PointInt32(x, y));
-        }
-
-        private void RefreshFromSettings()
-        {
-            _suppress = true;
-            _thickness.Value = AppSettings.Instance.PenThickness;
-            _thicknessValue.Text = ((int)AppSettings.Instance.PenThickness).ToString();
-            HighlightSwatch(AppSettings.Instance.PenColor);
-            _suppress = false;
-        }
-
-        private void HighlightSwatch(string? selectedName)
-        {
-            var accent = (Color)Application.Current.Resources["SystemAccentColor"];
-            foreach (var swatch in _swatchButtons)
-            {
-                bool selected = string.Equals((string)swatch.Tag, selectedName, StringComparison.OrdinalIgnoreCase);
-                swatch.BorderThickness = new Thickness(selected ? 3 : 0);
-                swatch.BorderBrush = new SolidColorBrush(selected ? accent : Color.FromArgb(0, 0, 0, 0));
-            }
-        }
-
-        private void OnThicknessChanged(object sender, Microsoft.UI.Xaml.Controls.Primitives.RangeBaseValueChangedEventArgs e)
-        {
-            if (_suppress)
-            {
-                return;
-            }
-            _thicknessValue.Text = ((int)_thickness.Value).ToString();
-            AppSettings.Instance.PenThickness = (int)_thickness.Value;
-            AppSettings.Instance.Save();
-        }
-
-        [DllImport("user32.dll")]
-        private static extern uint GetDpiForWindow(IntPtr hwnd);
-
-        private void ApplyTheme()
-        {
-            // 与工具条同规则：设置强制浅/深色优先，否则跟随系统（注册表判定）
-            bool isDark = ThemeHelper.IsDarkTheme();
-
-            _card.Background = new AcrylicBrush
-            {
-                TintColor = isDark ? DarkBar : LightBar,
-                TintOpacity = 1,
-                FallbackColor = isDark ? DarkBar : LightBar,
-            };
-            _card.BorderBrush = new SolidColorBrush(isDark ? DarkStroke : LightStroke);
-            _card.BorderThickness = new Thickness(1);
-
-            // 卡片配色可与窗口主题相反（设置强制浅色 + 系统深色），
-            // 标签前景必须跟卡片走，否则默认前景会淡到看不清
-            var label = new SolidColorBrush(isDark
-                ? Color.FromArgb(0xFF, 0xFF, 0xFF, 0xFF)
-                : Color.FromArgb(0xFF, 0x1B, 0x1B, 0x1B));
-            _colorLabel.Foreground = label;
-            _thicknessLabel.Foreground = label;
-            _thicknessValue.Foreground = label;
-        }
+            IsShowing = false; _colorFlyout?.Hide();
+            if (_subscribed) { AppSettings.SettingsChanged -= SettingsChanged; _subscribed = false; }
+            Flush();
+        };
+        RefreshBackendState();
     }
+    private static Style PresenterStyle()
+    {
+        var style = new Style(typeof(FlyoutPresenter));
+        style.Setters.Add(new Setter(Control.CornerRadiusProperty, new CornerRadius(12)));
+        style.Setters.Add(new Setter(Control.PaddingProperty, new Thickness(16)));
+        style.Setters.Add(new Setter(FrameworkElement.MaxWidthProperty, 380d));
+        return style;
+    }
+    private void SettingsChanged(object? sender, EventArgs e) => RefreshBackendState();
+    public void RefreshBackendState()
+    {
+        _suppress = true;
+        try
+        {
+            var s = AppSettings.Instance;
+            _panel.RequestedTheme = s.Theme switch { "light" => ElementTheme.Light, "dark" => ElementTheme.Dark, _ => ElementTheme.Default };
+            _backend.SelectedIndex = (int)s.InkBackend;
+            bool custom = App.EffectiveInkBackend == InkBackend.Rime;
+            _width.IsEnabled = custom; if (_height is not null) _height.IsEnabled = custom;
+            _width.Value = _eraser ? s.EraserWidthDip : s.PenThickness;
+            if (_height is not null) _height.Value = s.EraserHeightDip;
+            _status.Text = App.InkBackendStatus + (_eraser ? "\n仅擦除当前模式产生的墨迹。" : "\n原生墨迹由 PowerPoint 管理保存。") + (!custom ? "\n尺寸由 PowerPoint 管理。" : "");
+            var c = s.GetPenArgb(); var color = Color.FromArgb(c[0], c[1], c[2], c[3]);
+            if (_currentColor is not null) _currentColor.Fill = new SolidColorBrush(color);
+            if (_colorPicker is not null) _colorPicker.Color = color;
+            _preview.Width = _eraser ? _width.Value : 200;
+            _preview.Height = _eraser ? _height?.Value ?? 72 : _width.Value;
+            _preview.Fill = _eraser ? new SolidColorBrush(Microsoft.UI.Colors.Gray) : new SolidColorBrush(color);
+            _size.Text = _eraser ? $"{_width.Value:0} × {_height?.Value:0} DIP" : $"{_width.Value:0} DIP";
+        }
+        finally { _suppress = false; }
+    }
+    private void SizeChangedLive()
+    {
+        if (_suppress) return;
+        if (_eraser) { AppSettings.Instance.EraserWidthDip = _width.Value; AppSettings.Instance.EraserHeightDip = _height!.Value; }
+        else AppSettings.Instance.PenThickness = _width.Value;
+        ChangedLive();
+    }
+    private void ChangedLive()
+    {
+        _dirty = true;
+        AppSettings.Instance.NotifyChanged();
+        _saveTimer.Stop(); _saveTimer.Start();
+        RefreshBackendState();
+    }
+    private void Flush()
+    {
+        _saveTimer.Stop();
+        if (!_dirty) return;
+        _dirty = false; AppSettings.Instance.Persist();
+    }
+    private void ShowColorPicker(Button anchor)
+    {
+        if (_colorPicker is null)
+        {
+            _colorPicker = new ColorPicker { IsAlphaEnabled = false, IsHexInputVisible = true, IsColorChannelTextInputVisible = false };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(_colorPicker, "选择笔颜色");
+            _colorFlyout = new Flyout
+            {
+                ShouldConstrainToRootBounds = false, AreOpenCloseAnimationsEnabled = true,
+                SystemBackdrop = new DesktopAcrylicBackdrop(), FlyoutPresenterStyle = PresenterStyle(),
+                Content = new ScrollViewer { Content = _colorPicker, MaxHeight = 580 },
+            };
+            _colorPicker.ColorChanged += (_, e) =>
+            {
+                if (_suppress) return;
+                var c = e.NewColor; AppSettings.Instance.CustomPenArgb = $"FF{c.R:X2}{c.G:X2}{c.B:X2}";
+                AppSettings.Instance.PenColor = "custom"; ChangedLive();
+            };
+        }
+        RefreshBackendState();
+        _colorFlyout!.ShowAt(anchor);
+    }
+    public bool ShowAt(FrameworkElement anchor, ToolbarLayout layout)
+    {
+        _anchor = anchor;
+        Placement = layout switch { ToolbarLayout.LeftRail => FlyoutPlacementMode.Right, ToolbarLayout.RightRail => FlyoutPlacementMode.Left, _ => FlyoutPlacementMode.Top };
+        base.ShowAt(anchor);
+        return true;
+    }
+    public void Dismiss() { _colorFlyout?.Hide(); Hide(); Flush(); }
 }

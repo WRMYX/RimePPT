@@ -42,6 +42,11 @@ namespace RimePPT.Core
         /// <summary>启动监控（幂等）。</summary>
         void Start();
 
+        PresentationCapabilities Capabilities { get; }
+        Task GoToSlideAsync(int slideIndex);
+        Task<string> ExportSlideThumbnailAsync(int slideIndex, string destinationPath, int pixelWidth, System.Threading.CancellationToken cancellationToken);
+        Task SetNativePointerAsync(NativePointerTool tool, byte[]? argb);
+        Task ClearNativeInkAsync();
         Task NextAsync();
 
         Task PreviousAsync();

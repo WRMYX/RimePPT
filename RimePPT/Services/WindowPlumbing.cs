@@ -124,16 +124,9 @@ namespace RimePPT.Services
                 return null;
             }
 
-            foreach (var area in Microsoft.UI.Windowing.DisplayArea.FindAll())
-            {
-                var rect = area.OuterBounds;
-                if (rect.X == info.rcMonitor.Left && rect.Y == info.rcMonitor.Top)
-                {
-                    return area;
-                }
-            }
-
-            return null;
+            return Microsoft.UI.Windowing.DisplayArea.GetFromWindowId(
+                Microsoft.UI.Win32Interop.GetWindowIdFromWindow(hwnd),
+                Microsoft.UI.Windowing.DisplayAreaFallback.Nearest);
         }
 
         [DllImport("dwmapi.dll")]
@@ -191,11 +184,38 @@ namespace RimePPT.Services
             SetWindowLongW(hwnd, GWL_EXSTYLE, (int)((uint)style | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW));
         }
 
+        // WS_EX_NOACTIVATE 会使部分新建浮窗忽略触摸；通过消息拒绝激活但保留输入。
+        public static void ApplyPointerNoActivate(Window window)
+        {
+            IntPtr hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
+            int style = GetWindowLongW(hwnd, GWL_EXSTYLE);
+            SetWindowLongW(hwnd, GWL_EXSTYLE, (int)(((uint)style & ~(uint)WS_EX_NOACTIVATE) | WS_EX_TOOLWINDOW));
+            if (!SetWindowSubclass(hwnd, PointerNoActivateProc, new UIntPtr(0x52494D45), UIntPtr.Zero))
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "Unable to configure floating tool input.");
+        }
+
+        private delegate IntPtr SubclassProc(IntPtr hwnd, uint message, UIntPtr wParam, IntPtr lParam, UIntPtr id, UIntPtr data);
+        private static readonly SubclassProc PointerNoActivateProc = HandlePointerNoActivate;
+        private static IntPtr HandlePointerNoActivate(IntPtr hwnd, uint message, UIntPtr wParam, IntPtr lParam, UIntPtr id, UIntPtr data)
+        {
+            if (message is 0x0021 or 0x024B) return new IntPtr(3); // MA_NOACTIVATE / PA_NOACTIVATE
+            if (message == 0x0082) RemoveWindowSubclass(hwnd, PointerNoActivateProc, id);
+            return DefSubclassProc(hwnd, message, wParam, lParam);
+        }
+        [DllImport("comctl32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool SetWindowSubclass(IntPtr hwnd, SubclassProc callback, UIntPtr id, UIntPtr data);
+        [DllImport("comctl32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool RemoveWindowSubclass(IntPtr hwnd, SubclassProc callback, UIntPtr id);
+        [DllImport("comctl32.dll")]
+        private static extern IntPtr DefSubclassProc(IntPtr hwnd, uint message, UIntPtr wParam, IntPtr lParam);
+
         /// <summary>
         /// 打开 DWM 的 alpha 合成路径，使 XAML 里的 Transparent 背景真正透视到窗口后面
         /// （WinUI 3 窗口默认无分层支持，透明背景会被渲染成黑色）。
         /// </summary>
-        public static void EnableTransparency(Window window)
+        public static void EnableTransparency(Window window, bool enableBlur = true)
         {
             IntPtr hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
 
@@ -205,7 +225,7 @@ namespace RimePPT.Services
             var blur = new DWM_BLURBEHIND
             {
                 dwFlags = DWM_BB_ENABLE,
-                fEnable = 1,
+                fEnable = enableBlur ? 1 : 0,
                 hRgnBlur = CreateRectRgn(0, 0, 0, 0),
             };
             try { DwmEnableBlurBehindWindow(hwnd, ref blur); }

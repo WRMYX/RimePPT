@@ -45,11 +45,29 @@ namespace RimePPT.Core
         /// <summary>任何设置变更并保存后触发（改属性后需手动调用 Save()）。</summary>
         public static event EventHandler? SettingsChanged;
 
-        public string Theme { get; set; } = "light"; // light / dark / auto（跟随系统）
+        public string Theme { get; set; } = "auto"; // light / dark / auto（跟随系统）
         public bool ShowToolbarText { get; set; } = true;
         public int EdgeMargin { get; set; } = 6;
         public string PenColor { get; set; } = "red";
         public double PenThickness { get; set; } = 4;
+        public InkBackend InkBackend { get; set; } = InkBackend.Native;
+        public string? CustomPenArgb { get; set; }
+        public double EraserWidthDip { get; set; } = 56;
+        public double EraserHeightDip { get; set; } = 72;
+        public byte[] GetPenArgb()
+        {
+            if (PenColor == "custom" && CustomPenArgb is { Length: 8 } text)
+                try { return Convert.FromHexString(text); } catch (FormatException) { }
+            return (byte[])PenPalette.GetArgb(PenColor).Clone();
+        }
+        public void Validate()
+        {
+            if (!Enum.IsDefined(InkBackend)) InkBackend = InkBackend.Native;
+            PenThickness = double.IsFinite(PenThickness) ? Math.Clamp(PenThickness, 2, 20) : 4;
+            EraserWidthDip = double.IsFinite(EraserWidthDip) ? Math.Clamp(EraserWidthDip, 16, 160) : 56;
+            EraserHeightDip = double.IsFinite(EraserHeightDip) ? Math.Clamp(EraserHeightDip, 16, 160) : 72;
+            if (Theme is not ("auto" or "light" or "dark")) Theme = "auto";
+        }
         public bool RunAtStartup { get; set; }
         public bool AutoShowOverlay { get; set; } = true;
 
@@ -94,7 +112,10 @@ namespace RimePPT.Core
                 {
                     if (File.Exists(FilePath))
                     {
-                        _instance = JsonSerializer.Deserialize<AppSettings>(File.ReadAllText(FilePath)) ?? new AppSettings();
+                        string json = File.ReadAllText(FilePath);
+                        _instance = JsonSerializer.Deserialize<AppSettings>(json) ?? new AppSettings();
+                        using var document = JsonDocument.Parse(json);
+                        if (!document.RootElement.TryGetProperty("InkBackend", out _)) _instance.InkBackend = InkBackend.Rime;
                     }
                 }
                 catch
@@ -104,23 +125,8 @@ namespace RimePPT.Core
 
                 _instance ??= new AppSettings();
 
-                // 一次性迁移：旧版默认 auto 在深色系统下把工具条渲染成近黑色卡片，
-                // 用户视为故障。没有版本标记的旧配置统一切到浅色（此后可在设置里改回）。
-                if (_instance.SettingsVersion is null || _instance.SettingsVersion < 2)
-                {
-                    _instance.SettingsVersion = 2;
-                    if (_instance.Theme == "auto")
-                    {
-                        _instance.Theme = "light";
-                    }
-                    try
-                    {
-                        File.WriteAllText(FilePath, JsonSerializer.Serialize(_instance, new JsonSerializerOptions { WriteIndented = true }));
-                    }
-                    catch
-                    {
-                    }
-                }
+                _instance.Validate();
+                _instance.SettingsVersion = 3;
 
                 return _instance;
             }
@@ -128,6 +134,19 @@ namespace RimePPT.Core
 
         public void Save()
         {
+            Persist();
+            NotifyChanged();
+        }
+
+        public void NotifyChanged()
+        {
+            Validate();
+            SettingsChanged?.Invoke(this, EventArgs.Empty);
+        }
+
+        internal void Persist()
+        {
+            Validate();
             lock (Lock)
             {
                 try
@@ -140,7 +159,6 @@ namespace RimePPT.Core
                 }
             }
 
-            SettingsChanged?.Invoke(this, EventArgs.Empty);
         }
     }
 }
