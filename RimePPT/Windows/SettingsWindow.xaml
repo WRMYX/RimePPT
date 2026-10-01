@@ -355,16 +355,51 @@
             <ScrollViewer x:Name="AboutPage" Padding="8,0,16,24" Visibility="Collapsed">
                 <StackPanel MaxWidth="960" HorizontalAlignment="Stretch" Spacing="12">
                     <Border Style="{StaticResource CardBorder}">
-                        <StackPanel Padding="16,12" Spacing="8">
-                            <TextBlock Text="RimePPT" Style="{StaticResource SubtitleTextBlockStyle}" />
-                            <TextBlock Text="WinUI 原生 PPT 放映助手：放映时浮出工具条，支持触屏批注与墨迹记忆。" TextWrapping="Wrap" Style="{StaticResource SettingDesc}" />
-                            <TextBlock x:Name="VersionText" Style="{StaticResource SettingDesc}" />
+                        <StackPanel Padding="24" Spacing="16">
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="64" /><ColumnDefinition Width="*" /><ColumnDefinition Width="160" /></Grid.ColumnDefinitions>
+                                <Image x:Name="AboutLogo" Width="64" Height="64" Stretch="Uniform" AutomationProperties.Name="RimePPT 软件 Logo" />
+                                <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+                                    <TextBlock Text="RimePPT" Style="{StaticResource TitleTextBlockStyle}" TextWrapping="Wrap" />
+                                    <TextBlock Text="雾凇 PPT 助手" Style="{StaticResource SettingTitle}" />
+                                    <TextBlock x:Name="VersionText" Style="{StaticResource SettingDesc}" />
+                                </StackPanel>
+                                <Image x:Name="DevLogo" Grid.Column="2" Width="160" Height="32" Stretch="Uniform" VerticalAlignment="Center" AutomationProperties.Name="MYXMJY 开发者 Logo" />
+                            </Grid>
+                            <TextBlock Text="为课堂演示而生的 Windows 放映助手。用原生浮动工具栏翻页、批注和擦除，让讲解与书写自然衔接。" Style="{StaticResource SettingTitle}" />
+                            <TextBlock Text="支持 PowerPoint 原生与 RimePPT 自研笔迹、笔迹记忆及翻页动画，并可通过 ClassWidgets 2 插件获取当前科目，提供按科目显示的操作引导。" Style="{StaticResource SettingDesc}" />
                         </StackPanel>
                     </Border>
                     <Border Style="{StaticResource CardBorder}">
-                        <StackPanel Padding="16,12" Spacing="8">
-                            <TextBlock Text="开发者" Style="{StaticResource SettingDesc}" />
-                            <Image x:Name="DevLogo" Height="36" HorizontalAlignment="Left" />
+                        <StackPanel Padding="16" Spacing="8">
+                            <TextBlock Text="官方网站" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                            <TextBlock Text="了解 RimePPT，查看软件介绍与最新动态。" Style="{StaticResource SettingDesc}" />
+                            <HyperlinkButton Content="RimePPT.MYXMJY.Top" NavigateUri="https://rimeppt.myxmjy.top" HorizontalAlignment="Left" Padding="0,4" AutomationProperties.Name="RimePPT 官方网站" />
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource CardBorder}">
+                        <StackPanel Padding="16" Spacing="16">
+                            <TextBlock Text="软件技术栈" Style="{StaticResource BodyStrongTextBlockStyle}" />
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="C# · .NET 8" Style="{StaticResource SettingTitle}" />
+                                <TextBlock Text="应用逻辑、设置管理与本地数据读写" Style="{StaticResource SettingDesc}" />
+                            </StackPanel>
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="WinUI 3 · Windows App SDK" Style="{StaticResource SettingTitle}" />
+                                <TextBlock Text="原生 Windows 界面、Mica 材质与 TeachingTip 引导" Style="{StaticResource SettingDesc}" />
+                            </StackPanel>
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="Win2D" Style="{StaticResource SettingTitle}" />
+                                <TextBlock Text="自研笔迹绘制、擦除与翻页动画" Style="{StaticResource SettingDesc}" />
+                            </StackPanel>
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="PowerPoint COM · Windows API" Style="{StaticResource SettingTitle}" />
+                                <TextBlock Text="放映状态联动、页面控制与桌面窗口管理" Style="{StaticResource SettingDesc}" />
+                            </StackPanel>
+                            <StackPanel Spacing="4">
+                                <TextBlock Text="H.NotifyIcon · System.Text.Json" Style="{StaticResource SettingTitle}" />
+                                <TextBlock Text="系统托盘、设置及笔迹保存、ClassWidgets 课程数据交换" Style="{StaticResource SettingDesc}" />
+                            </StackPanel>
                         </StackPanel>
                     </Border>
                 </StackPanel>

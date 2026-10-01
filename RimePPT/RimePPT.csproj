@@ -28,6 +28,7 @@
          （缺少时 dotnet publish 输出缺 Assets，托盘初始化直接崩溃） -->
     <Content Include="Assets\icon.ico" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\icon44.png" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\RimePPT-Logo.svg" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\MYXMJY-white.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\MYXMJY-black.png" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

@@ -96,6 +96,7 @@ namespace RimePPT.Windows
         {
             string baseDir = AppContext.BaseDirectory;
             PaneLogo.Source = new BitmapImage(new Uri(System.IO.Path.Combine(baseDir, "Assets", "icon44.png")));
+            AboutLogo.Source = new SvgImageSource(new Uri(System.IO.Path.Combine(baseDir, "Assets", "RimePPT-Logo.svg")));
             UpdateDevLogo();
         }
 
