@@ -364,7 +364,10 @@
                                     <TextBlock Text="雾凇 PPT 助手" Style="{StaticResource SettingTitle}" />
                                     <TextBlock x:Name="VersionText" Style="{StaticResource SettingDesc}" />
                                 </StackPanel>
-                                <Image x:Name="DevLogo" Grid.Column="2" Width="160" Height="32" Stretch="Uniform" VerticalAlignment="Center" AutomationProperties.Name="MYXMJY 开发者 Logo" />
+                                <StackPanel Grid.Column="2" Spacing="8" VerticalAlignment="Center">
+                                    <TextBlock Text="开发者" Style="{StaticResource SettingDesc}" />
+                                    <Image x:Name="DevLogo" Width="160" Height="32" Stretch="Uniform" AutomationProperties.Name="MYXMJY 开发者 Logo" />
+                                </StackPanel>
                             </Grid>
                             <TextBlock Text="为课堂演示而生的 Windows 放映助手。用原生浮动工具栏翻页、批注和擦除，让讲解与书写自然衔接。" Style="{StaticResource SettingTitle}" />
                             <TextBlock Text="支持 PowerPoint 原生与 RimePPT 自研笔迹、笔迹记忆及翻页动画，并可通过 ClassWidgets 2 插件获取当前科目，提供按科目显示的操作引导。" Style="{StaticResource SettingDesc}" />
