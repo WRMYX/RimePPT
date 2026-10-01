@@ -328,7 +328,7 @@ namespace RimePPT.Windows
         {
             bool reset = App.ResetToolbarOnboarding();
             OnboardingResetInfo.Severity = reset ? InfoBarSeverity.Success : InfoBarSeverity.Error;
-            OnboardingResetInfo.Title = reset ? "引导会话已重置" : "无法重置引导会话";
+            OnboardingResetInfo.Title = reset ? "全部科目引导记录已重置" : "无法重置引导会话";
             OnboardingResetInfo.Message = reset
                 ? (App.ActiveToolbars.Count > 0 ? "正在从第一个工具栏按钮重新开始引导。" : "下次工具栏出现时开始引导，也可以在下方启动模拟放映。")
                 : "无法保存引导记录，请检查本地数据目录的写入权限后重试。";

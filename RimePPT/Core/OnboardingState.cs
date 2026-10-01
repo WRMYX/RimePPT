@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Collections.Generic;
 using System.Text.Json;
 
 namespace RimePPT.Core;
@@ -10,13 +11,19 @@ internal static class OnboardingState
     private static string DataDirectory => Path.Combine(
         Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RimePPT");
 
-    internal static bool ShouldShow()
+    internal static bool ShouldShow(string? subject = null)
     {
         string path = Path.Combine(DataDirectory, "onboarding.json");
-        if (!File.Exists(path)) return !File.Exists(Path.Combine(DataDirectory, "settings.json"));
+        if (!File.Exists(path)) return subject is not null || !File.Exists(Path.Combine(DataDirectory, "settings.json"));
         try
         {
             using var record = JsonDocument.Parse(File.ReadAllText(path));
+            if (subject is not null)
+            {
+                if (!record.RootElement.TryGetProperty("ShownSubjects", out var subjects)) return true;
+                foreach (var item in subjects.EnumerateArray()) if (item.GetString() == subject) return false;
+                return true;
+            }
             // 旧版只有 ShownAtUtc，按已展示处理，更新时不主动重放。
             return record.RootElement.TryGetProperty("Pending", out var pending)
                 && pending.ValueKind == JsonValueKind.True;
@@ -30,7 +37,23 @@ internal static class OnboardingState
 
     internal static bool TryReset() => TrySave(new DisplayRecord { Pending = true });
 
-    internal static bool TryMarkShown() => TrySave(new DisplayRecord { ShownAtUtc = DateTime.UtcNow });
+    internal static bool TryArmFreshUser()
+        => File.Exists(Path.Combine(DataDirectory, "onboarding.json")) || TryReset();
+
+    internal static bool TryMarkShown(string? subject = null)
+    {
+        var record = new DisplayRecord();
+        string path = Path.Combine(DataDirectory, "onboarding.json");
+        try
+        {
+            if (File.Exists(path)) record = JsonSerializer.Deserialize<DisplayRecord>(File.ReadAllText(path)) ?? record;
+            if (subject is null) { record.Pending = false; record.ShownAtUtc = DateTime.UtcNow; }
+            else record.ShownSubjects.Add(subject);
+            record.Version = 3;
+            return TrySave(record);
+        }
+        catch (Exception ex) { CrashReporter.Report(ex, "onboarding-mark"); return false; }
+    }
 
     private static bool TrySave(DisplayRecord record)
     {
@@ -58,7 +81,8 @@ internal static class OnboardingState
 
     private sealed class DisplayRecord
     {
-        public int Version { get; set; } = 2;
+        public int Version { get; set; } = 3;
+        public HashSet<string> ShownSubjects { get; set; } = new(StringComparer.Ordinal);
         public bool Pending { get; set; }
         public DateTime? ShownAtUtc { get; set; }
     }

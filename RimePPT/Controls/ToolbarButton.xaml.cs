@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -13,6 +13,26 @@ public sealed partial class ToolbarButton : UserControl
     private readonly FontIcon _icon = new() { FontSize = 20, FontFamily = new FontFamily("Segoe Fluent Icons") };
     private readonly TextBlock _label = new() { FontSize = 11, HorizontalAlignment = HorizontalAlignment.Center };
     private ButtonBase? _button;
+    private bool _guidePreview;
+    private bool _normalChecked;
+    private bool _normalEnabled = true;
+    internal void SetGuidePreview(bool enabled)
+    {
+        _guidePreview = enabled;
+        if (_button is null) return;
+        _button.IsEnabled = enabled || _normalEnabled;
+        SetGuideSelected(false);
+        if (!enabled && _button is ToggleButton toggle) toggle.IsChecked = _normalChecked;
+    }
+    internal void SetGuideSelected(bool selected)
+    {
+        if (_button is null) return;
+        bool active = _guidePreview && selected;
+        _button.Background = active ? (Brush)Application.Current.Resources["AccentFillColorDefaultBrush"] : new SolidColorBrush(Microsoft.UI.Colors.Transparent);
+        if (active) _button.Foreground = (Brush)Application.Current.Resources["TextOnAccentFillColorPrimaryBrush"];
+        else _button.ClearValue(Control.ForegroundProperty);
+        if (_guidePreview && _button is ToggleButton toggle) toggle.IsChecked = active;
+    }
     public static readonly DependencyProperty IconProperty = DependencyProperty.Register(nameof(Icon), typeof(string), typeof(ToolbarButton), new PropertyMetadata("", (d,e) => ((ToolbarButton)d)._icon.Glyph = (string)e.NewValue));
     public static readonly DependencyProperty LabelProperty = DependencyProperty.Register(nameof(Label), typeof(string), typeof(ToolbarButton), new PropertyMetadata("", (d,e) => ((ToolbarButton)d)._label.Text = (string)e.NewValue));
     public string Icon { get => (string)GetValue(IconProperty); set => SetValue(IconProperty,value); }
@@ -45,7 +65,7 @@ public sealed partial class ToolbarButton : UserControl
         else _host.Children.Add(_button);
     }
     public void SetShowText(bool show) => _label.Visibility = show || Command == ToolbarCommand.Pages ? Visibility.Visible : Visibility.Collapsed;
-    public void SetEnabled(bool enabled) { if (_button is not null) _button.IsEnabled = enabled; }
+    public void SetEnabled(bool enabled) { _normalEnabled = enabled; if (_button is not null) _button.IsEnabled = _guidePreview || enabled; }
     public void SetPageNumber(int current, int total)
     {
         _icon.Visibility = Visibility.Collapsed;
@@ -53,5 +73,5 @@ public sealed partial class ToolbarButton : UserControl
         Label = total > 0 ? $"{current} / {total}" : $"{current} / —";
         _label.Visibility = Visibility.Visible;
     }
-    public void SetChecked(bool value) { if (_button is ToggleButton toggle) toggle.IsChecked = value; }
+    public void SetChecked(bool value) { _normalChecked = value; if (!_guidePreview && _button is ToggleButton toggle) toggle.IsChecked = value; }
 }

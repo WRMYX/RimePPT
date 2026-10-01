@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.UI.Windowing;
@@ -27,7 +27,7 @@ namespace RimePPT.Windows
             [ToolbarCommand.Prev] = ("\uE76B", "上一页"),
             [ToolbarCommand.Next] = ("\uE76C", "下一页"),
             [ToolbarCommand.Annotate] = ("\uE70F", "批注"),
-            [ToolbarCommand.Eraser] = ("\uE74D", "橡皮"),
+            [ToolbarCommand.Eraser] = ("\uE75C", "橡皮"),
             [ToolbarCommand.Tools] = ("\uE90F", "工具"),
             [ToolbarCommand.Pages] = ("\uE8A5", "页面导航"),
             [ToolbarCommand.Undo] = ("\uE7A7", "撤销"),
@@ -87,6 +87,16 @@ namespace RimePPT.Windows
 
         /// <summary>工具条布局（供 App 定位批注箭头窗）。</summary>
         public ToolbarLayout Layout => _layout;
+        internal void SetGuidePreview(bool enabled)
+        {
+            foreach (var button in _buttons) button.SetGuidePreview(enabled);
+        }
+        internal void PreviewGuideCommand(ToolbarCommand command)
+        {
+            foreach (var button in _buttons)
+                if (button.Command is ToolbarCommand.Annotate or ToolbarCommand.Eraser or ToolbarCommand.Tools)
+                    button.SetGuideSelected(button.Command == command);
+        }
         internal TeachingTip CreateGuideTip()
         {
             var tip = new TeachingTip
@@ -94,6 +104,7 @@ namespace RimePPT.Windows
                 ShouldConstrainToRootBounds = false,
                 IsLightDismissEnabled = false,
                 CloseButtonContent = "跳过",
+                ActionButtonStyle = (Style)Application.Current.Resources["AccentButtonStyle"],
             };
             RootGrid.Children.Add(tip);
             return tip;

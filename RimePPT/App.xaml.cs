@@ -1,4 +1,4 @@
-﻿using Microsoft.UI.Dispatching;
+using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Windowing;
@@ -131,7 +131,7 @@ namespace RimePPT
 
             _dispatcher = DispatcherQueue.GetForCurrentThread();
             // 首次使用先持久化待展示状态，之后即使设置文件生成仍保留引导资格。
-            if (OnboardingState.ShouldShow()) OnboardingState.TryReset();
+            if (OnboardingState.ShouldShow()) OnboardingState.TryArmFreshUser();
             AppSettings.Load();
             _toolbarSettingsSnapshot = ToolbarSettingsSignature();
             AppSettings.SettingsChanged += (_, _) => QueueSettingsRefresh();
@@ -341,6 +341,7 @@ namespace RimePPT
 
         private async void OnToolbarClicked(object? sender, ToolbarCommand command)
         {
+            if (_onboarding.TryPreviewCommand(command)) return;
             var controller = _presenting;
             if (controller is null)
             {
@@ -480,6 +481,7 @@ namespace RimePPT
         }
         private void OpenToolSettings(object? sender, ToolbarCommand command)
         {
+            if (_onboarding.IsRunning) return;
             if (sender is not ToolbarWindow toolbar) return;
             if (toolbar.GetToolSettingsTarget(command) is not { } anchor) return;
             if (_picker is { IsShowing: true } && _picker.Owns(anchor)) { ClosePenChevron(); return; }

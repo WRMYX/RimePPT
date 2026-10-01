@@ -26,6 +26,23 @@ namespace RimePPT.Services
         private const long WS_EX_TRANSPARENT = 0x00000020;
         private const long WS_EX_LAYERED = 0x00080000;
 
+        /// <summary>整窗透明度，用于只有纯色背景的引导遮罩。</summary>
+        internal static void SetOpacity(Window window, byte opacity)
+        {
+            IntPtr hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
+            int style = GetWindowLongW(hwnd, GWL_EXSTYLE);
+            Marshal.SetLastPInvokeError(0);
+            int previous = SetWindowLongW(hwnd, GWL_EXSTYLE, (int)((uint)style | WS_EX_LAYERED));
+            int error = Marshal.GetLastWin32Error();
+            if (previous == 0 && error != 0) throw new Win32Exception(error);
+            if (!SetLayeredWindowAttributes(hwnd, 0, opacity, 2 /* LWA_ALPHA */))
+                throw new Win32Exception(Marshal.GetLastWin32Error());
+        }
+
+        [DllImport("user32.dll", SetLastError = true)]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool SetLayeredWindowAttributes(IntPtr hwnd, uint colorKey, byte alpha, uint flags);
+
         /// <summary>把窗口重新提到所有置顶窗口之上（批注层启用后恢复工具条可点）。</summary>
         public static void RaiseToTopmost(Window window)
         {

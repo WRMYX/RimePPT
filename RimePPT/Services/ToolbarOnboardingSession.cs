@@ -13,8 +13,17 @@ namespace RimePPT.Services;
 /// <summary>一次只打开一个原生 TeachingTip，目标始终来自实际工具栏按钮。</summary>
 internal sealed class ToolbarOnboardingSession
 {
-    private sealed record Step(ToolbarWindow Window, FrameworkElement Target, string Title, string Description);
+    private sealed record Step(ToolbarWindow Window, FrameworkElement Target, string Title, string Description, ToolbarCommand Command);
     private readonly List<Step> _steps = new();
+    private readonly List<ToolbarWindow> _windows = new();
+    private readonly List<OnboardingOverlayWindow> _overlays = new();
+    private string? _subject;
+    internal bool TryPreviewCommand(ToolbarCommand command)
+    {
+        if (!IsRunning) return false;
+        foreach (var window in _windows) window.PreviewGuideCommand(command);
+        return true;
+    }
     private TeachingTip? _tip;
     private ToolbarWindow? _host;
     private int _version;
@@ -23,7 +32,7 @@ internal sealed class ToolbarOnboardingSession
     private bool _waiting;
     private bool _marked;
     private TextBlock? _tipContent;
-    internal bool IsRunning => _waiting || _tip is not null;
+    internal bool IsRunning => _waiting || _tip is not null || _windows.Count > 0;
 
     private static readonly (ToolbarCommand Command, string Title, string Description)[] Lessons =
     {
@@ -41,7 +50,8 @@ internal sealed class ToolbarOnboardingSession
     internal async Task StartAsync(IReadOnlyList<ToolbarWindow> windows, bool force = false)
     {
         Stop();
-        if (!force && !OnboardingState.ShouldShow()) return;
+        _subject = ClassWidgetsCourseReader.ReadCurrentSubject();
+        if (!force && !OnboardingState.ShouldShow(_subject)) return;
         int version = _version;
         _waiting = true;
         try
@@ -57,11 +67,18 @@ internal sealed class ToolbarOnboardingSession
                     // TeachingTip 绑定/解绑 Loaded 时会暂时使目标 IsLoaded=false。
                     // 入场已完成，使用实际布局尺寸和可见性判断，避免重置时漏掉按钮。
                     if (target is null || target.Visibility != Visibility.Visible || target.ActualWidth <= 0 || target.ActualHeight <= 0) continue;
-                    _steps.Add(new Step(window, target, lesson.Title, lesson.Description));
+                    _steps.Add(new Step(window, target, lesson.Title, lesson.Description, lesson.Command));
                     break; // 多个窗口重复的命令只讲解一次。
                 }
             }
-            if (_steps.Count > 0) ShowStep(0);
+            if (_steps.Count > 0)
+            {
+                _windows.AddRange(windows);
+                var areas = windows.Select(w => Microsoft.UI.Windowing.DisplayArea.GetFromWindowId(w.AppWindow.Id, Microsoft.UI.Windowing.DisplayAreaFallback.Nearest));
+                foreach (var area in areas.DistinctBy(a => a.DisplayId.Value)) _overlays.Add(new OnboardingOverlayWindow(area));
+                foreach (var window in windows) { window.SetGuidePreview(true); WindowPlumbing.RaiseToTopmost(window); }
+                ShowStep(0);
+            }
         }
         catch (Exception ex)
         {
@@ -76,6 +93,11 @@ internal sealed class ToolbarOnboardingSession
         _waiting = false;
         _advance = false;
         DetachTip();
+        foreach (var window in _windows) window.SetGuidePreview(false);
+        _windows.Clear();
+        foreach (var overlay in _overlays) overlay.Close();
+        _overlays.Clear();
+        _subject = null;
         _steps.Clear();
         _marked = false;
     }
@@ -87,6 +109,7 @@ internal sealed class ToolbarOnboardingSession
         _host = step.Window;
         _tip = step.Window.CreateGuideTip();
         _tip.Target = step.Target;
+        _tip.HeroContent = OnboardingIllustrations.Create(step.Command);
         _tip.Title = $"{step.Title} · {index + 1} / {_steps.Count}";
         _tipContent = new TextBlock { Text = step.Description, TextWrapping = TextWrapping.Wrap, MaxWidth = 280 };
         _tipContent.Loaded += OnContentLoaded;
@@ -112,7 +135,7 @@ internal sealed class ToolbarOnboardingSession
         // TeachingTip 没有 Opened 事件；正文进入 popup 的可视树后才消耗首次引导。
         if (_marked || !ReferenceEquals(sender, _tipContent) || _tip?.IsOpen != true) return;
         _marked = true;
-        OnboardingState.TryMarkShown();
+        OnboardingState.TryMarkShown(_subject);
     }
 
     private void OnNext(TeachingTip sender, object args)
@@ -189,6 +212,7 @@ internal sealed class ToolbarOnboardingSession
             host?.RemoveGuideTip(tip);
             tip.Target = null;
             tip.Content = null;
+            tip.HeroContent = null;
         }
         catch (Exception ex) { CrashReporter.Report(ex, "onboarding-close"); }
     }
