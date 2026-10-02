@@ -435,6 +435,9 @@ namespace RimePPT
                 while (_settingsPending)
                 {
                     _settingsPending = false;
+                    foreach (var toolbar in ActiveToolbars)
+                        if (toolbar.GetCommandTarget(ToolbarCommand.Annotate) is RimePPT.Controls.ToolbarButton penButton)
+                            penButton.UpdatePenColor();
                     var signature = ToolbarSettingsSignature();
                     if (_toolbarSettingsSnapshot != signature)
                     {
@@ -758,6 +761,18 @@ namespace RimePPT
                 Icon = System.IO.File.Exists(iconPath)
                     ? new System.Drawing.Icon(iconPath)
                     : System.Drawing.SystemIcons.Application,
+            };
+            // 系统长按和键盘菜单键发送 WM_CONTEXTMENU；库只抛出事件，未自动显示菜单。
+            // WinUI 版本的菜单入口接收屏幕坐标，复用现有原生菜单窗口。
+            var tray = _trayIcon;
+            tray.TrayIcon.MessageWindow.KeyboardEventReceived += (_, e) =>
+            {
+                if (e.KeyboardEvent != H.NotifyIcon.Core.KeyboardEvent.ContextMenu) return;
+                _dispatcher?.TryEnqueue(() =>
+                {
+                    if (!tray.IsDisposed)
+                        tray.ShowContextMenu(e.Point);
+                });
             };
             _trayIcon.ForceCreate();
         }
