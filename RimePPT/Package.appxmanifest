@@ -2,27 +2,22 @@
 
 <Package
   xmlns="http://schemas.microsoft.com/appx/manifest/foundation/windows10"
-  xmlns:mp="http://schemas.microsoft.com/appx/2014/phone/manifest"
   xmlns:uap="http://schemas.microsoft.com/appx/manifest/uap/windows10"
   xmlns:rescap="http://schemas.microsoft.com/appx/manifest/foundation/windows10/restrictedcapabilities"
-  xmlns:systemai="http://schemas.microsoft.com/appx/manifest/systemai/windows10"
-  IgnorableNamespaces="uap rescap systemai">
+  IgnorableNamespaces="uap rescap">
 
   <Identity
-    Name="5740e65b-d26b-4ffa-b30a-185075eb68ac"
-    Publisher="CN=Admin"
-    Version="1.0.0.0" />
-
-  <mp:PhoneIdentity PhoneProductId="5740e65b-d26b-4ffa-b30a-185075eb68ac" PhonePublisherId="00000000-0000-0000-0000-000000000000"/>
+    Name="MYXMJY.RimePPT"
+    Publisher="CN=99E0AD8D-459D-4C6D-8850-C7F11B790A9F"
+    Version="1.2.1.0" />
 
   <Properties>
     <DisplayName>RimePPT</DisplayName>
-    <PublisherDisplayName>Admin</PublisherDisplayName>
+    <PublisherDisplayName>MYXMJY</PublisherDisplayName>
     <Logo>Assets\StoreLogo.png</Logo>
   </Properties>
 
   <Dependencies>
-    <TargetDeviceFamily Name="Windows.Universal" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26226.0" />
     <TargetDeviceFamily Name="Windows.Desktop" MinVersion="10.0.17763.0" MaxVersionTested="10.0.26226.0" />
   </Dependencies>
 
@@ -48,6 +43,5 @@
 
   <Capabilities>
     <rescap:Capability Name="runFullTrust" />
-    <systemai:Capability Name="systemAIModels"/>
   </Capabilities>
 </Package>
