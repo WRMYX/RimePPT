@@ -31,6 +31,11 @@ public sealed class AnnotationWindow : Window
     private readonly Dictionary<uint, Microsoft.UI.Xaml.Input.Pointer> _pointers = new();
     private readonly Dictionary<uint, (float Width, float Height)> _sizes = new();
     private readonly Dictionary<uint, Vector2> _eraserPositions = new();
+    private readonly Dictionary<uint, long> _lastMotion = new();
+    private readonly Dictionary<uint, Vector2> _holdPositions = new();
+    private readonly Dictionary<uint, StrokeData> _shapePreviews = new();
+    private readonly HashSet<uint> _shapeChecked = new();
+    private readonly DispatcherTimer _shapeTimer = new() { Interval = TimeSpan.FromMilliseconds(100) };
     private StrokeData[]? _eraseBefore;
     private readonly InkHistory _history;
     private readonly StrokeEraser _eraser = new();
@@ -68,6 +73,7 @@ public sealed class AnnotationWindow : Window
     {
         _slides = slides; _history = new(slides);
         _animationTimer.Tick += OnAnimationFrame;
+        _shapeTimer.Tick += OnShapeFrame;
         _canvas = new CanvasControl { ClearColor = default, IsHitTestVisible = false };
         _canvas.CreateResources += OnCreateResources;
         _canvas.Draw += OnDraw;
@@ -158,6 +164,9 @@ public sealed class AnnotationWindow : Window
         _logs[e.Pointer.PointerId] = diagnostics;
         _pointers[e.Pointer.PointerId] = e.Pointer;
         _sizes[e.Pointer.PointerId] = ((float)settings.EraserWidthDip, (float)settings.EraserHeightDip);
+        _lastMotion[e.Pointer.PointerId] = Stopwatch.GetTimestamp();
+        _holdPositions[e.Pointer.PointerId] = GetSample(e).Position;
+        if (tool.Tool == InkTool.Pen && settings.SmartShapesEnabled) _shapeTimer.Start();
         if (tool.Tool == InkTool.Eraser)
         {
             _eraseBefore ??= _history.Snapshot(_activeSlide);
@@ -186,6 +195,8 @@ public sealed class AnnotationWindow : Window
         if (_batch.Count == 0) _batch.Add(GetSample(e));
         _batch.Sort((a, b) => a.Timestamp.CompareTo(b.Timestamp));
         var previous = input.LastPosition;
+        if (_holdPositions.TryGetValue(e.Pointer.PointerId, out var hold) && _batch.Any(sample => Vector2.DistanceSquared(sample.Position, hold) > 9))
+        { _lastMotion[e.Pointer.PointerId] = Stopwatch.GetTimestamp(); _holdPositions[e.Pointer.PointerId] = _batch[^1].Position; _shapePreviews.Remove(e.Pointer.PointerId); _shapeChecked.Remove(e.Pointer.PointerId); }
         if (input.Tool.Tool == InkTool.Eraser && previous is { } from)
         {
             foreach (var sample in _batch)
@@ -234,6 +245,8 @@ public sealed class AnnotationWindow : Window
         if (tool.Tool == InkTool.Eraser && finalSample is { } final && input.LastPosition is { } last) Erase(id, last, final.Position);
         var before = tool.Tool == InkTool.Pen ? _history.Snapshot(tool.SlideIndex) : null;
         var stroke = _contacts.End(id, finalSample);
+        if (_shapePreviews.Remove(id, out var shape) && stroke is not null && (reason is "released" or "transition")) stroke = shape;
+        _shapeChecked.Remove(id);
         if (stroke is not null)
         {
             if (!_slides.TryGetValue(stroke.SlideIndex, out var list)) _slides[stroke.SlideIndex] = list = new();
@@ -243,6 +256,9 @@ public sealed class AnnotationWindow : Window
         if (tool.Tool == InkTool.Eraser && _contacts.Count == 0 && _eraseBefore is not null)
         { _history.Record(tool.SlideIndex, _eraseBefore); _eraseBefore = null; }
         diagnostics.End(reason, stroke?.Dots.Count ?? 0); _logs.Remove(id); _sizes.Remove(id); _eraserPositions.Remove(id);
+        _lastMotion.Remove(id);
+        _holdPositions.Remove(id);
+        if (_contacts.Count == 0) _shapeTimer.Stop();
         if (_pointers.Remove(id, out var pointer)) _root.ReleasePointerCapture(pointer);
         if (!_closed) { CompanionsRaise?.Invoke(); Invalidate(); }
     }
@@ -254,7 +270,21 @@ public sealed class AnnotationWindow : Window
             _eraser.EraseSweep(list, new(from, to, size.Width, size.Height), input.Viewport).Changed)
         { _renderer?.InvalidateSlide(); _logs[id].Changed(); InkChanged?.Invoke(this, EventArgs.Empty); }
     }
-    private IReadOnlyList<StrokeData> Previews() => _contacts.Contacts.Where(c => c.Value.Preview is not null).Select(c => c.Value.Preview!).ToArray();
+    public InkViewport CurrentViewport => Viewport;
+    private void OnShapeFrame(object? sender, object args)
+    {
+        if (!AppSettings.Instance.SmartShapesEnabled) { _shapePreviews.Clear(); _shapeTimer.Stop(); Invalidate(); return; }
+        foreach (var contact in _contacts.Contacts)
+            if (!_shapeChecked.Contains(contact.Key) && contact.Value.Preview is { } preview && _lastMotion.TryGetValue(contact.Key, out long moved)
+                && Stopwatch.GetElapsedTime(moved).TotalMilliseconds >= 600)
+            {
+                _shapeChecked.Add(contact.Key);
+                if (SmartShapeRecognizer.Recognize(preview, contact.Value.Viewport) is { } shape)
+                { _shapePreviews[contact.Key] = shape; Invalidate(); }
+            }
+    }
+    private IReadOnlyList<StrokeData> Previews() => _contacts.Contacts.Where(c => c.Value.Preview is not null)
+        .Select(c => _shapePreviews.TryGetValue(c.Key, out var shape) ? shape : c.Value.Preview!).ToArray();
 
     private IReadOnlyList<StrokeData> CurrentStrokes() => _slides.TryGetValue(_activeSlide, out var list) ? list : Array.Empty<StrokeData>();
     private void OnCreateResources(CanvasControl sender, CanvasCreateResourcesEventArgs args)
@@ -288,6 +318,7 @@ public sealed class AnnotationWindow : Window
     private void OnClosed(object sender, WindowEventArgs args)
     {
         _closed = true; FinishInput(); StopAnimation(); _animationTimer.Tick -= OnAnimationFrame; AppSettings.SettingsChanged -= OnSettingsChanged;
+        _shapeTimer.Stop(); _shapeTimer.Tick -= OnShapeFrame; _shapePreviews.Clear(); _lastMotion.Clear(); _holdPositions.Clear();
         _root.PointerPressed -= OnPressed; _root.PointerMoved -= OnMoved; _root.PointerReleased -= OnReleased;
         _root.PointerCanceled -= OnCanceled; _root.PointerCaptureLost -= OnCaptureLost; _root.SizeChanged -= OnSizeChanged;
         _renderer?.Dispose(); _renderer = null; _eraser.Reset();

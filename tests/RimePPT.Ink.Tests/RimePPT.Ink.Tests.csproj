@@ -4,6 +4,9 @@
     <ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../RimePPT/Core/Ink/SmartShapeRecognizer.cs" Link="Ink/SmartShapeRecognizer.cs" />
+    <Compile Include="../../RimePPT/Core/BoardPdfWriter.cs" Link="BoardPdfWriter.cs" />
+    <Compile Include="../../RimePPT/Services/ClassWidgetsCourseReader.cs" Link="ClassWidgetsCourseReader.cs" />
     <Compile Include="../../RimePPT/Core/Ink/StrokeData.cs" Link="Ink/StrokeData.cs" />
     <Compile Include="../../RimePPT/Core/Ink/InkDocument.cs" Link="Ink/InkDocument.cs" />
     <Compile Include="../../RimePPT/Core/Ink/StrokeGeometry.cs" Link="Ink/StrokeGeometry.cs" />

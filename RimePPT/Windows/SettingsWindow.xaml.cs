@@ -25,6 +25,9 @@ namespace RimePPT.Windows
         private static SettingsWindow? _instance;
 
         private bool _suppress = true;
+        private readonly DispatcherTimer _connectionTimer = new() { Interval = TimeSpan.FromSeconds(3) };
+        private bool _refreshingConnection;
+        private bool _closed;
 
         // 标记实时预览由本窗口启动（窗口关闭时据此自动结束）
         private bool _previewing;
@@ -46,7 +49,7 @@ namespace RimePPT.Windows
         {
             InitializeComponent();
             // XAML 中的命名设置控件保留实例与事件，只更换原生导航容器。
-            foreach (var page in new[] { AppearancePage, InkPage, ToolbarPage, DebugPage, AboutPage })
+            foreach (var page in new[] { AppearancePage, InkPage, ToolbarPage, ClassWidgetsPage, StoreUpdatePage, DebugPage, AboutPage })
             {
                 PageHost.Children.Remove(page);
                 page.Visibility = Visibility.Visible;
@@ -76,9 +79,15 @@ namespace RimePPT.Windows
             LoadValues();
             LoadImages();
             VersionText.Text = "版本 0.2（开发中）";
+            ClassWidgetsDataPath.Text = ClassWidgetsCourseReader.DataPath;
+            _connectionTimer.Tick += OnConnectionTick;
+            _connectionTimer.Start();
 
             Closed += (_, _) =>
             {
+                _closed = true;
+                _connectionTimer.Stop();
+                _connectionTimer.Tick -= OnConnectionTick;
                 // 由本窗口启动的预览随窗口关闭自动结束，避免浮窗残留
                 if (_previewing)
                 {
@@ -213,16 +222,19 @@ namespace RimePPT.Windows
             }
 
             string tag = (string)args.SelectedItemContainer.Tag;
-            PageTitle.Text = tag switch { "ink" => "笔迹", "toolbar" => "工具栏", "debug" => "调试", "about" => "关于", _ => "外观" };
+            PageTitle.Text = tag switch { "ink" => "笔迹", "toolbar" => "工具栏", "classwidgets" => "ClassWidgets 2", "updates" => "商店更新", "debug" => "调试", "about" => "关于", _ => "外观" };
             PageDescription.Text = tag switch
             {
-                "ink" => "设置翻页时笔迹的显示方式与动画节奏。",
+                "ink" => "调整书写、智能图形、板书导出与翻页动画。",
+                "classwidgets" => "查看课表插件的连接状态与当前课程。",
+                "updates" => "查看 Microsoft Store 更新与发布状态。",
                 "toolbar" => "选择浮动工具栏的位置、布局与常用操作。",
                 "debug" => "模拟放映、验证工具栏，或重置使用引导。",
                 "about" => "了解 RimePPT、开发者与软件技术。",
                 _ => "选择书写模式，调整主题与启动行为。"
             };
-            NavigateSection(tag switch { "ink" => InkPage, "toolbar" => ToolbarPage, "debug" => DebugPage, "about" => AboutPage, _ => AppearancePage }, true);
+            NavigateSection(tag switch { "ink" => InkPage, "toolbar" => ToolbarPage, "classwidgets" => ClassWidgetsPage, "updates" => StoreUpdatePage, "debug" => DebugPage, "about" => AboutPage, _ => AppearancePage }, true);
+            if (tag == "classwidgets") OnRefreshClassWidgets(this, new RoutedEventArgs());
             AdaptLayout();
         }
 
@@ -243,6 +255,7 @@ namespace RimePPT.Windows
         private void LoadInkAnimationValues()
         {
             var settings = AppSettings.Instance;
+            SmartShapesToggle.IsOn = settings.SmartShapesEnabled;
             InkAnimationCombo.SelectedIndex = (int)settings.InkPageAnimation;
             InkFadeDurationBox.Value = settings.InkFadeDurationMs;
             InkReplayDurationBox.Value = settings.InkReplayDurationMs;
@@ -255,6 +268,53 @@ namespace RimePPT.Windows
             if (_suppress || InkAnimationCombo.SelectedIndex < 0) return;
             AppSettings.Instance.InkPageAnimation = (InkPageAnimationMode)InkAnimationCombo.SelectedIndex;
             AppSettings.Instance.Save();
+        }
+
+        private void OnSmartShapesToggled(object sender, RoutedEventArgs e)
+        {
+            if (_suppress) return;
+            AppSettings.Instance.SmartShapesEnabled = SmartShapesToggle.IsOn;
+            AppSettings.Instance.Save();
+        }
+
+        private async void OnExportBoard(object sender, RoutedEventArgs e) => await App.ExportBoardAsync(this);
+
+        private void OnConnectionTick(object? sender, object e)
+        {
+            if (ContentFrame.Content is Page page && ReferenceEquals(page.Content, ClassWidgetsPage))
+                OnRefreshClassWidgets(this, new RoutedEventArgs());
+        }
+
+        private async void OnRefreshClassWidgets(object sender, RoutedEventArgs e)
+        {
+            if (_closed || _refreshingConnection) return;
+            _refreshingConnection = true;
+            try
+            {
+                var status = await System.Threading.Tasks.Task.Run(() => ClassWidgetsCourseReader.ReadStatus());
+                if (_closed) return;
+                ClassWidgetsHostStatus.Text = status.Host;
+                ClassWidgetsPluginStatus.Text = status.Plugin;
+                ClassWidgetsSubject.Text = status.Course;
+                ClassWidgetsHeartbeat.Text = status.Updated?.ToLocalTime().ToString("yyyy-MM-dd HH:mm:ss") ?? "—";
+                ClassWidgetsInfo.Severity = status.Connected ? InfoBarSeverity.Success : InfoBarSeverity.Warning;
+                ClassWidgetsInfo.Title = status.Connected ? "课表联动可正常使用" : "尚未建立有效连接";
+                ClassWidgetsInfo.Message = status.Detail;
+                ClassWidgetsInfo.IsOpen = true;
+            }
+            catch (Exception ex)
+            {
+                CrashReporter.Report(ex, "classwidgets-status");
+                if (!_closed) { ClassWidgetsInfo.Severity = InfoBarSeverity.Error; ClassWidgetsInfo.Title = "无法读取连接状态"; ClassWidgetsInfo.Message = "请检查共享数据文件的读取权限。"; }
+            }
+            finally { _refreshingConnection = false; }
+        }
+
+        private void OnCheckStoreUpdates(object sender, RoutedEventArgs e)
+        {
+            StoreUpdateInfo.Title = "暂时无法检查商店更新";
+            StoreUpdateInfo.Message = "RimePPT 尚未上架 Microsoft Store。上架后才能连接真实的商店更新服务；目前不会发送更新查询或下载文件。";
+            StoreUpdateInfo.IsOpen = true;
         }
 
         private void OnInkDurationChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
@@ -379,6 +439,12 @@ namespace RimePPT.Windows
         }
 
         // ———— 调试 ————
+
+        private async void OnOpenGuide(object sender, RoutedEventArgs e)
+        {
+            try { await App.ShowToolbarGuideAsync((sender as FrameworkElement)?.Tag as string == "complete"); }
+            catch (Exception ex) { CrashReporter.Report(ex, "settings-guide"); }
+        }
 
         private void OnResetOnboarding(object sender, RoutedEventArgs e)
         {

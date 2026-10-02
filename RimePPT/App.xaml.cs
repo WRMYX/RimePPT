@@ -68,6 +68,41 @@ namespace RimePPT
 
         /// <summary>本次放映会话的墨迹（页码 → 笔画）。</summary>
         public static Dictionary<int, List<StrokeData>> SessionInk { get; } = new();
+        private bool _exporting;
+        public static async Task ExportBoardAsync(Window owner)
+        {
+            var app = _instance;
+            if (app is null || app._exporting) return;
+            var controller = app._presenting;
+            app._annotation?.FinishInput();
+            if (controller is null || !SessionInk.Values.Any(s => s.Count > 0))
+            {
+                await app.ShowPromptAsync(app._showArea, "没有可导出的板书", "请先在放映中使用 RimePPT 自研笔迹书写。PowerPoint 原生笔迹由 Office 管理。", "知道了", "关闭"); return;
+            }
+            app._exporting = true;
+            try
+            {
+                var snapshot = SessionInk.ToDictionary(p => p.Key, p => p.Value.Select(s => new StrokeData { Id = s.Id, SlideIndex = s.SlideIndex, Argb = (byte[])s.Argb.Clone(), ThicknessDips = s.ThicknessDips, Dots = s.Dots.Select(d => new StrokeData.Dot { X = d.X, Y = d.Y }).ToList() }).ToList());
+                var viewport = app._annotation?.CurrentViewport ?? new InkViewport(1920, 1080);
+                var picker = new global::Windows.Storage.Pickers.FolderPicker(); picker.FileTypeFilter.Add("*");
+                WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(owner));
+                var destination = await picker.PickSingleFolderAsync(); if (destination is null) return;
+                string folder = await BoardExportService.ExportAsync(controller, snapshot, viewport, destination.Path);
+                await global::Windows.System.Launcher.LaunchFolderAsync(await global::Windows.Storage.StorageFolder.GetFolderFromPathAsync(folder));
+            }
+            catch (Exception ex) { CrashReporter.Report(ex, "board-export"); await app.ShowPromptAsync(app._showArea, "导出未完成", ex.Message, "知道了", "关闭"); }
+            finally { app._exporting = false; }
+        }
+        public static async Task ShowToolbarGuideAsync(bool complete = true)
+        {
+            if (_instance is not { } app) return;
+            if (ActiveToolbars.Count == 0)
+            {
+                await app.ShowPromptAsync(app._showArea, "放映时查看指南", "请先开始放映，或在调试页面启动模拟放映。指南会围绕实际工具栏按钮展开。", "知道了", "关闭");
+                return;
+            }
+            await app._onboarding.StartAsync(ActiveToolbars.ToArray(), force: true, complete: complete);
+        }
 
         /// <summary>真实 PowerPoint 控制器（应用启动即开始轮询）。</summary>
         public static PowerPointController PowerPoint { get; } = new();
@@ -545,6 +580,8 @@ namespace RimePPT
                 ("\uE7B3", "聚光与放大", () => RunFeatureAsync(OpenSpotlightAsync)),
                 ("\uE708", "黑屏模式", () => RunFeatureAsync(ToggleBlackoutAsync)),
                 ("\uE916", "计时器", () => ToggleTimer(anchor)),
+                ("\uE896", "导出课堂板书", () => RunFeatureAsync(() => ExportBoardAsync(anchor))),
+                ("\uE897", "使用指南", () => RunFeatureAsync(() => ShowToolbarGuideAsync())),
                 ("\uE713", "设置", SettingsWindow.Open),
             });
             _toolsMenu = menu;

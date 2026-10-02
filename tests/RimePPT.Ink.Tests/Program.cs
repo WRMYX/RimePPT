@@ -118,6 +118,7 @@ Test("erasure preserves page color and thickness", () => {
     var strokes = new List<StrokeData> { stroke }; new StrokeEraser().EraseSweep(strokes, new(new(500, 500), new(500, 500)), view);
     Check(strokes.Count == 2 && strokes.All(s => s.SlideIndex == 5 && s.ThicknessDips == 12 && s.Argb.SequenceEqual(stroke.Argb)), "style lost");
 });
+ClassroomTests.Register(Test, Check, view);
 int failures = 0;
 Test("ten contacts cross without mixing", () => {
     var manager = new InkContactManager();

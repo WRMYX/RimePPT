@@ -51,6 +51,7 @@ namespace RimePPT.Core
         public int EdgeMargin { get; set; } = 6;
         public string PenColor { get; set; } = "red";
         public double PenThickness { get; set; } = 4;
+        public bool SmartShapesEnabled { get; set; } = true;
         public InkBackend InkBackend { get; set; } = InkBackend.Native;
         public string? CustomPenArgb { get; set; }
         public double EraserWidthDip { get; set; } = 56;

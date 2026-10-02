@@ -46,9 +46,11 @@
                     <FontIcon Glyph="&#xE7F4;" />
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
+            <NavigationViewItem Content="ClassWidgets 2" Tag="classwidgets" ToolTipService.ToolTip="ClassWidgets 2"><NavigationViewItem.Icon><FontIcon Glyph="&#xE71B;" /></NavigationViewItem.Icon></NavigationViewItem>
         </NavigationView.MenuItems>
 
         <NavigationView.FooterMenuItems>
+            <NavigationViewItem Content="商店更新" Tag="updates" ToolTipService.ToolTip="商店更新"><NavigationViewItem.Icon><FontIcon Glyph="&#xE895;" /></NavigationViewItem.Icon></NavigationViewItem>
             <NavigationViewItem Content="调试" Tag="debug" ToolTipService.ToolTip="调试">
                 <NavigationViewItem.Icon>
                     <FontIcon Glyph="&#xE768;" />
@@ -179,6 +181,18 @@
             <!-- ———— 笔迹 ———— -->
             <ScrollViewer x:Name="InkPage" Grid.Row="1" Padding="24,0,24,24" Visibility="Collapsed" HorizontalContentAlignment="Stretch" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel MaxWidth="960" HorizontalAlignment="Left" Spacing="12">
+                    <Border Style="{StaticResource CardBorder}" Padding="16">
+                        <Grid ColumnSpacing="16"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <StackPanel Spacing="4"><TextBlock Text="智能图形整理" Style="{StaticResource SettingTitle}"/><TextBlock Text="自研模式下，画完直线、圆或矩形后按住停顿约 0.6 秒；继续移动则保持自由书写。" Style="{StaticResource SettingDesc}"/></StackPanel>
+                            <ToggleSwitch x:Name="SmartShapesToggle" Grid.Column="1" OnContent="" OffContent="" AutomationProperties.Name="智能图形整理" Toggled="OnSmartShapesToggled" VerticalAlignment="Center"/>
+                        </Grid>
+                    </Border>
+                    <Border Style="{StaticResource CardBorder}" Padding="16">
+                        <Grid ColumnSpacing="16"><Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                            <StackPanel Spacing="4"><TextBlock Text="课堂板书回顾" Style="{StaticResource SettingTitle}"/><TextBlock Text="放映结束前，将有自研批注的页面导出为“幻灯片＋笔迹”PNG 图片及 PDF。也可从工具菜单导出。" Style="{StaticResource SettingDesc}"/></StackPanel>
+                            <Button Grid.Column="1" Content="导出板书" Click="OnExportBoard" VerticalAlignment="Center" MinHeight="40"/>
+                        </Grid>
+                    </Border>
                     <Border Style="{StaticResource CardBorder}" Padding="16,12">
                         <StackPanel Spacing="4">
                             <TextBlock Text="翻页笔迹动画" Style="{StaticResource SettingTitle}" />
@@ -323,6 +337,14 @@
                         </Grid>
                     </Border>
                     <InfoBar x:Name="OnboardingResetInfo" IsOpen="False" IsClosable="True" />
+                    <Border Style="{StaticResource CardBorder}" Padding="16"><StackPanel Spacing="12">
+                        <TextBlock Text="再次查看指南" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                        <TextBlock Text="放映或模拟放映时，可再次查看四步入门或完整导览。不会清除已有科目的引导记录。" Style="{StaticResource SettingDesc}"/>
+                        <StackPanel Orientation="Horizontal" Spacing="8">
+                            <Button Content="查看入门引导" Click="OnOpenGuide" MinHeight="40"/>
+                            <Button Content="查看完整指南" Tag="complete" Click="OnOpenGuide" MinHeight="40"/>
+                        </StackPanel>
+                    </StackPanel></Border>
                     <Border Style="{StaticResource CardBorder}">
                         <StackPanel>
                             <Grid Padding="16,12" MinHeight="60">
@@ -366,6 +388,44 @@
             </ScrollViewer>
 
             <!-- ———— 关于 ———— -->
+            <ScrollViewer x:Name="ClassWidgetsPage" Grid.Row="1" Padding="24,0,24,24" Visibility="Collapsed" HorizontalContentAlignment="Stretch" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel MaxWidth="960" HorizontalAlignment="Left" Spacing="12">
+                    <Border Style="{StaticResource CardBorder}" Padding="20"><StackPanel Spacing="12">
+                        <TextBlock Text="当前课程联动" Style="{StaticResource SubtitleTextBlockStyle}"/>
+                        <InfoBar x:Name="ClassWidgetsInfo" IsOpen="True" IsClosable="False" Title="正在检查连接"/>
+                        <Grid ColumnSpacing="24" RowSpacing="16"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions><Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/></Grid.RowDefinitions>
+                            <TextBlock Text="ClassWidgets 2"/><TextBlock x:Name="ClassWidgetsHostStatus" Grid.Column="1" TextWrapping="Wrap"/>
+                            <TextBlock Grid.Row="1" Text="联动插件"/><TextBlock x:Name="ClassWidgetsPluginStatus" Grid.Row="1" Grid.Column="1" TextWrapping="Wrap"/>
+                            <TextBlock Grid.Row="2" Text="当前科目"/><TextBlock x:Name="ClassWidgetsSubject" Grid.Row="2" Grid.Column="1" TextWrapping="Wrap"/>
+                            <TextBlock Grid.Row="3" Text="最后心跳"/><TextBlock x:Name="ClassWidgetsHeartbeat" Grid.Row="3" Grid.Column="1" TextWrapping="Wrap"/>
+                        </Grid>
+                        <Button Content="刷新连接状态" Click="OnRefreshClassWidgets" HorizontalAlignment="Left" MinHeight="40"/>
+                    </StackPanel></Border>
+                    <Border Style="{StaticResource CardBorder}" Padding="16"><StackPanel Spacing="8">
+                        <TextBlock Text="连接说明" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                        <TextBlock Text="状态依据插件每隔约 10 秒写入的心跳判断，本页面每 3 秒刷新。课间没有科目是正常状态。有效心跳代表软件与插件联动正常；缺少心跳时，无法单独确定软件是否运行。" Style="{StaticResource SettingDesc}"/>
+                        <TextBlock x:Name="ClassWidgetsDataPath" IsTextSelectionEnabled="True" TextWrapping="Wrap" Style="{StaticResource SettingDesc}"/>
+                    </StackPanel></Border>
+                </StackPanel>
+            </ScrollViewer>
+            <ScrollViewer x:Name="StoreUpdatePage" Grid.Row="1" Padding="24,0,24,24" Visibility="Collapsed" HorizontalContentAlignment="Stretch" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel MaxWidth="960" HorizontalAlignment="Left" Spacing="16">
+                    <Border Style="{StaticResource CardBorder}" Padding="24"><Grid ColumnSpacing="20"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <FontIcon Glyph="&#xE895;" FontSize="44" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Top"/>
+                        <StackPanel Grid.Column="1" Spacing="12"><TextBlock Text="尚未上架 Microsoft Store" Style="{StaticResource SubtitleTextBlockStyle}" TextWrapping="Wrap"/>
+                            <TextBlock Text="商店发布后，可在这里检查 RimePPT 更新。当前没有可查询的商店版本。" Style="{StaticResource SettingDesc}"/>
+                            <TextBlock Text="当前版本：0.2（开发中）" Style="{StaticResource SettingDesc}"/>
+                            <Button Content="检查更新" Style="{StaticResource AccentButtonStyle}" Click="OnCheckStoreUpdates" HorizontalAlignment="Left" MinHeight="40"/>
+                        </StackPanel>
+                    </Grid></Border>
+                    <InfoBar x:Name="StoreUpdateInfo" IsOpen="False" IsClosable="True" Severity="Informational"/>
+                    <Border Style="{StaticResource CardBorder}" Padding="16"><StackPanel Spacing="8">
+                        <TextBlock Text="更新来源" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                        <TextBlock Text="Microsoft Store"/>
+                        <TextBlock Text="当前便携版不会从此页面自动下载或安装更新。" Style="{StaticResource SettingDesc}"/>
+                    </StackPanel></Border>
+                </StackPanel>
+            </ScrollViewer>
             <ScrollViewer x:Name="AboutPage" Grid.Row="1" Padding="24,0,24,24" Visibility="Collapsed" HorizontalContentAlignment="Stretch" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel MaxWidth="960" HorizontalAlignment="Left" Spacing="12">
                     <Border Style="{StaticResource CardBorder}">
