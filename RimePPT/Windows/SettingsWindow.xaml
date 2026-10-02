@@ -93,7 +93,7 @@
 
             <!-- ———— 外观 ———— -->
             <Frame x:Name="ContentFrame" Grid.Row="1">
-                <Frame.ContentTransitions><TransitionCollection><animation:NavigationThemeTransition DefaultNavigationTransitionInfo="{x:Null}" /></TransitionCollection></Frame.ContentTransitions>
+                <Frame.ContentTransitions><TransitionCollection><animation:NavigationThemeTransition /></TransitionCollection></Frame.ContentTransitions>
             </Frame>
             <ScrollViewer x:Name="AppearancePage" Grid.Row="1" Padding="24,0,24,24" HorizontalContentAlignment="Stretch" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel MaxWidth="960" HorizontalAlignment="Left" Spacing="12">
