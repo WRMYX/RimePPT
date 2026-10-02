@@ -4,6 +4,7 @@ using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Shapes;
+using Microsoft.UI.Xaml.Media.Imaging;
 using RimePPT.Core;
 using Windows.UI;
 
@@ -17,7 +18,7 @@ public class PenPickerWindow : Flyout
     private readonly ComboBox _backend = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
     private readonly TextBlock _status = new() { TextWrapping = TextWrapping.Wrap, FontSize = 12 };
     private readonly Slider _width;
-    private readonly Slider? _height;
+    private readonly Image _eraserPreview = new() { HorizontalAlignment = HorizontalAlignment.Center, Stretch = Stretch.Fill };
     private readonly Rectangle _preview = new() { RadiusX = 4, RadiusY = 4, HorizontalAlignment = HorizontalAlignment.Center };
     private readonly TextBlock _size = new();
     private readonly Ellipse? _currentColor;
@@ -74,19 +75,12 @@ public class PenPickerWindow : Flyout
             colorRow.Children.Add(new TextBlock { Text = "自定义颜色", VerticalAlignment = VerticalAlignment.Center });
             _panel.Children.Add(colorRow);
         }
-        _panel.Children.Add(new TextBlock { Text = eraser ? "橡皮宽度 / 高度（DIP）" : "笔粗细（DIP）" });
-        _width = new Slider { Minimum = eraser ? 16 : 2, Maximum = eraser ? 160 : 20, StepFrequency = 1 };
-        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(_width, eraser ? "橡皮宽度" : "笔粗细");
+        _panel.Children.Add(new TextBlock { Text = eraser ? "橡皮整体大小（DIP）" : "笔粗细（DIP）" });
+        _width = new Slider { Minimum = eraser ? 24 : 2, Maximum = eraser ? 160 : 20, StepFrequency = 1 };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(_width, eraser ? "橡皮整体大小" : "笔粗细");
         _panel.Children.Add(_width);
-        if (eraser)
-        {
-            _height = new Slider { Minimum = 16, Maximum = 160, StepFrequency = 1 };
-            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(_height, "橡皮高度");
-            _panel.Children.Add(_height);
-        }
         _width.ValueChanged += (_, _) => SizeChangedLive();
-        if (_height is not null) _height.ValueChanged += (_, _) => SizeChangedLive();
-        _panel.Children.Add(_size); _panel.Children.Add(_preview);
+        _panel.Children.Add(_size); _panel.Children.Add(eraser ? _eraserPreview : _preview);
         if (eraser)
         {
             var clear = new Button { Content = "清除当前页墨迹", HorizontalAlignment = HorizontalAlignment.Stretch };
@@ -128,24 +122,29 @@ public class PenPickerWindow : Flyout
             _panel.RequestedTheme = s.Theme switch { "light" => ElementTheme.Light, "dark" => ElementTheme.Dark, _ => ElementTheme.Default };
             _backend.SelectedIndex = (int)s.InkBackend;
             bool custom = App.EffectiveInkBackend == InkBackend.Rime;
-            _width.IsEnabled = custom; if (_height is not null) _height.IsEnabled = custom;
-            _width.Value = _eraser ? s.EraserWidthDip : s.PenThickness;
-            if (_height is not null) _height.Value = s.EraserHeightDip;
+            _width.IsEnabled = custom;
+            _width.Value = _eraser ? s.EraserSizeDip : s.PenThickness;
             _status.Text = App.InkBackendStatus + (_eraser ? "\n仅擦除当前模式产生的墨迹。" : "\n原生墨迹由 PowerPoint 管理保存。") + (!custom ? "\n尺寸由 PowerPoint 管理。" : "");
             var c = s.GetPenArgb(); var color = Color.FromArgb(c[0], c[1], c[2], c[3]);
             if (_currentColor is not null) _currentColor.Fill = new SolidColorBrush(color);
             if (_colorPicker is not null) _colorPicker.Color = color;
-            _preview.Width = _eraser ? _width.Value : 200;
-            _preview.Height = _eraser ? _height?.Value ?? 72 : _width.Value;
+            _preview.Width = 200;
+            _preview.Height = _width.Value;
             _preview.Fill = _eraser ? new SolidColorBrush(Microsoft.UI.Colors.Gray) : new SolidColorBrush(color);
-            _size.Text = _eraser ? $"{_width.Value:0} × {_height?.Value:0} DIP" : $"{_width.Value:0} DIP";
+            if (_eraser)
+            {
+                bool dark = s.Theme == "dark" || (s.Theme == "auto" && ThemeHelper.IsDarkTheme());
+                _eraserPreview.Source = new SvgImageSource(new Uri(System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", dark ? "Eraser-Dark.svg" : "Eraser-Light.svg")));
+                _eraserPreview.Width = s.EraserWidthDip; _eraserPreview.Height = s.EraserSizeDip;
+            }
+            _size.Text = $"{_width.Value:0} DIP";
         }
         finally { _suppress = false; }
     }
     private void SizeChangedLive()
     {
         if (_suppress) return;
-        if (_eraser) { AppSettings.Instance.EraserWidthDip = _width.Value; AppSettings.Instance.EraserHeightDip = _height!.Value; }
+        if (_eraser) AppSettings.Instance.EraserSizeDip = _width.Value;
         else AppSettings.Instance.PenThickness = _width.Value;
         ChangedLive();
     }

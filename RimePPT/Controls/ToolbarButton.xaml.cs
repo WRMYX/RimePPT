@@ -12,6 +12,7 @@ public sealed partial class ToolbarButton : UserControl
     private readonly Grid _host = new();
     private readonly FontIcon _icon = new() { FontSize = 20, FontFamily = new FontFamily("Segoe Fluent Icons") };
     private readonly TextBlock _label = new() { FontSize = 11, HorizontalAlignment = HorizontalAlignment.Center };
+    private readonly Border _penColor = new() { Width = 24, Height = 3, CornerRadius = new CornerRadius(1.5), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(2, 0, 0, 0), IsHitTestVisible = false };
     private ButtonBase? _button;
     private bool _guidePreview;
     private bool _normalChecked;
@@ -50,7 +51,16 @@ public sealed partial class ToolbarButton : UserControl
     private void Build()
     {
         if (_button is not null) return;
-        var content = new StackPanel { Spacing = 2 }; content.Children.Add(_icon); content.Children.Add(_label);
+        var content = new StackPanel { Spacing = 2 };
+        if (Command == ToolbarCommand.Annotate)
+        {
+            // 色条与笔尖共用图标区域，不增加工具按钮的高度。
+            var pen = new Grid { Width = 28, Height = 20 };
+            pen.Children.Add(_penColor); pen.Children.Add(_icon);
+            content.Children.Add(pen); UpdatePenColor();
+        }
+        else content.Children.Add(_icon);
+        content.Children.Add(_label);
         _button = Command is ToolbarCommand.Annotate or ToolbarCommand.Eraser ? new ToggleButton() : new Button();
         _button.Content = content;
         _button.MinWidth = 44; _button.MinHeight = 44;
@@ -72,6 +82,13 @@ public sealed partial class ToolbarButton : UserControl
         else _host.Children.Add(_button);
     }
     public void SetShowText(bool show) => _label.Visibility = show || Command == ToolbarCommand.Pages ? Visibility.Visible : Visibility.Collapsed;
+    public void UpdatePenColor()
+    {
+        if (Command != ToolbarCommand.Annotate) return;
+        var color = AppSettings.Instance.GetPenArgb();
+        _penColor.Background = new SolidColorBrush(global::Windows.UI.Color.FromArgb(color[0], color[1], color[2], color[3]));
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(_penColor, $"当前笔颜色 #{Convert.ToHexString(color)}");
+    }
     public void SetEnabled(bool enabled) { _normalEnabled = enabled; if (_button is not null) _button.IsEnabled = _guidePreview || enabled; }
     public void SetPageNumber(int current, int total)
     {

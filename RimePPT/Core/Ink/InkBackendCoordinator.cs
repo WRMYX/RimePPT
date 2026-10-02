@@ -33,7 +33,9 @@ public sealed class InkBackendCoordinator
         {
             _annotation.FinishInput(); _annotation.AnnotationEnabled = false;
             if (EffectiveBackend == InkBackend.Native)
+            {
                 await _controller.SetNativePointerAsync(tool switch { AnnotationTool.Pen => NativePointerTool.Pen, AnnotationTool.Eraser => NativePointerTool.Eraser, _ => NativePointerTool.Arrow }, AppSettings.Instance.GetPenArgb());
+            }
             else if (tool.HasValue) { _annotation.Tool = tool.Value; _annotation.AnnotationEnabled = true; }
         }
         catch

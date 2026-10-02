@@ -55,6 +55,13 @@ namespace RimePPT.Core
         public string? CustomPenArgb { get; set; }
         public double EraserWidthDip { get; set; } = 56;
         public double EraserHeightDip { get; set; } = 72;
+        // 保留旧宽高字段兼容已有设置；新版只调整整体高度，宽度按 SVG 比例联动。
+        [System.Text.Json.Serialization.JsonIgnore]
+        public double EraserSizeDip
+        {
+            get => EraserHeightDip;
+            set { EraserHeightDip = value; EraserWidthDip = value * 56 / 72; }
+        }
         public InkPageAnimationMode InkPageAnimation { get; set; } = InkPageAnimationMode.Fade;
         public int InkFadeDurationMs { get; set; } = 240;
         public int InkReplayDurationMs { get; set; } = 1000;
@@ -72,7 +79,7 @@ namespace RimePPT.Core
             InkReplayDurationMs = Math.Clamp(InkReplayDurationMs, 300, 4000);
             PenThickness = double.IsFinite(PenThickness) ? Math.Clamp(PenThickness, 2, 20) : 4;
             EraserWidthDip = double.IsFinite(EraserWidthDip) ? Math.Clamp(EraserWidthDip, 16, 160) : 56;
-            EraserHeightDip = double.IsFinite(EraserHeightDip) ? Math.Clamp(EraserHeightDip, 16, 160) : 72;
+            EraserSizeDip = double.IsFinite(EraserHeightDip) ? Math.Clamp(EraserHeightDip, 24, 160) : 72;
             if (Theme is not ("auto" or "light" or "dark")) Theme = "auto";
         }
         public bool RunAtStartup { get; set; }

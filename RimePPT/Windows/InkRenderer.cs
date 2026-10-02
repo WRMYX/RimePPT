@@ -4,6 +4,7 @@ using System.Diagnostics;
 using System.Numerics;
 using Microsoft.Graphics.Canvas;
 using Microsoft.Graphics.Canvas.Geometry;
+using Microsoft.Graphics.Canvas.Svg;
 using RimePPT.Core.Ink;
 using Windows.Foundation;
 using Windows.UI;
@@ -28,6 +29,7 @@ public sealed class InkRenderer : IDisposable
     private long _started;
     private InkViewport _viewport;
     private bool _dirty = true;
+    private readonly CanvasSvgDocument _eraserLight, _eraserDark;
     public bool IsDark { get; set; }
     public Vector2? EraserPosition { get; set; }
     public IReadOnlyList<Vector2> EraserPositions { get; set; } = Array.Empty<Vector2>();
@@ -37,6 +39,8 @@ public sealed class InkRenderer : IDisposable
     public InkRenderer(CanvasDevice device, Func<IReadOnlyList<StrokeData>> strokes, Func<IReadOnlyList<StrokeData>> preview)
     {
         _device = device; _strokes = strokes; _preview = preview;
+        _eraserLight = CanvasSvgDocument.LoadFromXml(device, System.IO.File.ReadAllText(System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "Eraser-Light.svg")));
+        _eraserDark = CanvasSvgDocument.LoadFromXml(device, System.IO.File.ReadAllText(System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "Eraser-Dark.svg")));
     }
     public void InvalidateSlide() { _dirty = true; _pending.Clear(); }
     public void Commit(StrokeData stroke) { if (!_dirty) _pending.Add(stroke); }
@@ -178,15 +182,17 @@ public sealed class InkRenderer : IDisposable
 
     private void DrawEraser(CanvasDrawingSession session, Vector2 point)
     {
-        var rect = new Rect(point.X - EraserSize.X / 2, point.Y - EraserSize.Y / 2, EraserSize.X, EraserSize.Y);
-        var body = IsDark ? Color.FromArgb(240, 40, 40, 40) : Color.FromArgb(247, 255, 255, 255);
-        var line = IsDark ? Color.FromArgb(255, 255, 255, 255) : Color.FromArgb(255, 27, 27, 27);
-        session.FillRoundedRectangle(rect, 8, 8, body);
-        session.DrawRoundedRectangle(rect, 8, 8, line, 1.5f);
-        for (int i = 1; i <= 3; i++)
-            session.DrawLine(new Vector2(point.X - 28 + 14 * i, point.Y - 20), new Vector2(point.X - 28 + 14 * i, point.Y + 20), line, 2);
+        var transform = session.Transform;
+        try
+        {
+            // SVG 的设计尺寸固定；显式缩放几何，使光标尺寸与擦除范围一致。
+            session.Transform = Matrix3x2.CreateScale(EraserSize.X / 56, EraserSize.Y / 72)
+                * Matrix3x2.CreateTranslation(point - EraserSize / 2) * transform;
+            session.DrawSvg(IsDark ? _eraserDark : _eraserLight, new Size(56, 72));
+        }
+        finally { session.Transform = transform; }
     }
 
     private void ClearGeometries() { foreach (var geometry in _geometries.Values) geometry.Dispose(); _geometries.Clear(); }
-    public void Dispose() { CancelAnimation(); _history?.Dispose(); _history = null; _pending.Clear(); ClearGeometries(); _style.Dispose(); }
+    public void Dispose() { CancelAnimation(); _history?.Dispose(); _history = null; _pending.Clear(); ClearGeometries(); _style.Dispose(); _eraserLight.Dispose(); _eraserDark.Dispose(); }
 }

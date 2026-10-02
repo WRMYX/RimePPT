@@ -203,6 +203,7 @@ namespace RimePPT.Windows
             foreach (var button in _buttons)
             {
                 button.SetShowText(settings.ShowToolbarText);
+                button.UpdatePenColor();
             }
             UpdatePlacement();
         }

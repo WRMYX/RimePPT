@@ -82,11 +82,29 @@ namespace RimePPT.Core
         {
             dynamic show = ((dynamic)_ppt!).SlideShowWindows(1);
             dynamic view = show.View;
+            if (tool == NativePointerTool.Eraser)
+            {
+                // 已选中的新墨迹橡皮不能重复执行切换命令，否则部分 Office 返回 E_FAIL。
+                try { if ((bool)((dynamic)_ppt!).CommandBars.GetPressedMso("InkEraser")) return; }
+                catch (COMException) { /* 旧版 Office 继续使用 PointerType。 */ }
+            }
             // 仅换工具时激活放映；即时选色不能抢走颜色弹层的焦点。
             bool changingTool = (int)view.PointerType != (int)tool;
             if (changingTool) show.Activate();
-            if (argb is { Length: 4 }) view.PointerColor.RGB = argb[1] | (argb[2] << 8) | (argb[3] << 16);
-            if (changingTool) view.PointerType = (int)tool;
+            // PointerColor 属于笔工具。某些 Office 版本在写颜色时切回笔，不能用于橡皮。
+            if (tool == NativePointerTool.Pen && argb is { Length: 4 })
+                view.PointerColor.RGB = argb[1] | (argb[2] << 8) | (argb[3] << 16);
+            if ((int)view.PointerType != (int)tool) view.PointerType = (int)tool;
+            if (tool == NativePointerTool.Eraser && (int)view.PointerType != (int)tool)
+            {
+                // 新版 Office 的墨迹工具不一定回报旧版 PointerType=5。
+                // 使用微软内置橡皮命令，并检查实际选中态，不能把 0/2 当作切换失败。
+                dynamic commands = ((dynamic)_ppt!).CommandBars;
+                if (!(bool)commands.GetEnabledMso("InkEraser"))
+                    throw new InvalidOperationException("PowerPoint 当前无法使用橡皮，请先进入放映。");
+                commands.ExecuteMso("InkEraser");
+                if ((bool)commands.GetPressedMso("InkEraser")) return;
+            }
             if ((int)view.PointerType != (int)tool) throw new InvalidOperationException("PowerPoint 未接受所选指针。请在 PowerPoint 中检查笔工具。" );
         });
         public Task ClearNativeInkAsync() => RunForShow(() =>

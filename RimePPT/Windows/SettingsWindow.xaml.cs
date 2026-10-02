@@ -6,6 +6,7 @@ using Microsoft.UI.Xaml.Controls.Primitives;
 using Microsoft.UI.Xaml.Media;
 using Microsoft.UI.Xaml.Media.Imaging;
 using Microsoft.UI.Xaml.Input;
+using Microsoft.UI.Xaml.Media.Animation;
 using RimePPT.Core;
 using RimePPT.Core.Ink;
 using RimePPT.Services;
@@ -44,6 +45,13 @@ namespace RimePPT.Windows
         public SettingsWindow()
         {
             InitializeComponent();
+            // XAML 中的命名设置控件保留实例与事件，只更换原生导航容器。
+            foreach (var page in new[] { AppearancePage, InkPage, ToolbarPage, DebugPage, AboutPage })
+            {
+                PageHost.Children.Remove(page);
+                page.Visibility = Visibility.Visible;
+            }
+            NavigateSection(AppearancePage, false);
 
             Title = "RimePPT 设置";
             // WinUI 一体化标题栏：内容贯通顶条，Mica 直达窗口上缘
@@ -61,7 +69,8 @@ namespace RimePPT.Windows
             ApplyTitleBarButtonsTheme();
 
             AppWindow.SetIcon(System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "icon.ico"));
-            AppWindow.Resize(new SizeInt32(820, 620));
+            var workArea = Microsoft.UI.Windowing.DisplayArea.Primary.WorkArea;
+            AppWindow.Resize(new SizeInt32(Math.Min(1000, workArea.Width - 48), Math.Min(720, workArea.Height - 48)));
             CenterOnPrimary();
 
             LoadValues();
@@ -205,11 +214,28 @@ namespace RimePPT.Windows
 
             string tag = (string)args.SelectedItemContainer.Tag;
             PageTitle.Text = tag switch { "ink" => "笔迹", "toolbar" => "工具栏", "debug" => "调试", "about" => "关于", _ => "外观" };
-            AppearancePage.Visibility = tag == "appearance" ? Visibility.Visible : Visibility.Collapsed;
-            InkPage.Visibility = tag == "ink" ? Visibility.Visible : Visibility.Collapsed;
-            ToolbarPage.Visibility = tag == "toolbar" ? Visibility.Visible : Visibility.Collapsed;
-            DebugPage.Visibility = tag == "debug" ? Visibility.Visible : Visibility.Collapsed;
-            AboutPage.Visibility = tag == "about" ? Visibility.Visible : Visibility.Collapsed;
+            PageDescription.Text = tag switch
+            {
+                "ink" => "设置翻页时笔迹的显示方式与动画节奏。",
+                "toolbar" => "选择浮动工具栏的位置、布局与常用操作。",
+                "debug" => "模拟放映、验证工具栏，或重置使用引导。",
+                "about" => "了解 RimePPT、开发者与软件技术。",
+                _ => "选择书写模式，调整主题与启动行为。"
+            };
+            NavigateSection(tag switch { "ink" => InkPage, "toolbar" => ToolbarPage, "debug" => DebugPage, "about" => AboutPage, _ => AppearancePage }, true);
+            AdaptLayout();
+        }
+
+        private void NavigateSection(ScrollViewer section, bool animate)
+        {
+            if (ContentFrame.Content is Page previous)
+            {
+                if (ReferenceEquals(previous.Content, section)) return;
+                previous.Content = null;
+            }
+            bool enabled = animate && new global::Windows.UI.ViewManagement.UISettings().AnimationsEnabled;
+            ContentFrame.Navigate(typeof(SettingsSectionPage), section, enabled ? new EntranceNavigationTransitionInfo() : new SuppressNavigationTransitionInfo());
+            ContentFrame.BackStack.Clear();
         }
 
         // ———— 外观 ————

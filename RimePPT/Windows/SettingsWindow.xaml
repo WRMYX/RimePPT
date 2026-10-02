@@ -3,6 +3,7 @@
     x:Class="RimePPT.Windows.SettingsWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:animation="using:Microsoft.UI.Xaml.Media.Animation"
     Title="RimePPT 设置">
 
     <Window.SystemBackdrop>
@@ -19,46 +20,52 @@
     <NavigationView Grid.Row="1"
         x:Name="Nav"
         PaneDisplayMode="Auto"
-        OpenPaneLength="220"
+        PaneTitle="设置"
+        OpenPaneLength="208"
+        CompactPaneLength="48"
+        ExpandedModeThresholdWidth="720"
+        CompactModeThresholdWidth="480"
+        IsPaneOpen="True"
         IsBackButtonVisible="Collapsed"
         IsSettingsVisible="False"
         IsPaneToggleButtonVisible="True"
+        AlwaysShowHeader="False"
         SelectionChanged="OnNavSelectionChanged">
 
-        <NavigationView.Header>
-            <TextBlock x:Name="PageTitle" Text="外观" Style="{StaticResource TitleTextBlockStyle}" />
-        </NavigationView.Header>
-
         <NavigationView.MenuItems>
-            <NavigationViewItem Content="外观" Tag="appearance">
+            <NavigationViewItem Content="外观" Tag="appearance" ToolTipService.ToolTip="外观">
                 <NavigationViewItem.Icon>
                     <FontIcon Glyph="&#xE790;" />
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
-            <NavigationViewItem Content="笔迹" Tag="ink">
+            <NavigationViewItem Content="笔迹" Tag="ink" ToolTipService.ToolTip="笔迹">
                 <NavigationViewItem.Icon><FontIcon Glyph="&#xEDC6;" /></NavigationViewItem.Icon>
             </NavigationViewItem>
-            <NavigationViewItem Content="工具栏" Tag="toolbar">
+            <NavigationViewItem Content="工具栏" Tag="toolbar" ToolTipService.ToolTip="工具栏">
                 <NavigationViewItem.Icon>
                     <FontIcon Glyph="&#xE7F4;" />
-                </NavigationViewItem.Icon>
-            </NavigationViewItem>
-            <NavigationViewItem Content="调试" Tag="debug">
-                <NavigationViewItem.Icon>
-                    <FontIcon Glyph="&#xE768;" />
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
         </NavigationView.MenuItems>
 
         <NavigationView.FooterMenuItems>
-            <NavigationViewItem Content="关于" Tag="about">
+            <NavigationViewItem Content="调试" Tag="debug" ToolTipService.ToolTip="调试">
+                <NavigationViewItem.Icon>
+                    <FontIcon Glyph="&#xE768;" />
+                </NavigationViewItem.Icon>
+            </NavigationViewItem>
+            <NavigationViewItem Content="关于" Tag="about" ToolTipService.ToolTip="关于">
                 <NavigationViewItem.Icon>
                     <FontIcon Glyph="&#xE946;" />
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
         </NavigationView.FooterMenuItems>
 
-        <Grid Padding="8,0,0,0">
+        <Grid x:Name="PageHost">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto" />
+                <RowDefinition Height="*" />
+            </Grid.RowDefinitions>
             <Grid.Resources>
                 <Style x:Key="CardBorder" TargetType="Border">
                     <Setter Property="Background" Value="{ThemeResource CardBackgroundFillColorDefaultBrush}" />
@@ -79,10 +86,17 @@
                     <Setter Property="Margin" Value="16,0" />
                 </Style>
             </Grid.Resources>
+            <StackPanel Margin="24,16,24,20" Spacing="4">
+                <TextBlock x:Name="PageTitle" Text="外观" Style="{StaticResource SubtitleTextBlockStyle}" />
+                <TextBlock x:Name="PageDescription" Text="选择书写模式，调整主题与启动行为。" Style="{StaticResource SettingDesc}" />
+            </StackPanel>
 
             <!-- ———— 外观 ———— -->
-            <ScrollViewer x:Name="AppearancePage" Padding="8,0,16,24">
-                <StackPanel MaxWidth="960" HorizontalAlignment="Stretch" Spacing="12">
+            <Frame x:Name="ContentFrame" Grid.Row="1">
+                <Frame.ContentTransitions><TransitionCollection><animation:NavigationThemeTransition DefaultNavigationTransitionInfo="{x:Null}" /></TransitionCollection></Frame.ContentTransitions>
+            </Frame>
+            <ScrollViewer x:Name="AppearancePage" Grid.Row="1" Padding="24,0,24,24" HorizontalContentAlignment="Stretch" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel MaxWidth="960" HorizontalAlignment="Left" Spacing="12">
                     <Border Style="{StaticResource CardBorder}" Padding="16">
                       <StackPanel Spacing="8">
                         <TextBlock Text="书写模式" Style="{StaticResource SettingTitle}"/>
@@ -163,8 +177,8 @@
             </ScrollViewer>
 
             <!-- ———— 笔迹 ———— -->
-            <ScrollViewer x:Name="InkPage" Padding="8,0,16,24" Visibility="Collapsed">
-                <StackPanel MaxWidth="960" HorizontalAlignment="Stretch" Spacing="12">
+            <ScrollViewer x:Name="InkPage" Grid.Row="1" Padding="24,0,24,24" Visibility="Collapsed" HorizontalContentAlignment="Stretch" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel MaxWidth="960" HorizontalAlignment="Left" Spacing="12">
                     <Border Style="{StaticResource CardBorder}" Padding="16,12">
                         <StackPanel Spacing="4">
                             <TextBlock Text="翻页笔迹动画" Style="{StaticResource SettingTitle}" />
@@ -208,8 +222,8 @@
             </ScrollViewer>
 
             <!-- ———— 工具栏 ———— -->
-            <ScrollViewer x:Name="ToolbarPage" Padding="8,0,16,24" Visibility="Collapsed">
-                <StackPanel MaxWidth="960" HorizontalAlignment="Stretch" Spacing="12">
+            <ScrollViewer x:Name="ToolbarPage" Grid.Row="1" Padding="24,0,24,24" Visibility="Collapsed" HorizontalContentAlignment="Stretch" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel MaxWidth="960" HorizontalAlignment="Left" Spacing="12">
 
                     <!-- 显示区域：屏幕示意图选择器 -->
                     <Border Style="{StaticResource CardBorder}">
@@ -296,8 +310,8 @@
             </ScrollViewer>
 
             <!-- ———— 调试 ———— -->
-            <ScrollViewer x:Name="DebugPage" Padding="8,0,16,24" Visibility="Collapsed">
-                <StackPanel MaxWidth="960" HorizontalAlignment="Stretch" Spacing="12">
+            <ScrollViewer x:Name="DebugPage" Grid.Row="1" Padding="24,0,24,24" Visibility="Collapsed" HorizontalContentAlignment="Stretch" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel MaxWidth="960" HorizontalAlignment="Left" Spacing="12">
                     <Border Style="{StaticResource CardBorder}" Padding="16,12">
                         <Grid MinHeight="60" ColumnSpacing="12">
                             <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
@@ -352,8 +366,8 @@
             </ScrollViewer>
 
             <!-- ———— 关于 ———— -->
-            <ScrollViewer x:Name="AboutPage" Padding="8,0,16,24" Visibility="Collapsed">
-                <StackPanel MaxWidth="960" HorizontalAlignment="Stretch" Spacing="12">
+            <ScrollViewer x:Name="AboutPage" Grid.Row="1" Padding="24,0,24,24" Visibility="Collapsed" HorizontalContentAlignment="Stretch" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel MaxWidth="960" HorizontalAlignment="Left" Spacing="12">
                     <Border Style="{StaticResource CardBorder}">
                         <StackPanel Padding="24" Spacing="16">
                             <Grid ColumnSpacing="16">
