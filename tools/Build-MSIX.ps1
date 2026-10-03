@@ -1,6 +1,6 @@
 param(
     [string]$PublishedDirectory = '',
-    [string]$Version = '1.2.1.0',
+    [string]$Version = '1.2.2.0',
     [string]$OutputDirectory = '',
     [switch]$Store
 )

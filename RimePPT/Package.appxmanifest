@@ -9,7 +9,7 @@
   <Identity
     Name="MYXMJY.RimePPT"
     Publisher="CN=99E0AD8D-459D-4C6D-8850-C7F11B790A9F"
-    Version="1.2.1.0" />
+    Version="1.2.2.0" />
 
   <Properties>
     <DisplayName>RimePPT</DisplayName>

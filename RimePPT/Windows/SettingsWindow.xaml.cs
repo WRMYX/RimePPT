@@ -12,6 +12,8 @@ using RimePPT.Core.Ink;
 using RimePPT.Services;
 using Windows.Graphics;
 using Windows.UI;
+using Windows.Services.Store;
+using System.Threading;
 
 namespace RimePPT.Windows
 {
@@ -28,6 +30,11 @@ namespace RimePPT.Windows
         private readonly DispatcherTimer _connectionTimer = new() { Interval = TimeSpan.FromSeconds(3) };
         private bool _refreshingConnection;
         private bool _closed;
+        private StoreUpdateService? _storeUpdates;
+        private IReadOnlyList<StorePackageUpdate> _availableUpdates = Array.Empty<StorePackageUpdate>();
+        private CancellationTokenSource? _storeCancellation;
+        private bool _storeBusy;
+        private bool _supportsStoreUpdates;
 
         // 标记实时预览由本窗口启动（窗口关闭时据此自动结束）
         private bool _previewing;
@@ -79,6 +86,7 @@ namespace RimePPT.Windows
             LoadValues();
             LoadImages();
             VersionText.Text = "版本 0.2（开发中）";
+            InitializeStoreUpdates();
             ClassWidgetsDataPath.Text = ClassWidgetsCourseReader.DataPath;
             _connectionTimer.Tick += OnConnectionTick;
             _connectionTimer.Start();
@@ -86,6 +94,7 @@ namespace RimePPT.Windows
             Closed += (_, _) =>
             {
                 _closed = true;
+                _storeCancellation?.Cancel();
                 _connectionTimer.Stop();
                 _connectionTimer.Tick -= OnConnectionTick;
                 // 由本窗口启动的预览随窗口关闭自动结束，避免浮窗残留
@@ -310,11 +319,179 @@ namespace RimePPT.Windows
             finally { _refreshingConnection = false; }
         }
 
-        private void OnCheckStoreUpdates(object sender, RoutedEventArgs e)
+        private void InitializeStoreUpdates()
         {
-            StoreUpdateInfo.Title = "暂时无法检查商店更新";
-            StoreUpdateInfo.Message = "RimePPT 尚未上架 Microsoft Store。上架后才能连接真实的商店更新服务；目前不会发送更新查询或下载文件。";
+            var package = StoreUpdateService.GetInstalledPackage();
+            _supportsStoreUpdates = StoreUpdateService.SupportsUpdates(package);
+            if (package is not null)
+            {
+                var version = package.Id.Version;
+                StoreInstalledVersion.Text = $"已安装版本：{version.Major}.{version.Minor}.{version.Build}.{version.Revision}";
+            }
+            else StoreInstalledVersion.Text = "当前运行：便携版";
+            StoreCheckButton.IsEnabled = _supportsStoreUpdates;
+            StoreUpdateSummary.Text = _supportsStoreUpdates
+                ? "检查由 Microsoft Store 提供的 RimePPT 更新。"
+                : "请从 Microsoft Store 安装 RimePPT，以使用商店更新。";
+            StoreChannelText.Text = _supportsStoreUpdates
+                ? "更新由 Microsoft Store 下载和安装。安装可能关闭应用，请先保存批注并结束放映。"
+                : package is null ? "便携版使用 ZIP 文件更新；也可以打开商店安装商店版。"
+                : "当前为非商店安装包，无法直接使用商店更新。请打开商店安装商店版。";
+        }
+
+        private void SetStoreBusy(bool busy)
+        {
+            _storeBusy = busy;
+            StoreCheckButton.IsEnabled = !busy && _supportsStoreUpdates;
+            StoreInstallButton.IsEnabled = !busy;
+        }
+
+        private void ShowStoreResult(InfoBarSeverity severity, string title, string message)
+        {
+            StoreUpdateInfo.Severity = severity;
+            StoreUpdateInfo.Title = title;
+            StoreUpdateInfo.Message = message;
             StoreUpdateInfo.IsOpen = true;
+            StoreUpdateHeading.Text = title;
+        }
+
+        private async void OnCheckStoreUpdates(object sender, RoutedEventArgs e)
+        {
+            if (_closed || _storeBusy || !_supportsStoreUpdates) return;
+            SetStoreBusy(true);
+            _availableUpdates = Array.Empty<StorePackageUpdate>();
+            StoreInstallButton.Visibility = Visibility.Collapsed;
+            StoreUpdateInfo.IsOpen = false;
+            StoreUpdateHeading.Text = "正在检查更新…";
+            StoreProgress.Visibility = Visibility.Visible;
+            StoreProgress.IsIndeterminate = true;
+            StoreProgressText.Visibility = Visibility.Collapsed;
+            using var cancellation = new CancellationTokenSource(TimeSpan.FromSeconds(30));
+            _storeCancellation = cancellation;
+            try
+            {
+                _storeUpdates ??= new StoreUpdateService(WinRT.Interop.WindowNative.GetWindowHandle(this));
+                var updates = await _storeUpdates.CheckAsync(cancellation.Token);
+                if (_closed) return;
+                _availableUpdates = updates;
+                StoreLastChecked.Text = $"上次成功检查：{DateTime.Now:yyyy-MM-dd HH:mm:ss}";
+                if (updates.Count == 0)
+                    ShowStoreResult(InfoBarSeverity.Success, "当前没有可用更新", "Microsoft Store 暂未提供适用于此安装版本的更新。");
+                else
+                {
+                    ShowStoreResult(InfoBarSeverity.Informational, "发现可用更新", "请先保存批注并结束放映，再下载和安装更新。");
+                    StoreInstallButton.Visibility = Visibility.Visible;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                if (!_closed) ShowStoreResult(InfoBarSeverity.Warning, "检查更新超时", "请检查网络连接后重试，或在 Microsoft Store 中检查更新。");
+            }
+            catch (Exception ex)
+            {
+                CrashReporter.Report(ex, "store-update-check");
+                if (!_closed) ShowStoreResult(InfoBarSeverity.Error, "无法检查更新", $"请检查网络连接和 Microsoft Store 是否可用后重试。错误代码：0x{ex.HResult:X8}");
+            }
+            finally
+            {
+                _storeCancellation = null;
+                if (!_closed) { StoreProgress.Visibility = Visibility.Collapsed; SetStoreBusy(false); }
+            }
+        }
+
+        private async void OnInstallStoreUpdates(object sender, RoutedEventArgs e)
+        {
+            if (_closed || _storeBusy || _availableUpdates.Count == 0 || _storeUpdates is null) return;
+            if (App.ActiveToolbars.Count > 0)
+            {
+                ShowStoreResult(InfoBarSeverity.Warning, "请先结束放映", "为避免中断课堂和丢失未保存批注，请结束放映后再安装更新。");
+                return;
+            }
+            SetStoreBusy(true);
+            using var cancellation = new CancellationTokenSource();
+            _storeCancellation = cancellation;
+            try
+            {
+                var dialog = new ContentDialog
+                {
+                    XamlRoot = WindowRoot.XamlRoot,
+                    Title = "下载并安装更新？",
+                    Content = "更新可能关闭 RimePPT，请先保存批注。下载和安装将由 Microsoft Store 完成。",
+                    PrimaryButtonText = "下载并安装", CloseButtonText = "暂不更新",
+                    DefaultButton = ContentDialogButton.Close,
+                    RequestedTheme = WindowRoot.ActualTheme
+                };
+                if (await dialog.ShowAsync() != ContentDialogResult.Primary || _closed) return;
+                if (App.ActiveToolbars.Count > 0)
+                {
+                    ShowStoreResult(InfoBarSeverity.Warning, "请先结束放映", "放映正在进行，请结束后再安装更新。");
+                    return;
+                }
+                StoreUpdateHeading.Text = "正在下载和安装…";
+                StoreUpdateInfo.IsOpen = false;
+                StoreProgress.Visibility = Visibility.Visible;
+                StoreProgress.IsIndeterminate = true;
+                StoreProgressText.Visibility = Visibility.Visible;
+                StoreProgressText.Text = "正在等待 Microsoft Store…";
+                var result = await _storeUpdates.InstallAsync(_availableUpdates, status =>
+                {
+                    DispatcherQueue.TryEnqueue(() =>
+                    {
+                        if (_closed) return;
+                        StoreProgress.IsIndeterminate = false;
+                        StoreProgress.Value = Math.Clamp(status.TotalDownloadProgress * 100, 0, 100);
+                        StoreProgressText.Text = $"下载和安装进度：{StoreProgress.Value:0}%";
+                    });
+                }, cancellation.Token);
+                if (_closed) return;
+                switch (result.OverallState)
+                {
+                    case StorePackageUpdateState.Completed:
+                        _availableUpdates = Array.Empty<StorePackageUpdate>();
+                        StoreInstallButton.Visibility = Visibility.Collapsed;
+                        ShowStoreResult(InfoBarSeverity.Success, "更新已完成", "如果应用尚未重启，请关闭后重新打开 RimePPT。");
+                        break;
+                    case StorePackageUpdateState.Canceled:
+                        ShowStoreResult(InfoBarSeverity.Informational, "已取消更新", "你可以稍后重新下载和安装。");
+                        break;
+                    default:
+                        ShowStoreResult(InfoBarSeverity.Warning, "更新未完成", $"请检查网络、电量和商店状态，稍后重试。状态：{result.OverallState}");
+                        break;
+                }
+            }
+            catch (OperationCanceledException)
+            {
+                if (!_closed) ShowStoreResult(InfoBarSeverity.Informational, "已取消更新", "你可以稍后重新检查更新。");
+            }
+            catch (Exception ex)
+            {
+                CrashReporter.Report(ex, "store-update-install");
+                if (!_closed) ShowStoreResult(InfoBarSeverity.Error, "无法安装更新", $"请在 Microsoft Store 中重试。错误代码：0x{ex.HResult:X8}");
+            }
+            finally
+            {
+                _storeCancellation = null;
+                if (!_closed)
+                {
+                    StoreProgress.Visibility = Visibility.Collapsed;
+                    StoreProgressText.Visibility = Visibility.Collapsed;
+                    SetStoreBusy(false);
+                }
+            }
+        }
+
+        private async void OnOpenMicrosoftStore(object sender, RoutedEventArgs e)
+        {
+            try
+            {
+                if (!await global::Windows.System.Launcher.LaunchUriAsync(new Uri($"ms-windows-store://pdp/?productid={StoreUpdateService.StoreId}")) && !_closed)
+                    ShowStoreResult(InfoBarSeverity.Warning, "无法打开 Microsoft Store", $"可在浏览器中访问 https://apps.microsoft.com/detail/{StoreUpdateService.StoreId}");
+            }
+            catch (Exception ex)
+            {
+                CrashReporter.Report(ex, "store-open");
+                if (!_closed) ShowStoreResult(InfoBarSeverity.Error, "无法打开 Microsoft Store", $"可在浏览器中访问 https://apps.microsoft.com/detail/{StoreUpdateService.StoreId}");
+            }
         }
 
         private void OnInkDurationChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
