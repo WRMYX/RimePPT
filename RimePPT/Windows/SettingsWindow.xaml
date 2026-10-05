@@ -51,7 +51,7 @@
 
         <NavigationView.FooterMenuItems>
             <NavigationViewItem Content="商店更新" Tag="updates" ToolTipService.ToolTip="商店更新"><NavigationViewItem.Icon><FontIcon Glyph="&#xE895;" /></NavigationViewItem.Icon></NavigationViewItem>
-            <NavigationViewItem Content="调试" Tag="debug" ToolTipService.ToolTip="调试">
+            <NavigationViewItem x:Name="DeveloperNav" Content="调试" Tag="debug" Visibility="Collapsed" ToolTipService.ToolTip="调试">
                 <NavigationViewItem.Icon>
                     <FontIcon Glyph="&#xE768;" />
                 </NavigationViewItem.Icon>
@@ -88,7 +88,7 @@
                     <Setter Property="Margin" Value="16,0" />
                 </Style>
             </Grid.Resources>
-            <StackPanel Margin="24,16,24,20" Spacing="4">
+            <StackPanel x:Name="SectionHeader" Margin="24,24,24,24" Spacing="8">
                 <TextBlock x:Name="PageTitle" Text="外观" Style="{StaticResource SubtitleTextBlockStyle}" />
                 <TextBlock x:Name="PageDescription" Text="选择书写模式，调整主题与启动行为。" Style="{StaticResource SettingDesc}" />
             </StackPanel>
@@ -426,10 +426,16 @@
                     </Grid></Border>
                     <InfoBar x:Name="StoreUpdateInfo" IsOpen="False" IsClosable="True" Severity="Informational"/>
                     <Border Style="{StaticResource CardBorder}" Padding="16"><StackPanel Spacing="8">
-                        <TextBlock Text="更新来源" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                        <TextBlock Text="更新来源：Microsoft Store" Style="{StaticResource BodyStrongTextBlockStyle}"/>
                         <TextBlock Text="Microsoft Store"/>
                         <TextBlock x:Name="StoreChannelText" Style="{StaticResource SettingDesc}"/>
                         <Button Content="在 Microsoft Store 中查看" Click="OnOpenMicrosoftStore" HorizontalAlignment="Left" MinHeight="40"/>
+                    </StackPanel></Border>
+                    <Border Style="{StaticResource CardBorder}" Padding="24"><StackPanel Spacing="12">
+                        <TextBlock Text="GitHub 更新" Style="{StaticResource SubtitleTextBlockStyle}"/>
+                        <TextBlock Text="适用于便携版。项目公开并发布 Release 后，将提供版本查询与下载。" Style="{StaticResource SettingDesc}"/>
+                        <InfoBar IsOpen="True" IsClosable="False" Severity="Informational" Title="尚未接入" Message="目前不会向 GitHub 查询版本，也不会下载或安装文件。"/>
+                        <Button Content="检查 GitHub 更新（尚未开放）" IsEnabled="False" HorizontalAlignment="Left"/>
                     </StackPanel></Border>
                 </StackPanel>
             </ScrollViewer>

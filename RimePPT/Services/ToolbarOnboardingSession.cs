@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -41,12 +41,15 @@ internal sealed class ToolbarOnboardingSession
         (ToolbarCommand.Prev, "上一页", "点击这里返回上一张幻灯片。工具栏会在开始放映后出现，结束放映后收起。"),
         (ToolbarCommand.Next, "下一页", "点击这里继续到下一张幻灯片，按自己的讲解节奏控制演示。"),
         (ToolbarCommand.Pages, "页面导航", "点击页码打开幻灯片导航，再选择要跳转的页面。"),
-        (ToolbarCommand.Annotate, "批注画笔", "点击进入书写模式，在幻灯片上标记重点。选中后，旁边的展开箭头可调整颜色和粗细。"),
-        (ToolbarCommand.Annotate, "智能图形整理", "自研模式下，画完直线、圆或矩形后按住停顿约半秒，笔迹会变得规整。继续移动可恢复自由书写；可在设置的笔迹页面关闭。"),
+        (ToolbarCommand.Annotate, "批注画笔", "点击进入书写模式，展开箭头可设置颜色和粗细。自研模式还支持虚线、波浪线、荧光笔，以及直线、箭头、矩形等形状。自由书写后按住约半秒，可将直线、圆或矩形整理规整；继续移动可恢复自由书写，智能整理可在设置中关闭。"),
         (ToolbarCommand.Eraser, "橡皮", "点击切换到擦除。自研书写模式下，可通过展开箭头调整橡皮尺寸。"),
         (ToolbarCommand.Undo, "撤销", "自研书写模式支持逐页撤销最近的批注操作。有可撤销内容时，这个按钮才会启用。"),
         (ToolbarCommand.Redo, "重做", "撤销后可以恢复操作。重做按钮会根据当前页面的批注历史启用。"),
         (ToolbarCommand.Tools, "辅助工具", "点击打开工具菜单，使用聚光与放大、黑屏模式和计时器。"),
+        (ToolbarCommand.Tools, "画板与快捷启动", "工具菜单可以打开独立画板，以及设置中添加的应用或文件。聚光与放大支持保存原始选区 PNG。设置可选择工具栏按钮及菜单中显示的功能。"),
+        (ToolbarCommand.Whiteboard, "独立画板", "打开覆盖当前屏幕的画板，浮动工具栏会切换为画板操作。支持多页书写、形状、橡皮、撤销与导出；点击返回 PPT 恢复放映工具栏。"),
+        (ToolbarCommand.QuickLaunch, "快捷启动", "在设置中添加应用或文件，可改名称并选择固定到哪个工具栏；固定后直接点击图标启动。未固定的条目仍可从快捷启动菜单打开。"),
+        (ToolbarCommand.Spotlight, "选区放大与保存", "框选放大后，选择保存选区，导出不含遮罩和按钮的原始 PNG 图片。"),
         (ToolbarCommand.Tools, "导出课堂板书", "工具菜单中选择导出课堂板书，保存有自研笔迹的页面为 PNG 和 PDF，包含幻灯片背景。请在结束放映前导出。"),
         (ToolbarCommand.ExitShow, "退出放映", "点击结束演示。自研模式产生了新墨迹时，会按实际状态询问是否保存。"),
     };
@@ -54,7 +57,7 @@ internal sealed class ToolbarOnboardingSession
     private static readonly (ToolbarCommand Command, string Title, string Description)[] QuickLessons =
     {
         (ToolbarCommand.Prev, "控制翻页", "工具栏随放映出现。上一页、下一页与页码导航帮助你控制讲解节奏。这个简短入门只有四步，随时可以跳过。"),
-        (ToolbarCommand.Annotate, "书写与智能图形", "点画笔开始批注，展开箭头可换颜色和粗细。自研模式下，画完直线、圆或矩形后按住约半秒，可整理成规整图形。"),
+        (ToolbarCommand.Annotate, "书写与智能图形", "点画笔开始批注，展开箭头通过颜色、线型、形状分页选笔，粗细统一调整。自研模式下，画完直线、圆或矩形后按住约半秒，可整理成规整图形。"),
         (ToolbarCommand.Eraser, "擦除与修改", "点橡皮擦除批注，展开箭头可调整体大小。自研模式还支持逐页撤销和重做。"),
         (ToolbarCommand.Tools, "工具与板书导出", "工具菜单提供聚光、黑屏、计时器和板书导出。结束放映前，可将自研板书和幻灯片保存为 PNG、PDF。以后也能在工具菜单打开完整指南。"),
     };
@@ -62,12 +65,23 @@ internal sealed class ToolbarOnboardingSession
     private void BuildSteps(bool complete)
     {
         _steps.Clear();
-        foreach (var lesson in complete ? Lessons : QuickLessons)
+        foreach (var lesson in (complete ? Lessons : QuickLessons).GroupBy(x => x.Command)
+            .Select(group => (Command: group.Key, Title: group.First().Title,
+                Description: string.Join("\n\n", group.Select(x => x.Description).Distinct()))))
             foreach (var window in _windows)
             {
                 var target = window.GetCommandTarget(lesson.Command);
                 if (target is null || target.Visibility != Visibility.Visible || target.ActualWidth <= 0 || target.ActualHeight <= 0) continue;
-                _steps.Add(new Step(window, target, lesson.Title, lesson.Description, lesson.Command));
+                string description = lesson.Description;
+                if (lesson.Command == ToolbarCommand.Tools)
+                {
+                    var enabled = new[] { ("spotlight", "聚光、放大和选区保存"), ("blackout", "黑屏"), ("timer", "计时器"),
+                        ("export", "PNG / PDF 板书导出"), ("whiteboard", "独立画板"), ("launcher", "应用与文件快捷启动"), ("guide", "完整使用指南") }
+                        .Where(item => AppSettings.Instance.IsToolVisible(item.Item1)).Select(item => item.Item2);
+                    description = "工具菜单当前提供：" + string.Join("、", enabled) + "。可以在设置中选择要显示的功能。";
+
+                }
+                _steps.Add(new Step(window, target, lesson.Title, description, lesson.Command));
                 break;
             }
     }
@@ -126,6 +140,7 @@ internal sealed class ToolbarOnboardingSession
         foreach (var window in _windows) window.PreviewGuideCommand(step.Command);
         _host = step.Window;
         _tip = step.Window.CreateGuideTip();
+        step.Target.StartBringIntoView(new BringIntoViewOptions { AnimationDesired = false });
         _tip.Target = step.Target;
         _tip.HeroContent = OnboardingIllustrations.Create(step.Command);
         _tip.Title = $"{step.Title} · {index + 1} / {_steps.Count}";

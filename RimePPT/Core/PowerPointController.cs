@@ -15,8 +15,11 @@ namespace RimePPT.Core
     /// SlideShowWindows.Count / 页码派生 ShowStarted/SlideChanged/ShowEnded。
     /// UI 线程调用 Next/Previous/Exit 时经线程消息 marshal 过来。
     /// </summary>
-    public sealed class PowerPointController : IPresentationController
+    public class PowerPointController : IPresentationController
     {
+        private readonly string[] _programIds;
+        public PowerPointController() : this(new[] { "PowerPoint.Application" }) { }
+        protected PowerPointController(string[] programIds) => _programIds = programIds;
         private const uint WM_APP_WORK = 0x8001;  // WM_APP + 1：执行队列
         private const uint WM_QUIT = 0x0012;
         private const uint PM_REMOVE = 0x0001;
@@ -76,7 +79,7 @@ namespace RimePPT.Core
         }
 
         // Clear stays unavailable until the Office probe confirms current-page scope.
-        public PresentationCapabilities Capabilities => new(IsPresenting, IsPresenting, NativeClearValidated);
+        public virtual PresentationCapabilities Capabilities => new(IsPresenting, IsPresenting, NativeClearValidated);
         public static bool NativeClearValidated { get; set; }
         public Task SetNativePointerAsync(NativePointerTool tool, byte[]? argb) => RunForShow(() =>
         {
@@ -468,13 +471,25 @@ namespace RimePPT.Core
         /// 单个 GetActiveObject 只会返回第一个注册的实例——用户先开了一个
         /// PowerPoint、后又开另一个放映时，盯错实例会导致工具条永远不出现。
         /// </summary>
-        private static List<object> GetRunningPowerPointCandidates()
+        private List<object> GetRunningPowerPointCandidates()
         {
             var result = new List<object>();
             try
             {
-                CLSIDFromProgID("PowerPoint.Application", out Guid clsid);
-                string targetName = "!" + clsid.ToString("B");
+                var targetNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+                foreach (string programId in _programIds)
+                    try
+                    {
+                        CLSIDFromProgID(programId, out Guid clsid); targetNames.Add("!" + clsid.ToString("B"));
+                        if (programId != "PowerPoint.Application")
+                        {
+                            // WPS 有些版本注册活动对象但未暴露可枚举的应用 moniker。
+                            try { GetActiveObject(ref clsid, IntPtr.Zero, out object active); result.Add(active); }
+                            catch (COMException) { }
+                        }
+                    }
+                    catch (COMException) { }
+                if (targetNames.Count == 0) return result;
 
                 GetRunningObjectTable(0, out IRunningObjectTable rot);
                 rot.EnumRunning(out IEnumMoniker enumMoniker);
@@ -486,7 +501,7 @@ namespace RimePPT.Core
                     try
                     {
                         monikers[0].GetDisplayName(bindCtx, null, out string name);
-                        if (string.Equals(name, targetName, StringComparison.OrdinalIgnoreCase)
+                        if (targetNames.Contains(name)
                             && rot.GetObject(monikers[0], out object obj) == 0)
                         {
                             result.Add(obj);
@@ -510,6 +525,10 @@ namespace RimePPT.Core
         private static extern void CLSIDFromProgID(
             [MarshalAs(UnmanagedType.LPWStr)] string progId,
             out Guid clsid);
+
+        [DllImport("oleaut32.dll", PreserveSig = false)]
+        private static extern void GetActiveObject(ref Guid clsid, IntPtr reserved,
+            [MarshalAs(UnmanagedType.IUnknown)] out object active);
 
         [DllImport("ole32.dll", PreserveSig = false)]
         private static extern void GetRunningObjectTable(uint reserved, out IRunningObjectTable prot);

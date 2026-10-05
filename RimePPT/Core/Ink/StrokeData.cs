@@ -17,6 +17,7 @@ namespace RimePPT.Core.Ink
         public byte[] Argb { get; set; } = { 0xFF, 0xE8, 0x11, 0x23 };
 
         public float ThicknessDips { get; set; } = 4f;
+        public InkLineStyle LineStyle { get; set; }
 
         public List<Dot> Dots { get; set; } = new();
 

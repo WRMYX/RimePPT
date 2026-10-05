@@ -146,6 +146,7 @@ public sealed class InkRenderer : IDisposable
     {
         if (prefix.VisiblePoints == 0 || stroke.Argb.Length != 4) return;
         var color = Color.FromArgb(stroke.Argb[0], stroke.Argb[1], stroke.Argb[2], stroke.Argb[3]);
+        if (stroke.LineStyle == InkLineStyle.Highlighter) color.A = 96;
         var first = viewport.ToDip(stroke.Dots[0]);
         if (prefix.VisiblePoints == 1 && prefix.Tail is null) { session.FillCircle(first, stroke.ThicknessDips / 2, color); return; }
         using var builder = new CanvasPathBuilder(_device);
@@ -154,6 +155,8 @@ public sealed class InkRenderer : IDisposable
         if (prefix.Tail is { } tail) builder.AddLine(tail);
         builder.EndFigure(CanvasFigureLoop.Open);
         using var geometry = CanvasGeometry.CreatePath(builder);
+        ApplyStyle(stroke);
+        if (stroke.LineStyle == InkLineStyle.Highlighter) color.A = 96;
         session.DrawGeometry(geometry, color, stroke.ThicknessDips, _style);
     }
 
@@ -161,6 +164,7 @@ public sealed class InkRenderer : IDisposable
     {
         if (stroke.Dots.Count == 0 || stroke.Argb.Length != 4) return;
         var color = Color.FromArgb(stroke.Argb[0], stroke.Argb[1], stroke.Argb[2], stroke.Argb[3]);
+        if (stroke.LineStyle == InkLineStyle.Highlighter) color.A = 96;
         float width = stroke.ThicknessDips;
         if (stroke.Dots.Count == 1)
         {
@@ -176,6 +180,8 @@ public sealed class InkRenderer : IDisposable
             geometry = CanvasGeometry.CreatePath(builder);
             if (cache) _geometries.Add(stroke, geometry);
         }
+        ApplyStyle(stroke);
+        if (stroke.LineStyle == InkLineStyle.Highlighter) color.A = 96;
         try { session.DrawGeometry(geometry, color, width, _style); }
         finally { if (!cache) geometry.Dispose(); }
     }
@@ -191,6 +197,13 @@ public sealed class InkRenderer : IDisposable
             session.DrawSvg(IsDark ? _eraserDark : _eraserLight, new Size(56, 72));
         }
         finally { session.Transform = transform; }
+    }
+    private void ApplyStyle(StrokeData stroke)
+    {
+        _style.DashCap = CanvasCapStyle.Round;
+        _style.DashStyle = stroke.LineStyle switch
+        { InkLineStyle.Dash => CanvasDashStyle.Dash, InkLineStyle.Dot => CanvasDashStyle.Dot,
+          InkLineStyle.DashDot => CanvasDashStyle.DashDot, _ => CanvasDashStyle.Solid };
     }
 
     private void ClearGeometries() { foreach (var geometry in _geometries.Values) geometry.Dispose(); _geometries.Clear(); }

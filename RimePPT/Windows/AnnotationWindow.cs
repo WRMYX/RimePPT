@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Numerics;
@@ -34,6 +34,7 @@ public sealed class AnnotationWindow : Window
     private readonly Dictionary<uint, long> _lastMotion = new();
     private readonly Dictionary<uint, Vector2> _holdPositions = new();
     private readonly Dictionary<uint, StrokeData> _shapePreviews = new();
+    private readonly Dictionary<uint, InkDrawingOptions> _drawingOptions = new();
     private readonly HashSet<uint> _shapeChecked = new();
     private readonly DispatcherTimer _shapeTimer = new() { Interval = TimeSpan.FromMilliseconds(100) };
     private StrokeData[]? _eraseBefore;
@@ -102,11 +103,13 @@ public sealed class AnnotationWindow : Window
     {
         WindowPlumbing.ApplyNoActivate(this); WindowPlumbing.EnableTransparency(this);
         WindowPlumbing.RemoveWindowBorder(this); WindowPlumbing.RemoveResizableFrame(this);
-        WindowPlumbing.SetClickThrough(this, true);
         var bounds = area.OuterBounds;
         AppWindow.Resize(new SizeInt32(bounds.Width, bounds.Height));
         AppWindow.Move(new PointInt32(bounds.X, bounds.Y));
-        Activate(); Invalidate();
+        Activate();
+        // 显示/恢复窗口不能覆盖当前笔状态，否则 UI 已选中画笔却穿透到 PPT。
+        WindowPlumbing.SetClickThrough(this, !_enabled);
+        Invalidate();
     }
 
     public void SetActiveSlide(int slideIndex)
@@ -164,9 +167,10 @@ public sealed class AnnotationWindow : Window
         _logs[e.Pointer.PointerId] = diagnostics;
         _pointers[e.Pointer.PointerId] = e.Pointer;
         _sizes[e.Pointer.PointerId] = ((float)settings.EraserWidthDip, (float)settings.EraserHeightDip);
+        _drawingOptions[e.Pointer.PointerId] = new(settings.PenLineStyle, settings.PenShape);
         _lastMotion[e.Pointer.PointerId] = Stopwatch.GetTimestamp();
         _holdPositions[e.Pointer.PointerId] = GetSample(e).Position;
-        if (tool.Tool == InkTool.Pen && settings.SmartShapesEnabled) _shapeTimer.Start();
+        if (tool.Tool == InkTool.Pen && settings.SmartShapesEnabled && settings.PenShape == InkShape.Freehand && settings.PenLineStyle == InkLineStyle.Solid) _shapeTimer.Start();
         if (tool.Tool == InkTool.Eraser)
         {
             _eraseBefore ??= _history.Snapshot(_activeSlide);
@@ -195,7 +199,7 @@ public sealed class AnnotationWindow : Window
         if (_batch.Count == 0) _batch.Add(GetSample(e));
         _batch.Sort((a, b) => a.Timestamp.CompareTo(b.Timestamp));
         var previous = input.LastPosition;
-        if (_holdPositions.TryGetValue(e.Pointer.PointerId, out var hold) && _batch.Any(sample => Vector2.DistanceSquared(sample.Position, hold) > 9))
+        if (_holdPositions.TryGetValue(e.Pointer.PointerId, out var hold) && _batch.Any(sample => Vector2.Distance(sample.Position, hold) > SmartShapeRecognizer.HoldTolerance(sample.Device)))
         { _lastMotion[e.Pointer.PointerId] = Stopwatch.GetTimestamp(); _holdPositions[e.Pointer.PointerId] = _batch[^1].Position; _shapePreviews.Remove(e.Pointer.PointerId); _shapeChecked.Remove(e.Pointer.PointerId); }
         if (input.Tool.Tool == InkTool.Eraser && previous is { } from)
         {
@@ -245,7 +249,9 @@ public sealed class AnnotationWindow : Window
         if (tool.Tool == InkTool.Eraser && finalSample is { } final && input.LastPosition is { } last) Erase(id, last, final.Position);
         var before = tool.Tool == InkTool.Pen ? _history.Snapshot(tool.SlideIndex) : null;
         var stroke = _contacts.End(id, finalSample);
-        if (_shapePreviews.Remove(id, out var shape) && stroke is not null && (reason is "released" or "transition")) stroke = shape;
+        if (_shapePreviews.Remove(id, out var shape) && AppSettings.Instance.SmartShapesEnabled && stroke is not null && (reason is "released" or "transition")) stroke = shape;
+        if (stroke is not null && _drawingOptions.TryGetValue(id, out var options)) stroke = InkDrawing.Apply(stroke, input.Viewport, options);
+        _drawingOptions.Remove(id);
         _shapeChecked.Remove(id);
         if (stroke is not null)
         {
@@ -275,7 +281,8 @@ public sealed class AnnotationWindow : Window
     {
         if (!AppSettings.Instance.SmartShapesEnabled) { _shapePreviews.Clear(); _shapeTimer.Stop(); Invalidate(); return; }
         foreach (var contact in _contacts.Contacts)
-            if (!_shapeChecked.Contains(contact.Key) && contact.Value.Preview is { } preview && _lastMotion.TryGetValue(contact.Key, out long moved)
+            if (_drawingOptions.TryGetValue(contact.Key, out var options) && options == new InkDrawingOptions(InkLineStyle.Solid, InkShape.Freehand)
+                && !_shapeChecked.Contains(contact.Key) && contact.Value.Preview is { } preview && _lastMotion.TryGetValue(contact.Key, out long moved)
                 && Stopwatch.GetElapsedTime(moved).TotalMilliseconds >= 600)
             {
                 _shapeChecked.Add(contact.Key);
@@ -284,7 +291,7 @@ public sealed class AnnotationWindow : Window
             }
     }
     private IReadOnlyList<StrokeData> Previews() => _contacts.Contacts.Where(c => c.Value.Preview is not null)
-        .Select(c => _shapePreviews.TryGetValue(c.Key, out var shape) ? shape : c.Value.Preview!).ToArray();
+        .Select(c => InkDrawing.Apply(_shapePreviews.TryGetValue(c.Key, out var shape) ? shape : c.Value.Preview!, c.Value.Viewport, _drawingOptions[c.Key])).ToArray();
 
     private IReadOnlyList<StrokeData> CurrentStrokes() => _slides.TryGetValue(_activeSlide, out var list) ? list : Array.Empty<StrokeData>();
     private void OnCreateResources(CanvasControl sender, CanvasCreateResourcesEventArgs args)

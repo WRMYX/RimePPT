@@ -5,56 +5,140 @@ using System.Numerics;
 
 namespace RimePPT.Core.Ink;
 
-/// <summary>仅整理足够大的直线、闭合矩形及圆，无法可靠识别时保持原始笔迹。</summary>
+/// <summary>等距采样后比较几何候选。模糊、开放或回折笔迹保持原样。</summary>
 public static class SmartShapeRecognizer
 {
+    public static float HoldTolerance(InkDevice device) => device == InkDevice.Touch ? 8 : device == InkDevice.Pen ? 4 : 3;
+    private sealed record Candidate(List<Vector2> Points, float Error);
     public static StrokeData? Recognize(StrokeData stroke, InkViewport viewport)
     {
-        if (!viewport.IsValid || stroke.Dots.Count < 6) return null;
-        var points = stroke.Dots.Select(viewport.ToDip).ToArray();
-        if (points.Any(p => !float.IsFinite(p.X) || !float.IsFinite(p.Y))) return null;
-        float length = 0;
-        for (int i = 1; i < points.Length; i++) length += Vector2.Distance(points[i - 1], points[i]);
-        float chord = Vector2.Distance(points[0], points[^1]);
-        List<Vector2>? result = null;
-        if (chord >= 48 && length > 0 && chord / length > 0.94f)
+        if (!viewport.IsValid || stroke.Dots.Count < 3) return null;
+        var raw = new List<Vector2>();
+        foreach (var dot in stroke.Dots)
         {
-            var axis = (points[^1] - points[0]) / chord;
-            float error = points.Max(p => MathF.Abs((p.X - points[0].X) * axis.Y - (p.Y - points[0].Y) * axis.X));
-            if (error <= MathF.Max(4, chord * 0.025f)) result = new() { points[0], points[^1] };
+            var point = viewport.ToDip(dot);
+            if (!float.IsFinite(point.X) || !float.IsFinite(point.Y)) return null;
+            if (raw.Count == 0 || Vector2.DistanceSquared(raw[^1], point) > .04f) raw.Add(point);
         }
-        if (result is null)
+        if (raw.Count < 3) return null;
+        float originalLength = Length(raw);
+        var extent = new Vector2(raw.Max(p => p.X)-raw.Min(p => p.X), raw.Max(p => p.Y)-raw.Min(p => p.Y));
+        // 先压缩微小抖动，避免密集触摸采样将周长虚增。
+        raw = Simplify(raw, Math.Clamp(extent.Length() * .018f, .75f, 5));
+        float length = Length(raw), chord = Vector2.Distance(raw[0], raw[^1]);
+        if (length < 28) return null;
+        var points = Resample(raw, length, 97);
+        var candidates = new List<Candidate>();
+        if (chord >= 28 && chord / originalLength >= .82f)
         {
-            float left = points.Min(p => p.X), right = points.Max(p => p.X);
-            float top = points.Min(p => p.Y), bottom = points.Max(p => p.Y);
-            float width = right - left, height = bottom - top;
-            if (width < 48 || height < 48 || chord > MathF.Min(width, height) * 0.2f) return null;
-            float tolerance = MathF.Min(width, height) * 0.08f;
-            var corners = new[] { new Vector2(left, top), new Vector2(right, top), new Vector2(right, bottom), new Vector2(left, bottom) };
-            bool rectangle = points.All(p => MathF.Min(MathF.Min(p.X - left, right - p.X), MathF.Min(p.Y - top, bottom - p.Y)) <= tolerance)
-                && corners.All(c => points.Any(p => Vector2.Distance(c, p) <= tolerance * 2));
-            if (rectangle)
+            var mean = points.Aggregate(Vector2.Zero, (sum, p) => sum + p) / points.Count;
+            float xx = 0, xy = 0, yy = 0;
+            foreach (var p in points) { var v = p - mean; xx += v.X*v.X; xy += v.X*v.Y; yy += v.Y*v.Y; }
+            float angle = .5f * MathF.Atan2(2*xy, xx-yy);
+            var axis = new Vector2(MathF.Cos(angle), MathF.Sin(angle));
+            if (Vector2.Dot(axis, points[^1]-points[0]) < 0) axis = -axis;
+            var errors = points.Select(p => MathF.Abs(Cross(p - mean, axis))).ToArray();
+            float backwards = 0;
+            for (int i = 1; i < points.Count; i++) backwards += Math.Max(0, -Vector2.Dot(points[i] - points[i - 1], axis));
+            float rms = MathF.Sqrt(errors.Average(x => x * x));
+            if (rms <= Math.Max(2, chord * .035f) && errors.Max() <= Math.Max(6, chord * .10f) && backwards <= chord * .08f)
+                candidates.Add(new(new() { points[0], points[^1] }, rms / chord));
+        }
+        var min = new Vector2(points.Min(p => p.X), points.Min(p => p.Y));
+        var max = new Vector2(points.Max(p => p.X), points.Max(p => p.Y));
+        var size = max - min; float diagonal = size.Length();
+        if (size.X >= 24 && size.Y >= 24 && chord <= diagonal * .18f)
+        {
+            var polygon = Polygon(points, diagonal * .035f);
+            // 圆角常被分成两段短边；再提取较粗候选，但仍须通过原始点拟合误差检查。
+            if (polygon.Count >= 4) polygon = Polygon(points, diagonal * .065f);
+            if (polygon.Count is 3 or 4)
             {
-                // 保持与书写起点及方向相近的角点顺序，便于翻页笔迹重播。
-                int start = Enumerable.Range(0, 4).MinBy(i => Vector2.Distance(points[0], corners[i]));
-                int next = Vector2.Distance(points[Math.Min(points.Length - 1, points.Length / 4)], corners[(start + 1) % 4])
-                    < Vector2.Distance(points[Math.Min(points.Length - 1, points.Length / 4)], corners[(start + 3) % 4]) ? 1 : -1;
-                result = Enumerable.Range(0, 5).Select(i => corners[(start + next * i + 8) % 4]).ToList();
+                bool valid = true;
+                float sign = 0;
+                for (int i = 0; i < polygon.Count; i++)
+                {
+                    var a = polygon[(i + 1) % polygon.Count] - polygon[i];
+                    var b = polygon[(i + 2) % polygon.Count] - polygon[(i + 1) % polygon.Count];
+                    float turn = Cross(a, b);
+                    if (a.Length() < Math.Max(12, diagonal * .12f) || Math.Abs(turn) < diagonal * diagonal * .015f) valid = false;
+                    if (i == 0) sign = Math.Sign(turn);
+                    else if (Math.Sign(turn) != sign) valid = false;
+                    if (polygon.Count == 4 && Math.Abs(Vector2.Dot(Vector2.Normalize(a), Vector2.Normalize(b))) > .28f) valid = false;
+                }
+                if (valid)
+                {
+                    if (polygon.Count == 4)
+                    {
+                        // 在拟合边方向的局部坐标中生成矩形，支持任意旋转。
+                        var axis = Vector2.Normalize(polygon[1] - polygon[0]); var normal = new Vector2(-axis.Y, axis.X);
+                        float l = points.Min(p => Vector2.Dot(p, axis)), r = points.Max(p => Vector2.Dot(p, axis));
+                        float t = points.Min(p => Vector2.Dot(p, normal)), b = points.Max(p => Vector2.Dot(p, normal));
+                        var corners = new List<Vector2> { axis*l+normal*t, axis*r+normal*t, axis*r+normal*b, axis*l+normal*b };
+                        polygon = Order(corners, points[0], SignedArea(points));
+                    }
+                    float perimeter = Length(polygon.Concat(new[] { polygon[0] }).ToList());
+                    var errors = points.Select(p => Enumerable.Range(0, polygon.Count).Min(i => Distance(p, polygon[i], polygon[(i+1)%polygon.Count]))).ToArray();
+                    float rms = MathF.Sqrt(errors.Average(x => x*x));
+                    if (length / perimeter is >= .78f and <= 1.25f && rms / diagonal < .035f && errors.Max() / diagonal < .09f)
+                    { polygon.Add(polygon[0]); candidates.Add(new(polygon, rms / diagonal)); }
+                }
             }
-            else
+            if (size.X / size.Y is >= .7f and <= 1.43f)
             {
-                if (width / height is < 0.8f or > 1.25f) return null;
-                var center = new Vector2((left + right) / 2, (top + bottom) / 2);
-                float radius = (width + height) / 4;
-                double radialError = points.Average(p => Math.Pow((Vector2.Distance(p, center) - radius) / radius, 2));
-                if (radialError > 0.012 || length < radius * 5 || length > radius * 7.8) return null;
-                float angle = MathF.Atan2(points[0].Y - center.Y, points[0].X - center.X);
-                float signedArea = 0;
-                for (int i = 1; i < points.Length; i++) signedArea += (points[i - 1].X - center.X) * (points[i].Y - center.Y) - (points[i].X - center.X) * (points[i - 1].Y - center.Y);
-                float direction = signedArea < 0 ? -1 : 1;
-                result = Enumerable.Range(0, 65).Select(i => center + radius * new Vector2(MathF.Cos(angle + direction * i * MathF.Tau / 64), MathF.Sin(angle + direction * i * MathF.Tau / 64))).ToList();
+                var mean = points.Aggregate(Vector2.Zero, (sum,p) => sum+p) / points.Count;
+                double xx=0,xy=0,yy=0,xq=0,yq=0;
+                foreach (var p in points) { var v=p-mean; double q=v.LengthSquared(); xx+=v.X*v.X; xy+=v.X*v.Y; yy+=v.Y*v.Y; xq+=v.X*q*.5; yq+=v.Y*q*.5; }
+                double det=xx*yy-xy*xy;
+                if (Math.Abs(det) > 1e-6)
+                {
+                    var center=mean+new Vector2((float)((xq*yy-yq*xy)/det),(float)((yq*xx-xq*xy)/det));
+                    float radius=points.Average(p=>Vector2.Distance(p,center));
+                    var errors=points.Select(p=>Math.Abs(Vector2.Distance(p,center)-radius)).ToArray();
+                    var bins=new HashSet<int>(points.Select(p => (int)((MathF.Atan2(p.Y-center.Y,p.X-center.X)+MathF.PI)*24/MathF.Tau)%24));
+                    float rms=MathF.Sqrt(errors.Average(e=>e*e));
+                    if (radius>=12 && bins.Count>=21 && rms/radius<=.095f && errors.Max()/radius<=.24f && length/radius is >= 5.2f and <= 7.5f)
+                    {
+                        float start=MathF.Atan2(points[0].Y-center.Y,points[0].X-center.X), direction=SignedArea(points)<0?-1:1;
+                        var circle=Enumerable.Range(0,65).Select(i=>center+radius*new Vector2(MathF.Cos(start+direction*i*MathF.Tau/64),MathF.Sin(start+direction*i*MathF.Tau/64))).ToList();
+                        candidates.Add(new(circle,rms/diagonal));
+                    }
+                }
             }
         }
-        return result is null ? null : new StrokeData { Id = stroke.Id, SlideIndex = stroke.SlideIndex, Argb = (byte[])stroke.Argb.Clone(), ThicknessDips = stroke.ThicknessDips, Dots = result.Select(viewport.Normalize).ToList() };
+        var ranked=candidates.OrderBy(x=>x.Error).ToArray();
+        if (ranked.Length==0 || (ranked.Length>1 && ranked[1].Error-ranked[0].Error<.004f)) return null;
+        return new StrokeData { Id=stroke.Id, SlideIndex=stroke.SlideIndex, Argb=(byte[])stroke.Argb.Clone(),
+            ThicknessDips=stroke.ThicknessDips, LineStyle=stroke.LineStyle, Dots=ranked[0].Points.Select(viewport.Normalize).ToList() };
+    }
+    private static float Cross(Vector2 a,Vector2 b)=>a.X*b.Y-a.Y*b.X;
+    private static float Length(IReadOnlyList<Vector2> p) { float n=0; for(int i=1;i<p.Count;i++)n+=Vector2.Distance(p[i-1],p[i]);return n; }
+    private static float SignedArea(IReadOnlyList<Vector2> p) { float n=0; for(int i=0;i<p.Count;i++)n+=Cross(p[i],p[(i+1)%p.Count]);return n; }
+    private static float Distance(Vector2 p,Vector2 a,Vector2 b) { var d=b-a;float t=d.LengthSquared()>0?Math.Clamp(Vector2.Dot(p-a,d)/d.LengthSquared(),0,1):0;return Vector2.Distance(p,a+t*d); }
+    private static List<Vector2> Resample(List<Vector2> raw,float length,int count)
+    {
+        var result=new List<Vector2>{raw[0]}; int segment=1;float passed=0;
+        for(int i=1;i<count-1;i++) { float target=length*i/(count-1);while(segment<raw.Count-1 && passed+Vector2.Distance(raw[segment-1],raw[segment])<target){passed+=Vector2.Distance(raw[segment-1],raw[segment]);segment++;}float step=Vector2.Distance(raw[segment-1],raw[segment]);result.Add(Vector2.Lerp(raw[segment-1],raw[segment],Math.Clamp((target-passed)/step,0,1))); }
+        result.Add(raw[^1]);return result;
+    }
+    private static List<Vector2> Simplify(List<Vector2> p,float tolerance)
+    {
+        if(p.Count<3)return p;int index=0;float far=0;
+        for(int i=1;i<p.Count-1;i++){float error=Distance(p[i],p[0],p[^1]);if(error>far){far=error;index=i;}}
+        if(far<=tolerance)return new(){p[0],p[^1]};
+        return Simplify(p.Take(index+1).ToList(),tolerance).SkipLast(1).Concat(Simplify(p.Skip(index).ToList(),tolerance)).ToList();
+    }
+    private static List<Vector2> Polygon(List<Vector2> points,float tolerance)
+    {
+        int split=Enumerable.Range(1,points.Count-1).MaxBy(i=>Vector2.DistanceSquared(points[0],points[i]));
+        var p=Simplify(points.Take(split+1).ToList(),tolerance).SkipLast(1)
+            .Concat(Simplify(points.Skip(split).Concat(new[]{points[0]}).ToList(),tolerance).SkipLast(1)).ToList();
+        bool changed=true;while(changed && p.Count>3){changed=false;for(int i=0;i<p.Count;i++)if(Distance(p[i],p[(i+p.Count-1)%p.Count],p[(i+1)%p.Count])<=tolerance){p.RemoveAt(i);changed=true;break;}}
+        return p;
+    }
+    private static List<Vector2> Order(List<Vector2> p,Vector2 start,float direction)
+    {
+        int first=Enumerable.Range(0,p.Count).MinBy(i=>Vector2.DistanceSquared(p[i],start));int step=Math.Sign(SignedArea(p))==Math.Sign(direction)?1:-1;
+        return Enumerable.Range(0,p.Count).Select(i=>p[(first+step*i+p.Count*2)%p.Count]).ToList();
     }
 }

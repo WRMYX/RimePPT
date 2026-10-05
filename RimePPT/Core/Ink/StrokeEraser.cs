@@ -63,7 +63,7 @@ public sealed class StrokeEraser
         void Flush()
         {
             if (run.Count > 0)
-                result.Add(new StrokeData { SlideIndex = stroke.SlideIndex, Argb = (byte[])stroke.Argb.Clone(), ThicknessDips = stroke.ThicknessDips, Dots = run });
+                result.Add(new StrokeData { SlideIndex = stroke.SlideIndex, Argb = (byte[])stroke.Argb.Clone(), ThicknessDips = stroke.ThicknessDips, LineStyle = stroke.LineStyle, Dots = run });
             run = new();
         }
         for (int i = 1; i < stroke.Dots.Count; i++)

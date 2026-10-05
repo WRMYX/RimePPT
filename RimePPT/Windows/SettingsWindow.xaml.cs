@@ -55,6 +55,8 @@ namespace RimePPT.Windows
         public SettingsWindow()
         {
             InitializeComponent();
+            InitializeFeatureSettings();
+            InitializeDeveloperSettings();
             // XAML 中的命名设置控件保留实例与事件，只更换原生导航容器。
             foreach (var page in new[] { AppearancePage, InkPage, ToolbarPage, ClassWidgetsPage, StoreUpdatePage, DebugPage, AboutPage })
             {
@@ -170,6 +172,17 @@ namespace RimePPT.Windows
         private void AdaptLayout()
         {
             double scale = WindowRoot.XamlRoot?.RasterizationScale ?? 1;
+            double available = Math.Max(240, Nav.ActualWidth - (Nav.IsPaneOpen ? Nav.OpenPaneLength : 48));
+            double contentWidth = Math.Min(1248, Math.Max(200, available - (available > 900 ? 96 : 48)));
+            SectionHeader.Width = contentWidth;
+            SectionHeader.HorizontalAlignment = HorizontalAlignment.Center;
+            SectionHeader.Margin = new Thickness(0, 28, 0, 24);
+            foreach (var section in new[] { AppearancePage, InkPage, ToolbarPage, ClassWidgetsPage, StoreUpdatePage, DebugPage, AboutPage })
+            {
+                section.Padding = new Thickness(0, 0, 0, 32);
+                if (section.Content is FrameworkElement content)
+                { content.MaxWidth = 1248; content.Width = contentWidth; content.HorizontalAlignment = HorizontalAlignment.Center; }
+            }
             AppTitleBar.Padding = new Thickness(16, 0, Math.Max(144, AppWindow.TitleBar.RightInset / scale), 0);
             void Walk(DependencyObject node)
             {
@@ -244,6 +257,7 @@ namespace RimePPT.Windows
             };
             NavigateSection(tag switch { "ink" => InkPage, "toolbar" => ToolbarPage, "classwidgets" => ClassWidgetsPage, "updates" => StoreUpdatePage, "debug" => DebugPage, "about" => AboutPage, _ => AppearancePage }, true);
             if (tag == "classwidgets") OnRefreshClassWidgets(this, new RoutedEventArgs());
+            if (tag == "debug") ShowDeveloperNotice();
             AdaptLayout();
         }
 
@@ -555,6 +569,7 @@ namespace RimePPT.Windows
             }
             AppSettings.Instance.RunAtStartup = StartupToggle.IsOn;
             Startup.SetRunAtStartup(StartupToggle.IsOn);
+            AppSettings.Instance.Save();
         }
 
         // ———— 工具栏 ————

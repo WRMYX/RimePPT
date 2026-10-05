@@ -18,6 +18,7 @@
                 Padding="2"
                 VerticalAlignment="Center"
                 Visibility="Collapsed">
+            <ScrollViewer x:Name="SideScroll" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled" VerticalScrollMode="Enabled" VerticalScrollBarVisibility="Auto">
             <ItemsControl x:Name="SideList">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
@@ -25,6 +26,7 @@
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
             </ItemsControl>
+            </ScrollViewer>
         </Border>
 
         <!--  底栏形态（截图二）：三组各一张横排卡片  -->
@@ -34,6 +36,7 @@
                 VerticalAlignment="Bottom"
                 HorizontalAlignment="Left"
                 Visibility="Collapsed">
+            <ScrollViewer x:Name="BottomScroll" HorizontalScrollMode="Enabled" HorizontalScrollBarVisibility="Hidden" VerticalScrollMode="Disabled" VerticalScrollBarVisibility="Disabled">
             <ItemsControl x:Name="BottomList">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
@@ -41,6 +44,7 @@
                     </ItemsPanelTemplate>
                 </ItemsControl.ItemsPanel>
             </ItemsControl>
+            </ScrollViewer>
         </Border>
     </Grid>
 </Window>

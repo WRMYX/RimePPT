@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Xaml.Controls.Primitives;
@@ -80,6 +80,12 @@ public sealed partial class ToolbarButton : UserControl
             _host.Children.Add(frame);
         }
         else _host.Children.Add(_button);
+    }
+    internal void MatchSize(double width, double height)
+    {
+        if (_button is null) return;
+        if (width > 0) _button.Width = width;
+        if (height > 0) _button.Height = height;
     }
     public void SetShowText(bool show) => _label.Visibility = show || Command == ToolbarCommand.Pages ? Visibility.Visible : Visibility.Collapsed;
     public void UpdatePenColor()

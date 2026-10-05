@@ -1,6 +1,7 @@
 using System;
 using System.IO;
 using System.Numerics;
+using System.Runtime.InteropServices;
 using Microsoft.Graphics.Canvas;
 using Microsoft.Graphics.Canvas.Geometry;
 using Microsoft.Graphics.Canvas.UI.Xaml;
@@ -79,6 +80,29 @@ public sealed class SpotlightWindow : Window
         };
         _zoom.IsEnabled = refresh.IsEnabled = reselect.IsEnabled = false;
         var close = new Button { Content = "退出（Esc）", MinHeight = 44 }; close.Click += (_, _) => Close();
+        var save = new Button { Content = "保存选区", MinHeight = 44 };
+        save.Click += async (_, _) =>
+        {
+            if (_closed || _snapshot is null || _selection.Width < 2 || _selection.Height < 2) { save.Content = "请先框选区域"; return; }
+            save.IsEnabled = false;
+            try
+            {
+                var picker = new global::Windows.Storage.Pickers.FileSavePicker { SuggestedFileName = "RimePPT-选区-" + DateTime.Now.ToString("yyyyMMdd-HHmmss") };
+                picker.FileTypeChoices.Add("PNG 图片", new[] { ".png" });
+                WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(this));
+                var file = await picker.PickSaveFileAsync();
+                if (file is null || _closed || _snapshot is null) return;
+                float sx = (float)(_snapshot.Size.Width / _canvas.ActualWidth), sy = (float)(_snapshot.Size.Height / _canvas.ActualHeight);
+                var crop = new Rect(_selection.X * sx, _selection.Y * sy, _selection.Width * sx, _selection.Height * sy);
+                using var target = new CanvasRenderTarget(_canvas.Device, (float)crop.Width, (float)crop.Height, 96);
+                using (var draw = target.CreateDrawingSession()) { draw.Clear(Microsoft.UI.Colors.Transparent); draw.DrawImage(_snapshot, new Rect(0, 0, crop.Width, crop.Height), crop); }
+                await target.SaveAsync(file.Path, CanvasBitmapFileFormat.Png);
+                save.Content = "已保存选区";
+            }
+            catch (Exception ex) { CrashReporter.Report(ex, "spotlight-save"); if (!_closed) save.Content = "保存失败，重试"; }
+            finally { if (!_closed) save.IsEnabled = true; }
+        };
+        controls.Children.Add(save);
         controls.Children.Add(mode); controls.Children.Add(new TextBlock { Text = "范围", VerticalAlignment = VerticalAlignment.Center }); controls.Children.Add(_radius);
         controls.Children.Add(new TextBlock { Text = "压暗", VerticalAlignment = VerticalAlignment.Center }); controls.Children.Add(_dim);
         controls.Children.Add(new TextBlock { Text = "倍数", VerticalAlignment = VerticalAlignment.Center }); controls.Children.Add(_zoom); controls.Children.Add(reselect); controls.Children.Add(refresh); controls.Children.Add(close);
@@ -118,7 +142,15 @@ public sealed class SpotlightWindow : Window
         WindowPlumbing.RemoveResizableFrame(this);
         Closed += (_, _) => { _closed = true; _captureVersion++; _resourceVersion++; _mask?.Dispose(); _mask = null; _snapshot?.Dispose(); _snapshot = null; _canvas.RemoveFromVisualTree(); _png = Array.Empty<byte>(); };
     }
-    public void Show() { var bounds = _area.OuterBounds; AppWindow.MoveAndResize(bounds); Activate(); }
+    [DllImport("user32.dll", SetLastError = true)]
+    [return: MarshalAs(UnmanagedType.Bool)]
+    private static extern bool SetWindowDisplayAffinity(IntPtr window, uint affinity);
+    public void Show()
+    {
+        var bounds = _area.OuterBounds; AppWindow.MoveAndResize(bounds); Activate();
+        // 排除整个聚光窗口，使刷新与导出的原始截图不含遮罩和控制按钮。
+        SetWindowDisplayAffinity(WinRT.Interop.WindowNative.GetWindowHandle(this), 0x11);
+    }
     private Vector2 Point(PointerRoutedEventArgs e) { var p = e.GetCurrentPoint(_canvas).Position; return new((float)Math.Clamp(p.X, 0, _canvas.ActualWidth), (float)Math.Clamp(p.Y, 0, _canvas.ActualHeight)); }
     private void Press(object sender, PointerRoutedEventArgs e)
     {

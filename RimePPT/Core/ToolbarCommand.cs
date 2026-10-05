@@ -12,5 +12,12 @@
         Pages,
         Undo,
         Redo,
+        Spotlight,
+        Blackout,
+        Timer,
+        Export,
+        Whiteboard,
+        QuickLaunch,
+        NewBoardPage,
     }
 }

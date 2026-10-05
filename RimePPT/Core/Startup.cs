@@ -26,7 +26,7 @@ namespace RimePPT.Core
         {
             try
             {
-                using var key = Registry.CurrentUser.OpenSubKey(RunKey, writable: true);
+                using var key = enable ? Registry.CurrentUser.CreateSubKey(RunKey) : Registry.CurrentUser.OpenSubKey(RunKey, writable: true);
                 if (key is null)
                 {
                     return;

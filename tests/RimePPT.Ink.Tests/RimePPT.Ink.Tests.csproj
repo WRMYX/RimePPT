@@ -4,6 +4,13 @@
     <ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../RimePPT/Core/AppSettings.cs" Link="AppSettings.cs" />
+    <Compile Include="../../RimePPT/Core/ToolbarConfiguration.cs" Link="ToolbarConfiguration.cs" />
+    <Compile Include="../../RimePPT/Core/ToolbarCommand.cs" Link="ToolbarCommand.cs" />
+    <Compile Include="../../RimePPT/Core/ToolbarLayout.cs" Link="ToolbarLayout.cs" />
+    <Compile Include="../../RimePPT/Core/QuickLaunchEntry.cs" Link="QuickLaunchEntry.cs" />
+    <Compile Include="../../RimePPT/Core/PresentationCapabilities.cs" Link="PresentationCapabilities.cs" />
+    <Compile Include="../../RimePPT/Core/Ink/InkDrawing.cs" Link="Ink/InkDrawing.cs" />
     <Compile Include="../../RimePPT/Core/Ink/SmartShapeRecognizer.cs" Link="Ink/SmartShapeRecognizer.cs" />
     <Compile Include="../../RimePPT/Core/BoardPdfWriter.cs" Link="BoardPdfWriter.cs" />
     <Compile Include="../../RimePPT/Services/ClassWidgetsCourseReader.cs" Link="ClassWidgetsCourseReader.cs" />

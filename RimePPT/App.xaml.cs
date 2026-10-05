@@ -82,7 +82,7 @@ namespace RimePPT
             app._exporting = true;
             try
             {
-                var snapshot = SessionInk.ToDictionary(p => p.Key, p => p.Value.Select(s => new StrokeData { Id = s.Id, SlideIndex = s.SlideIndex, Argb = (byte[])s.Argb.Clone(), ThicknessDips = s.ThicknessDips, Dots = s.Dots.Select(d => new StrokeData.Dot { X = d.X, Y = d.Y }).ToList() }).ToList());
+                var snapshot = SessionInk.ToDictionary(p => p.Key, p => p.Value.Select(s => new StrokeData { Id = s.Id, SlideIndex = s.SlideIndex, Argb = (byte[])s.Argb.Clone(), ThicknessDips = s.ThicknessDips, LineStyle = s.LineStyle, Dots = s.Dots.Select(d => new StrokeData.Dot { X = d.X, Y = d.Y }).ToList() }).ToList());
                 var viewport = app._annotation?.CurrentViewport ?? new InkViewport(1920, 1080);
                 var picker = new global::Windows.Storage.Pickers.FolderPicker(); picker.FileTypeFilter.Add("*");
                 WinRT.Interop.InitializeWithWindow.Initialize(picker, WinRT.Interop.WindowNative.GetWindowHandle(owner));
@@ -106,6 +106,7 @@ namespace RimePPT
 
         /// <summary>真实 PowerPoint 控制器（应用启动即开始轮询）。</summary>
         public static PowerPointController PowerPoint { get; } = new();
+        public static WpsPresentationController Wps { get; } = new();
 
         /// <summary>调试模拟控制器（无 Office 时验收用）。</summary>
         public static DebugPresentationController Debug { get; } = new();
@@ -134,16 +135,6 @@ namespace RimePPT
             }
         }
 
-        private static readonly ToolbarCommand[] DefaultCommands =
-        {
-            ToolbarCommand.Prev,
-            ToolbarCommand.Next,
-            ToolbarCommand.Annotate,
-            ToolbarCommand.Eraser,
-            ToolbarCommand.Tools,
-            ToolbarCommand.ExitShow,
-        };
-
         public App()
         {
             InitializeComponent(); _instance = this;
@@ -168,6 +159,11 @@ namespace RimePPT
             // 首次使用先持久化待展示状态，之后即使设置文件生成仍保留引导资格。
             if (OnboardingState.ShouldShow()) OnboardingState.TryArmFreshUser();
             AppSettings.Load();
+            if (AppSettings.IsFreshInstallation)
+            {
+                Startup.SetRunAtStartup(AppSettings.Instance.RunAtStartup);
+                AppSettings.Instance.Persist();
+            }
             _toolbarSettingsSnapshot = ToolbarSettingsSignature();
             AppSettings.SettingsChanged += (_, _) => QueueSettingsRefresh();
 
@@ -178,6 +174,8 @@ namespace RimePPT
             Debug.ShowEnded += OnShowEnded;
             Debug.SlideChanged += OnSlideChanged;
             PowerPoint.Start();
+            Wps.ShowStarted += OnShowStarted; Wps.ShowEnded += OnShowEnded; Wps.SlideChanged += OnSlideChanged;
+            Wps.Start();
 
             // 诊断入口：RimePPT.exe --crash-test 模拟后台线程致命异常，
             // 验证报错弹窗与退出路径
@@ -246,6 +244,7 @@ namespace RimePPT
 
         private async Task OnShowStartedCore(object sender)
         {
+            if (_presenting is { IsPresenting: true } && !ReferenceEquals(sender, _presenting)) return;
             CloseAllToolbars();
             ClosePrompt();
             CloseAnnotation();
@@ -268,9 +267,9 @@ namespace RimePPT
                     : DisplayArea.Primary;
                 _showArea = area;
 
-                foreach (var layout in layouts)
+                foreach (var layout in layouts.Where(x => AppSettings.Instance.GetToolbarCommands(x).Count > 0 || AppSettings.Instance.QuickLaunchEntries.Any(e => e.PinnedLayout == x)))
                 {
-                    var toolbar = new ToolbarWindow(layout, DefaultCommands);
+                    var toolbar = new ToolbarWindow(layout, AppSettings.Instance.GetToolbarCommands(layout));
                     toolbar.ToolbarClicked += OnToolbarClicked;
                     toolbar.ToolSettingsRequested += OpenToolSettings;
                     toolbar.ApplySettings();
@@ -296,7 +295,8 @@ namespace RimePPT
                 {
                     await HandleInkLoadAsync(path, _presenting.CurrentSlide, area);
                 }
-                _ = _onboarding.StartAsync(ActiveToolbars.ToArray());
+                if (WhiteboardWindow.IsOpen) SetWhiteboardMode(true);
+                else _ = _onboarding.StartAsync(ActiveToolbars.ToArray());
         }
 
         private void OnSlideChanged(object? sender, int slide)
@@ -309,7 +309,7 @@ namespace RimePPT
                     if (sender != _presenting) return;
                     _spotlight?.Close(); _spotlight = null;
                     _annotation?.SetActiveSlide(slide);
-                    SyncPresentationControls();
+                    if (!WhiteboardWindow.IsOpen) SyncPresentationControls();
                 }
                 catch (Exception ex)
                 {
@@ -322,6 +322,7 @@ namespace RimePPT
         {
             _dispatcher?.TryEnqueue(async () =>
             {
+                if (!ReferenceEquals(sender, _presenting)) return;
                 try
                 {
                     await OnShowEndedCore();
@@ -347,6 +348,8 @@ namespace RimePPT
             CloseBlackout();
             CloseTimer();
             ClosePrompt(); // 退出放映时关闭仍在等待的加载询问窗
+            AppSettings.Instance.ResetPenDefaults();
+            AppSettings.Instance.Save();
 
             // 兜底：不是通过工具条“退出”结束的放映（如按 Esc），
             // 若有新书写的墨迹，结束后仍询问一次
@@ -370,12 +373,19 @@ namespace RimePPT
             _erasing = false;
             _inkDirty = false;
             _presenting = null;
+            if (WhiteboardWindow.IsOpen) SetWhiteboardMode(true);
         }
 
         // ———— 工具条命令 ————
 
         private async void OnToolbarClicked(object? sender, ToolbarCommand command)
         {
+            if (WhiteboardWindow.IsOpen && sender is ToolbarWindow boardToolbar)
+            {
+                try { await WhiteboardWindow.HandleCommandAsync(command, boardToolbar); }
+                catch (Exception ex) { CrashReporter.Report(ex, "whiteboard-command"); }
+                return;
+            }
             if (_onboarding.TryPreviewCommand(command)) return;
             var controller = _presenting;
             if (controller is null)
@@ -388,6 +398,12 @@ namespace RimePPT
                 Log($"toolbar click: {command}");
                 switch (command)
                 {
+                    case ToolbarCommand.Spotlight: await OpenSpotlightAsync(); break;
+                    case ToolbarCommand.Blackout: await ToggleBlackoutAsync(); break;
+                    case ToolbarCommand.Timer: ToggleTimer((ToolbarWindow)sender!); break;
+                    case ToolbarCommand.Export: await ExportBoardAsync((ToolbarWindow)sender!); break;
+                    case ToolbarCommand.Whiteboard: WhiteboardWindow.Open(); break;
+                    case ToolbarCommand.QuickLaunch: OpenQuickLaunch((ToolbarWindow)sender!); break;
                     case ToolbarCommand.Prev:
                         await controller.PreviousAsync();
                         break;
@@ -454,7 +470,7 @@ namespace RimePPT
         private static string ToolbarSettingsSignature()
         {
             var s = AppSettings.Instance;
-            return $"{s.Theme}|{s.ShowToolbarText}|{s.EdgeMargin}|{string.Join(',', s.GetEnabledToolbarLayouts())}";
+            return $"{s.Theme}|{s.ShowToolbarText}|{s.EdgeMargin}|{string.Join(',', s.GetEnabledToolbarLayouts())}|{string.Join(';', Enum.GetValues<ToolbarLayout>().Select(x => $"{x}:{string.Join(',', s.GetToolbarCommands(x))}:{ToolbarWindow.ExtrasSignature(x)}"))}";
         }
         private void QueueSettingsRefresh()
         {
@@ -480,9 +496,9 @@ namespace RimePPT
                         foreach (var toolbar in ActiveToolbars) toolbar.ApplySettings();
                         RebuildToolbars();
                     }
-                    if (_backend is not null && _presenting is not null)
+                    if (_backend is not null && _presenting is not null && !WhiteboardWindow.IsOpen)
                     {
-                        var desired = _presenting is DebugPresentationController ? InkBackend.Rime : AppSettings.Instance.InkBackend;
+                        var desired = _presenting is DebugPresentationController or WpsPresentationController ? InkBackend.Rime : AppSettings.Instance.InkBackend;
                         bool switched = _backend.EffectiveBackend != desired;
                         if (switched) await _backend.SwitchBackendAsync(desired);
                         string color = Convert.ToHexString(AppSettings.Instance.GetPenArgb());
@@ -524,7 +540,8 @@ namespace RimePPT
             if (toolbar.GetToolSettingsTarget(command) is not { } anchor) return;
             if (_picker is { IsShowing: true } && _picker.Owns(anchor)) { ClosePenChevron(); return; }
             _picker?.Dismiss();
-            var picker = command == ToolbarCommand.Eraser ? new EraserPickerWindow() : new PenPickerWindow();
+            var picker = WhiteboardWindow.IsOpen ? PenPickerWindow.ForWhiteboard(command == ToolbarCommand.Eraser) :
+                command == ToolbarCommand.Eraser ? new EraserPickerWindow() : new PenPickerWindow();
             _picker = picker;
             picker.Closed += (_, _) => { if (ReferenceEquals(_picker, picker)) _picker = null; };
             picker.ShowAt(anchor, toolbar.Layout);
@@ -575,15 +592,20 @@ namespace RimePPT
 
             if (anchor.GetCommandTarget(ToolbarCommand.Tools) is not { } target) return;
             ClosePenChevron(); _navigator?.Close(); _navigator = null;
-            var menu = new ToolsMenuWindow(new List<(string, string, Action)>
+            var settings = AppSettings.Instance;
+            var actions = new List<(string Key, string Glyph, string Name, Action Action)>
             {
-                ("\uE7B3", "聚光与放大", () => RunFeatureAsync(OpenSpotlightAsync)),
-                ("\uE708", "黑屏模式", () => RunFeatureAsync(ToggleBlackoutAsync)),
-                ("\uE916", "计时器", () => ToggleTimer(anchor)),
-                ("\uE896", "导出课堂板书", () => RunFeatureAsync(() => ExportBoardAsync(anchor))),
-                ("\uE897", "使用指南", () => RunFeatureAsync(() => ShowToolbarGuideAsync())),
-                ("\uE713", "设置", SettingsWindow.Open),
-            });
+                ("spotlight","\uE7B3", "聚光与放大", () => RunFeatureAsync(OpenSpotlightAsync)),
+                ("blackout","\uE708", "黑屏模式", () => RunFeatureAsync(ToggleBlackoutAsync)),
+                ("timer","\uE916", "计时器", () => ToggleTimer(anchor)),
+                ("export","\uE896", "导出课堂板书", () => RunFeatureAsync(() => ExportBoardAsync(anchor))),
+                ("whiteboard","\uE70F", "独立画板", WhiteboardWindow.Open),
+                ("launcher","\uE8A7", "快捷启动", () => OpenQuickLaunch(anchor)),
+                ("guide","\uE897", "使用指南", () => RunFeatureAsync(() => ShowToolbarGuideAsync())),
+            };
+            var items = actions.Where(x => settings.IsToolVisible(x.Key)).Select(x => (x.Glyph, x.Name, x.Action)).ToList();
+            items.Add(("\uE713", "设置", SettingsWindow.Open));
+            var menu = new ToolsMenuWindow(items);
             _toolsMenu = menu;
             menu.Closed += (_, _) => { if (ReferenceEquals(_toolsMenu, menu)) _toolsMenu = null; };
             menu.ShowAt(target, anchor.Layout);
@@ -593,6 +615,17 @@ namespace RimePPT
         {
             try { await action(); }
             catch (Exception ex) { await ShowPromptAsync(_showArea, "无法打开工具", ex.Message, "确定", "关闭"); }
+        }
+        private void OpenQuickLaunch(ToolbarWindow anchor)
+        {
+            CloseToolsMenu();
+            var target = anchor.GetCommandTarget(ToolbarCommand.QuickLaunch) ?? anchor.GetCommandTarget(ToolbarCommand.Tools);
+            if (target is null) return;
+            var items = AppSettings.Instance.QuickLaunchEntries.Select(entry => ("\uE8A7", entry.Name, (Action)(() => RunFeatureAsync(() => QuickLaunchService.LaunchAsync(entry))))).ToList();
+            if (items.Count == 0) items.Add(("\uE713", "在设置中添加应用或文件", SettingsWindow.Open));
+            var menu = new ToolsMenuWindow(items); _toolsMenu = menu;
+            menu.Closed += (_, _) => { if (ReferenceEquals(_toolsMenu, menu)) _toolsMenu = null; };
+            menu.ShowAt(target, anchor.Layout);
         }
         private Task OpenNavigatorAsync(ToolbarWindow toolbar)
         {
@@ -837,32 +870,38 @@ namespace RimePPT
         /// </summary>
         private void RebuildToolbars()
         {
+            if (WhiteboardWindow.IsOpen) return;
             if (_presenting is null || _showArea is null)
             {
                 return;
             }
 
-            var target = AppSettings.Instance.GetEnabledToolbarLayouts();
-            var current = new HashSet<ToolbarLayout>(ActiveToolbars.Select(t => t.Layout));
-            if (current.SetEquals(target))
-            {
-                return;
-            }
+            var settings = AppSettings.Instance;
+            var target = settings.GetEnabledToolbarLayouts().Where(x => settings.GetToolbarCommands(x).Count > 0 || settings.QuickLaunchEntries.Any(e => e.PinnedLayout == x)).ToArray();
+            var replaced = ActiveToolbars.Where(t => !target.Contains(t.Layout) ||
+                !t.OrderedCommands.SequenceEqual(settings.GetToolbarCommands(t.Layout)) ||
+                t.ExtraConfiguration != ToolbarWindow.ExtrasSignature(t.Layout)).ToArray();
+            var added = target.Where(x => !ActiveToolbars.Any(t => t.Layout == x && !replaced.Contains(t))).ToArray();
+            if (replaced.Length == 0 && added.Length == 0) return;
 
             CloseToolsMenu(); ClosePenChevron(); _navigator?.Close(); _navigator = null;
             bool resumeGuide = _onboarding.IsRunning;
-            CloseAllToolbars();
-            foreach (var layout in target)
+            _onboarding.Stop();
+            foreach (var toolbar in replaced)
             {
-                var toolbar = new ToolbarWindow(layout, DefaultCommands);
+                ActiveToolbars.Remove(toolbar);
+                toolbar.Dismiss();
+            }
+            foreach (var layout in added)
+            {
+                var toolbar = new ToolbarWindow(layout, settings.GetToolbarCommands(layout));
                 toolbar.ToolbarClicked += OnToolbarClicked;
-                    toolbar.ToolSettingsRequested += OpenToolSettings;
+                toolbar.ToolSettingsRequested += OpenToolSettings;
                 toolbar.ApplySettings();
                 toolbar.ShowOn(_showArea);
                 ActiveToolbars.Add(toolbar);
+                toolbar.BeginEntrance();
             }
-
-            foreach (var toolbar in ActiveToolbars) toolbar.BeginEntrance();
             if (_annotating)
             {
                 ShowPenChevron();
