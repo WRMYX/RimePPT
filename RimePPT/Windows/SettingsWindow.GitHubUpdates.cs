@@ -20,6 +20,7 @@ public sealed partial class SettingsWindow
     private void InitializeGitHubUpdates()
     {
         GitHubVersionText.Text = "已安装版本：" + GitHubUpdateService.InstalledVersion;
+        RefreshGitHubSources();
         var channel = GitHubUpdateService.Channel;
         GitHubChannelText.Text = channel switch
         {
@@ -59,6 +60,7 @@ public sealed partial class SettingsWindow
         GitHubCheckButton.IsEnabled = !busy && GitHubUpdateService.Channel != GitHubUpdateChannel.Store;
         GitHubDownloadButton.IsEnabled = !busy;
         GitHubInstallButton.IsEnabled = !busy;
+        GitHubSourcePicker.IsEnabled = GitHubSourceAddress.IsEnabled = !busy;
         GitHubCancelButton.Visibility = busy ? Visibility.Visible : Visibility.Collapsed;
     }
     private void OnCancelGitHubUpdate(object sender, RoutedEventArgs args) => _githubCancellation?.Cancel();
@@ -104,7 +106,7 @@ public sealed partial class SettingsWindow
             {
                 if (!_closed && _githubBusy) GitHubProgress.Value = value;
             }));
-            string archive = await _githubService.DownloadAsync(asset, progress, cancellation.Token);
+            string archive = await _githubService.DownloadAsync(asset, progress, cancellation.Token, AppSettings.Instance.GitHubDownloadSourceId, AppSettings.Instance.GitHubCustomDownloadSource);
             string payload = await Task.Run(() => GitHubUpdateService.Extract(archive, GitHubUpdateService.Channel, cancellation.Token), cancellation.Token);
             cancellation.Token.ThrowIfCancellationRequested();
             if (_closed) return;
@@ -114,7 +116,7 @@ public sealed partial class SettingsWindow
             GitHubInstallButton.Visibility = Visibility.Visible;
         }
         catch (OperationCanceledException) { if (!_closed) GitHubResult(InfoBarSeverity.Informational, "下载已取消或超时", "可以重新下载。"); }
-        catch (Exception ex) { if (!_closed) GitHubResult(InfoBarSeverity.Error, "下载未完成", ex.Message); }
+        catch (Exception ex) { if (!_closed) GitHubResult(InfoBarSeverity.Error, "下载未完成", "当前线路：" + (GitHubSourcePicker.SelectedItem as ComboBoxItem)?.Content + "。可切换线路重试。 " + ex.Message); }
         finally { _githubCancellation = null; if (!_closed) { GitHubProgress.Visibility = Visibility.Collapsed; GitHubBusy(false); } }
     }
     private static bool UpdateBlocked => App.PowerPoint.IsPresenting || App.Wps.IsPresenting || App.Debug.IsPresenting || WhiteboardWindow.IsOpen;
@@ -151,6 +153,55 @@ public sealed partial class SettingsWindow
         }
         catch (Exception ex) { if (!_closed) GitHubResult(InfoBarSeverity.Error, "无法启动安装", ex.Message); }
         finally { if (!_closed) GitHubBusy(false); }
+    }
+    private bool _updatingSources;
+    private void RefreshGitHubSources()
+    {
+        _updatingSources = true;
+        try {
+            var settings = AppSettings.Instance;
+            settings.GitHubCustomDownloadSources ??= new();
+            GitHubSourcePicker.Items.Clear();
+            GitHubSourcePicker.Items.Add(new ComboBoxItem { Content = "GitHub 官方直连", Tag = "direct" });
+            GitHubSourcePicker.Items.Add(new ComboBoxItem { Content = "GH-Proxy", Tag = "ghproxy" });
+            foreach (var address in settings.GitHubCustomDownloadSources)
+                GitHubSourcePicker.Items.Add(new ComboBoxItem { Content = address, Tag = "custom" });
+            GitHubSourcePicker.SelectedIndex = settings.GitHubDownloadSourceId == "ghproxy" ? 1 : 0;
+            if (settings.GitHubDownloadSourceId == "custom")
+                foreach (ComboBoxItem item in GitHubSourcePicker.Items)
+                    if (item.Content?.ToString() == settings.GitHubCustomDownloadSource) GitHubSourcePicker.SelectedItem = item;
+            GitHubSourceAddress.Text = settings.GitHubCustomDownloadSource;
+        } finally { _updatingSources = false; }
+    }
+    private void OnGitHubSourceChanged(object sender, SelectionChangedEventArgs args)
+    {
+        if (_updatingSources || _suppress || _githubBusy || GitHubSourcePicker.SelectedItem is not ComboBoxItem item) return;
+        var settings = AppSettings.Instance;
+        settings.GitHubDownloadSourceId = item.Tag.ToString()!;
+        if (settings.GitHubDownloadSourceId == "custom")
+            GitHubSourceAddress.Text = settings.GitHubCustomDownloadSource = item.Content.ToString()!;
+        settings.Save();
+    }
+    private void OnSaveGitHubSource(object sender, RoutedEventArgs args)
+    {
+        if (_githubBusy) return;
+        try {
+            string address = GitHubDownloadSource.NormalizePrefix(GitHubSourceAddress.Text);
+            var settings = AppSettings.Instance;
+            if (!settings.GitHubCustomDownloadSources.Contains(address)) settings.GitHubCustomDownloadSources.Add(address);
+            if (settings.GitHubDownloadSourceId == "custom") settings.GitHubCustomDownloadSources.Remove(settings.GitHubCustomDownloadSource);
+            if (!settings.GitHubCustomDownloadSources.Contains(address)) settings.GitHubCustomDownloadSources.Add(address);
+            settings.GitHubCustomDownloadSource = address; settings.GitHubDownloadSourceId = "custom";
+            settings.Save(); RefreshGitHubSources();
+        } catch (ArgumentException ex) { GitHubResult(InfoBarSeverity.Warning, "地址无效", ex.Message); }
+    }
+    private void OnDeleteGitHubSource(object sender, RoutedEventArgs args)
+    {
+        if (_githubBusy || AppSettings.Instance.GitHubDownloadSourceId != "custom") return;
+        var settings = AppSettings.Instance;
+        settings.GitHubCustomDownloadSources.Remove(settings.GitHubCustomDownloadSource);
+        settings.GitHubCustomDownloadSource = ""; settings.GitHubDownloadSourceId = "direct";
+        settings.Save(); RefreshGitHubSources();
     }
     public static void OpenGitHubUpdates()
     {

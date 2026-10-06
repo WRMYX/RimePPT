@@ -28,6 +28,22 @@ internal static class GitHubUpdateTests
             }
             check(Directory.GetFiles(root,"download.zip",SearchOption.AllDirectories).Length==1,"partial and failed files removed");
         });
+        test("accelerated download uses selected URL and official hash", () => {
+            byte[] bytes = Encoding.UTF8.GetBytes("proxy-content");
+            string? requested = null;
+            using var client = new HttpClient(new Handler((request, _) => {
+                requested = request.RequestUri!.AbsoluteUri;
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.OK) { Content = new ByteArrayContent(bytes) });
+            }));
+            var asset = new GitHubAsset("test.zip", new Uri("https://github.com/WRMYX/RimePPT/releases/download/v1.2.4/test.zip"), bytes.Length, Convert.ToHexString(SHA256.HashData(bytes)));
+            var service = new GitHubUpdateService(client, root);
+            service.DownloadAsync(asset, new Progress<double>(), CancellationToken.None, "ghproxy").GetAwaiter().GetResult();
+            check(requested == "https://gh-proxy.org/" + asset.Url.AbsoluteUri, "selected proxy requested");
+            bool rejected = false;
+            try { service.DownloadAsync(asset with { Sha256 = new string('0', 64) }, new Progress<double>(), CancellationToken.None, "custom", "https://example.com/").GetAwaiter().GetResult(); }
+            catch (InvalidDataException) { rejected = true; }
+            check(rejected, "proxy bytes still require official hash");
+        });
         test("GitHub check handles inaccessible release and request limits", () => {
             foreach(var status in new[]{HttpStatusCode.NotFound,HttpStatusCode.Forbidden,HttpStatusCode.TooManyRequests}) {
                 using var client=new HttpClient(new Handler((_,_)=>Task.FromResult(new HttpResponseMessage(status))));

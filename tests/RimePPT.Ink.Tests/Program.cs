@@ -1,4 +1,4 @@
-﻿using System.Diagnostics;
+using System.Diagnostics;
 using System.Numerics;
 using System.Text.Json;
 using RimePPT.Core;
@@ -8,6 +8,17 @@ var view = new InkViewport(1920, 1080);
 var tests = new List<(string Name, Action Run)>();
 void Test(string name, Action run) => tests.Add((name, run));
 void Check(bool condition, string message) { if (!condition) throw new Exception(message); }
+Test("download sources validate prefixes and preserve defaults", () => {
+var assetUrl = "https://github.com/WRMYX/RimePPT/releases/download/v1.2.4/test.zip";
+if (GitHubDownloadSource.Resolve(assetUrl, "ghproxy") != "https://gh-proxy.org/" + assetUrl) throw new Exception("proxy URL");
+if (GitHubDownloadSource.Resolve(assetUrl, "direct") != assetUrl) throw new Exception("direct URL");
+if (GitHubDownloadSource.Resolve(assetUrl, "custom", "https://example.com") != "https://example.com/" + assetUrl) throw new Exception("custom URL");
+foreach (var invalid in new[] { "http://example.com", "https://user:pass@example.com", "https://example.com/?x=1" }) {
+    try { GitHubDownloadSource.NormalizePrefix(invalid); throw new Exception("invalid prefix accepted"); } catch (ArgumentException) { }
+}
+var migrated = JsonSerializer.Deserialize<AppSettings>("{}")!;
+if (migrated.GitHubDownloadSourceId != "direct" || migrated.CheckGitHubUpdatesOnStartup) throw new Exception("default source");
+});
 InkSample S(float x, float y, ulong t = 1) => new(new(x, y), t, InkDevice.Touch);
 InkInputSession Session() => new() { Viewport = view };
 InkToolSnapshot Pen(int slide = 1) => new(InkTool.Pen, slide, new byte[] { 255, 232, 17, 35 }, 4);

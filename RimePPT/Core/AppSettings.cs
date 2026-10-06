@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -51,6 +51,9 @@ namespace RimePPT.Core
         public string Theme { get; set; } = "auto"; // light / dark / auto（跟随系统）
         public bool ShowToolbarText { get; set; } = true;
         public bool CheckGitHubUpdatesOnStartup { get; set; } = false;
+        public string GitHubDownloadSourceId { get; set; } = "direct";
+        public List<string> GitHubCustomDownloadSources { get; set; } = new();
+        public string GitHubCustomDownloadSource { get; set; } = "";
         public int EdgeMargin { get; set; } = 6;
         public string PenColor { get; set; } = "red";
         public double PenThickness { get; set; } = 4;

@@ -246,7 +246,7 @@ namespace RimePPT.Windows
             }
 
             string tag = (string)args.SelectedItemContainer.Tag;
-            PageTitle.Text = tag switch { "ink" => "笔迹", "toolbar" => "工具栏", "classwidgets" => "ClassWidgets 2", "updates" => "商店更新", "debug" => "调试", "about" => "关于", _ => "外观" };
+            PageTitle.Text = tag switch { "ink" => "笔迹", "toolbar" => "工具栏", "classwidgets" => "ClassWidgets 2", "updates" => "更新", "debug" => "调试", "about" => "关于", _ => "外观" };
             PageDescription.Text = tag switch
             {
                 "ink" => "调整书写、智能图形、板书导出与翻页动画。",
@@ -345,13 +345,16 @@ namespace RimePPT.Windows
                 StoreInstalledVersion.Text = $"已安装版本：{version.Major}.{version.Minor}.{version.Build}.{version.Revision}";
             }
             else StoreInstalledVersion.Text = "当前运行：便携版";
+            StoreUpdateCard.Visibility = _supportsStoreUpdates ? Visibility.Visible : Visibility.Collapsed;
+            GitHubUpdateCard.Visibility = _supportsStoreUpdates ? Visibility.Collapsed : Visibility.Visible;
+            UpdateVersionText.Text = "已安装版本：" + GitHubUpdateService.InstalledVersion;
             StoreCheckButton.IsEnabled = _supportsStoreUpdates;
             StoreUpdateSummary.Text = _supportsStoreUpdates
                 ? "检查由 Microsoft Store 提供的 RimePPT 更新。"
                 : "请从 Microsoft Store 安装 RimePPT，以使用商店更新。";
             StoreChannelText.Text = _supportsStoreUpdates
                 ? "更新由 Microsoft Store 下载和安装。安装可能关闭应用，请先保存批注并结束放映。"
-                : package is null ? "便携版使用 ZIP 文件更新；也可以打开商店安装商店版。"
+                : package is null ? "便携版无法使用商店更新，请使用 GitHub 更新。"
                 : "当前为非商店安装包，无法直接使用商店更新。请打开商店安装商店版。";
         }
 

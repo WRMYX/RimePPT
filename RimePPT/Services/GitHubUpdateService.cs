@@ -55,8 +55,9 @@ internal sealed class GitHubUpdateService
             RuntimeInformation.ProcessArchitecture.ToString().ToLowerInvariant());
     }
 
-    public async Task<string> DownloadAsync(GitHubAsset asset, IProgress<double> progress, CancellationToken token)
+    public async Task<string> DownloadAsync(GitHubAsset asset, IProgress<double> progress, CancellationToken token, string sourceId = "direct", string? customPrefix = null)
     {
+        string downloadUrl = GitHubDownloadSource.Resolve(asset.Url.AbsoluteUri, sourceId, customPrefix);
         string folder = Path.Combine(_downloadRoot, Guid.NewGuid().ToString("N"));
         Directory.CreateDirectory(folder);
         string file = Path.Combine(folder, "download.zip");
@@ -64,7 +65,7 @@ internal sealed class GitHubUpdateService
         {
             using var timeout = CancellationTokenSource.CreateLinkedTokenSource(token);
             timeout.CancelAfter(TimeSpan.FromMinutes(15));
-            using var request = new HttpRequestMessage(HttpMethod.Get, asset.Url);
+            using var request = new HttpRequestMessage(HttpMethod.Get, downloadUrl);
             request.Headers.UserAgent.ParseAdd("RimePPT/" + InstalledVersion);
             using var response = await _client.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, timeout.Token);
             response.EnsureSuccessStatusCode();
