@@ -99,7 +99,6 @@ jobs:
           Compress-Archive -Path artifacts/MSIX/*.msix, artifacts/MSIX/*.cer -DestinationPath "artifacts/Release/RimePPT-$env:PACKAGE_VERSION-MSIX-with-certificate-x64.zip"
           $store = @(Get-ChildItem artifacts/Store -Filter '*.msix')
           if ($store.Count -ne 1) { throw 'Expected exactly one Store package.' }
-          Copy-Item -LiteralPath $store[0].FullName -Destination "artifacts/Release/RimePPT-$env:PACKAGE_VERSION-Store-x64.msix"
       - name: Upload portable archive / 上传便携版
         uses: actions/upload-artifact@v4
         with:
@@ -116,7 +115,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: RimePPT-Store-x64
-          path: artifacts/Release/*-Store-x64.msix
+          path: artifacts/Store/*.msix
           if-no-files-found: error
       - name: Create draft release / 创建草稿发布
         if: steps.version.outputs.tag != ''
@@ -127,7 +126,7 @@ jobs:
           RELEASE_COMMIT: ${{ github.sha }}
           EVENT_NAME: ${{ github.event_name }}
         run: |
-          $archives = @(Get-ChildItem artifacts/Release -File | Where-Object { $_.Extension -in @('.zip', '.msix') } | ForEach-Object { $_.FullName })
+          $archives = @(Get-ChildItem artifacts/Release -Filter '*.zip' -File | ForEach-Object { $_.FullName })
           $options = @('--draft', '--title', "RimePPT $env:RELEASE_TAG", '--generate-notes')
           if ($env:EVENT_NAME -eq 'push') {
             $options += '--verify-tag'
