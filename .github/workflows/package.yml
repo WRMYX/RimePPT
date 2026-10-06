@@ -5,6 +5,15 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
+    inputs:
+      release_version:
+        description: 'Draft release version, e.g. v1.2.3 (leave empty for packaging only)'
+        required: false
+        type: string
+
+concurrency:
+  group: package-${{ inputs.release_version || github.ref }}
+  cancel-in-progress: false
 
 permissions:
   contents: read
@@ -28,9 +37,16 @@ jobs:
         env:
           REF_TYPE: ${{ github.ref_type }}
           REF_NAME: ${{ github.ref_name }}
+          REQUESTED_VERSION: ${{ inputs.release_version }}
         run: |
+          $tag = ''
           if ($env:REF_TYPE -eq 'tag') {
-            if ($env:REF_NAME -notmatch '^v([1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$') {
+            $tag = $env:REF_NAME
+          } elseif (-not [string]::IsNullOrWhiteSpace($env:REQUESTED_VERSION)) {
+            $tag = $env:REQUESTED_VERSION.Trim()
+          }
+          if ($tag) {
+            if ($tag -notmatch '^v([1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$') {
               throw 'Release tags must use vMAJOR.MINOR.PATCH, for example v1.2.3.'
             }
             $version = "$($Matches[1]).$($Matches[2]).$($Matches[3]).0"
@@ -43,6 +59,17 @@ jobs:
             throw 'MSIX version components must be 0..65535, major must be nonzero and revision must be zero.'
           }
           "value=$version" >> $env:GITHUB_OUTPUT
+          "tag=$tag" >> $env:GITHUB_OUTPUT
+      - name: Reject existing manual release tag
+        if: github.event_name == 'workflow_dispatch' && steps.version.outputs.tag != ''
+        env:
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+        run: |
+          $existing = git ls-remote --exit-code origin "refs/tags/$env:RELEASE_TAG"
+          $code = $LASTEXITCODE
+          if ($code -eq 0) { throw 'This version tag already exists. Choose a new version.' }
+          if ($code -ne 2) { throw 'Unable to check remote version tags.' }
+          $global:LASTEXITCODE = 0
       - name: Run ink tests
         run: dotnet run --project tests/RimePPT.Ink.Tests -c Release
       - name: Build portable archive
@@ -76,12 +103,20 @@ jobs:
           path: artifacts/Release/*-MSIX-with-certificate-x64.zip
           if-no-files-found: error
       - name: Create draft release
-        if: github.event_name == 'push' && github.ref_type == 'tag'
+        if: steps.version.outputs.tag != ''
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
-          RELEASE_TAG: ${{ github.ref_name }}
+          RELEASE_TAG: ${{ steps.version.outputs.tag }}
+          RELEASE_COMMIT: ${{ github.sha }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
           $archives = @(Get-ChildItem artifacts/Release -Filter '*.zip' | ForEach-Object { $_.FullName })
-          gh release create $env:RELEASE_TAG @archives --verify-tag --draft --title "RimePPT $env:RELEASE_TAG" --generate-notes
+          $options = @('--draft', '--title', "RimePPT $env:RELEASE_TAG", '--generate-notes')
+          if ($env:EVENT_NAME -eq 'push') {
+            $options += '--verify-tag'
+          } else {
+            $options += @('--target', $env:RELEASE_COMMIT)
+          }
+          gh release create $env:RELEASE_TAG @archives @options
           if ($LASTEXITCODE -ne 0) { throw 'Draft release creation failed.' }
