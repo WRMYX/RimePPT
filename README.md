@@ -141,3 +141,5 @@ Copyright © 2026 **MYXMJY**。
 更新页面会根据安装类型提供 Microsoft Store 或 GitHub 更新。GitHub 下载默认官方直连，可选择 GH-Proxy 或管理自定义 HTTPS 加速前缀；版本信息仍来自官方 API，所有线路均校验官方附件大小和 SHA-256。
 
 便携版安装由独立更新窗口显示备份、文件替换、校验及回滚状态，安装期间请等待完成。更新记录位于 `%LOCALAPPDATA%/RimePPT/Updates/History`。非商店 MSIX 的安装进度由 Windows 应用安装程序提供；商店版显示 Store API 返回的进度。
+
+独立安装窗口使用原生 WinUI 3，携带完整运行依赖，启动前复制到暂存目录。

@@ -73,8 +73,8 @@
     <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">True</PublishTrimmed>
   </PropertyGroup>
   <Target Name="PublishUpdater" BeforeTargets="ComputeFilesToPublish" Condition="'$(RuntimeIdentifier)' == 'win-x64'">
-    <PropertyGroup><UpdaterOutput>$(MSBuildProjectDirectory)/../.tasks/updater-runtime/</UpdaterOutput></PropertyGroup>
-    <Exec Command="dotnet publish &quot;$(MSBuildProjectDirectory)/../tools/RimePPT.Updater/RimePPT.Updater.csproj&quot; -c Release -r win-x64 --self-contained true -p:UseSharedCompilation=false -o &quot;$(UpdaterOutput)&quot;" />
-    <ItemGroup><ResolvedFileToPublish Include="$(UpdaterOutput)RimePPT.Updater.exe"><RelativePath>Updater/RimePPT.Updater.exe</RelativePath><CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory></ResolvedFileToPublish></ItemGroup>
+    <PropertyGroup><UpdaterOutput>$(MSBuildProjectDirectory)/../.tasks/updater-winui-runtime/</UpdaterOutput></PropertyGroup>
+    <Exec Command="dotnet publish &quot;$(MSBuildProjectDirectory)/../tools/RimePPT.Updater/RimePPT.Updater.csproj&quot; -c Release -r win-x64 --self-contained true -p:UseSharedCompilation=false -p:Platform=x64 -p:PublishSingleFile=false -p:WindowsAppSDKSelfContained=true -o &quot;$(UpdaterOutput)&quot;" />
+    <ItemGroup><UpdaterRuntimeFiles Include="$(UpdaterOutput)**/*"/><ResolvedFileToPublish Include="@(UpdaterRuntimeFiles)"><RelativePath>Updater/%(UpdaterRuntimeFiles.RecursiveDir)%(UpdaterRuntimeFiles.Filename)%(UpdaterRuntimeFiles.Extension)</RelativePath><CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory></ResolvedFileToPublish></ItemGroup>
   </Target>
 </Project>

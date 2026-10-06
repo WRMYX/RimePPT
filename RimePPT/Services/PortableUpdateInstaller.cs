@@ -23,8 +23,14 @@ internal static class PortableUpdateInstaller
         string folder = Path.GetDirectoryName(payload)!;
         string helper = Path.Combine(folder, "Update-Portable.ps1");
         File.Copy(Path.Combine(AppContext.BaseDirectory, "Assets", "Update-Portable.ps1"), helper, true);
-        string updater = Path.Combine(folder, "RimePPT.Updater.exe");
-        File.Copy(Path.Combine(AppContext.BaseDirectory, "Updater", "RimePPT.Updater.exe"), updater, true);
+        string updaterRoot = Path.Combine(folder, "updater-" + Guid.NewGuid().ToString("N"));
+        string installedUpdater = Path.Combine(AppContext.BaseDirectory, "Updater");
+        foreach (string file in Directory.GetFiles(installedUpdater, "*", SearchOption.AllDirectories)) {
+            string destination = Path.Combine(updaterRoot, Path.GetRelativePath(installedUpdater, file));
+            Directory.CreateDirectory(Path.GetDirectoryName(destination)!);
+            File.Copy(file, destination, false);
+        }
+        string updater = Path.Combine(updaterRoot, "RimePPT.Updater.exe");
         string authorization = Path.Combine(folder, "authorized.txt");
         if (File.Exists(authorization)) File.Delete(authorization);
         string ready = Path.Combine(folder, "ready.txt");

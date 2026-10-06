@@ -32,7 +32,7 @@ foreach ($directory in Get-ChildItem -LiteralPath $runtime -Directory) {
 foreach ($file in Get-ChildItem -LiteralPath $runtime -File -Recurse | Where-Object { $_.Extension -eq '.pdb' -or $_.Name -eq '使用说明.txt' }) {
     Remove-Item -LiteralPath $file.FullName -Force
 }
-foreach ($required in @('Updater/RimePPT.Updater.exe', 'RimePPT.exe','coreclr.dll','Microsoft.UI.Xaml.dll','Assets\RimePPT-Logo.svg')) {
+foreach ($required in @('Updater/RimePPT.Updater.exe', 'Updater/RimePPT.Updater.pri', 'Updater/Microsoft.UI.Xaml.dll', 'Updater/coreclr.dll', 'RimePPT.exe','coreclr.dll','Microsoft.UI.Xaml.dll','Assets\RimePPT-Logo.svg')) {
     if (-not (Test-Path -LiteralPath (Join-Path $runtime $required))) { throw "Missing runtime file: $required" }
 }
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null

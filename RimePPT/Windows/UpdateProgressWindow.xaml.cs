@@ -8,8 +8,8 @@ public sealed partial class UpdateProgressWindow : Window
     private bool _closed;
     public UpdateProgressWindow()
     {
-        InitializeComponent(); Title = "RimePPT · 安装更新";
-        AppWindow.Resize(new global::Windows.Graphics.SizeInt32(600, 440));
+        InitializeComponent(); SystemBackdrop = new Microsoft.UI.Xaml.Media.MicaBackdrop(); Title = "RimePPT · 安装更新"; ExtendsContentIntoTitleBar = true; SetTitleBar(ProgressTitleBar);
+        AppWindow.Resize(new global::Windows.Graphics.SizeInt32(600, 480));
         _log = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "RimePPT", "Updates", "install-" + Guid.NewGuid().ToString("N") + ".txt");
         Closed += (_, _) => _closed = true;
     }
