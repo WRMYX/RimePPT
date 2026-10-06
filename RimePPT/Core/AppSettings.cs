@@ -50,6 +50,7 @@ namespace RimePPT.Core
 
         public string Theme { get; set; } = "auto"; // light / dark / auto（跟随系统）
         public bool ShowToolbarText { get; set; } = true;
+        public bool CheckGitHubUpdatesOnStartup { get; set; } = false;
         public int EdgeMargin { get; set; } = 6;
         public string PenColor { get; set; } = "red";
         public double PenThickness { get; set; } = 4;

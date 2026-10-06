@@ -87,8 +87,9 @@ namespace RimePPT.Windows
 
             LoadValues();
             LoadImages();
-            VersionText.Text = "版本 0.2（开发中）";
+            VersionText.Text = "版本 " + GitHubUpdateService.InstalledVersion;
             InitializeStoreUpdates();
+            InitializeGitHubUpdates();
             ClassWidgetsDataPath.Text = ClassWidgetsCourseReader.DataPath;
             _connectionTimer.Tick += OnConnectionTick;
             _connectionTimer.Start();
@@ -97,6 +98,7 @@ namespace RimePPT.Windows
             {
                 _closed = true;
                 _storeCancellation?.Cancel();
+                _githubCancellation?.Cancel();
                 _connectionTimer.Stop();
                 _connectionTimer.Tick -= OnConnectionTick;
                 // 由本窗口启动的预览随窗口关闭自动结束，避免浮窗残留

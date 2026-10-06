@@ -4,6 +4,8 @@
     <ImplicitUsings>enable</ImplicitUsings><Nullable>enable</Nullable>
   </PropertyGroup>
   <ItemGroup>
+    <Compile Include="../../RimePPT/Core/GitHubRelease.cs" Link="GitHubRelease.cs" />
+    <Compile Include="../../RimePPT/Services/GitHubUpdateService.cs" Link="GitHubUpdateService.cs" />
     <Compile Include="../../RimePPT/Core/AppSettings.cs" Link="AppSettings.cs" />
     <Compile Include="../../RimePPT/Core/ToolbarConfiguration.cs" Link="ToolbarConfiguration.cs" />
     <Compile Include="../../RimePPT/Core/ToolbarCommand.cs" Link="ToolbarCommand.cs" />

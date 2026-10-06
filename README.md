@@ -32,7 +32,7 @@ RimePPT 将翻页、批注、擦除和课堂辅助工具放在浮动工具栏中
 - **使用引导**：简短入门与完整指南，均可跳过。
 - **微软商店更新入口**：商店更新适用于通过 Microsoft Store 安装的版本。
 
-> WPS 适配代码已接入，但仍需要真实 WPS 环境验证。GitHub 更新页面目前为占位入口，尚未实现版本查询、下载和安装。智能整理的实际效果取决于书写方式和设备，不能保证每一笔都会识别。
+> WPS 适配代码已接入，但仍需要真实 WPS 环境验证。智能整理的实际效果取决于书写方式和设备，不能保证每一笔都会识别。
 
 ## 安装与使用
 
@@ -101,10 +101,21 @@ MSIX 打包需要 Windows SDK 中的 MakeAppx / SignTool。商店提交包与本
 
 私有仓库的下载需要相应访问权限。草稿用于发布者验收，不供普通用户更新。第三方依赖与素材来源见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
+## 软件内 GitHub 更新
+
+设置的更新页面提供 GitHub 正式 Release 查询、更新说明、下载进度和取消下载。启动时自动检查默认关闭，可自行开启；该选项不会自动下载或安装更新。程序不内置 GitHub 令牌，仓库必须公开且有正式 Release，草稿和预发布不供软件更新。
+
+下载文件必须匹配版本、安装类型与进程架构，且 GitHub API 必须提供有效 SHA-256 digest。便携版文件名为 `RimePPT-1.2.3.0-Portable-x64.zip`，非商店 MSIX 为 `RimePPT-1.2.3.0-MSIX-with-certificate-x64.zip`；现有发布流程自动生成这些名称。缺少文件或校验信息时不会自动安装，可通过页面中的 GitHub 链接手动查看。
+
+便携版确认更新后会退出，通过独立进程备份并替换程序文件，再打开设置；失败时尝试恢复原文件。下载、备份与结果记录在 `%LOCALAPPDATA%\RimePPT\Updates`。不会修改用户设置和板书文件，不会自动删除旧备份。程序目录须有写入权限；如无权限，可手动解压新版本到可写目录。
+
+非商店 MSIX 下载后打开安装文件夹，由用户信任证书并使用 Windows 安装界面验证升级。当前证书每次生成，仍需手动信任，不会自动安装证书。商店安装版继续使用 Microsoft Store 更新。
+
 ## 测试
 
 ```powershell
 dotnet run --project tests/RimePPT.Ink.Tests -c Release
+pwsh -NoProfile -File tests/RimePPT.Update.Tests/Test-PortableUpdate.ps1
 ```
 
 自动化测试覆盖笔迹几何、擦除、图形识别、撤销、重播和设置兼容性等。自动化通过不代表真实触摸、PowerPoint / WPS 兼容性或界面交互已完成验收。
