@@ -79,8 +79,11 @@ public sealed partial class SettingsWindow
             if (_closed) return;
             _githubRelease = release;
             GitHubReleaseNotes.Text = release.Notes;
+            GitHubDownloadButton.Content = release.Version == GitHubUpdateService.InstalledVersion ? "重新下载" : "下载更新";
+            GitHubDownloadButton.Visibility = release.Asset is not null && release.Version >= GitHubUpdateService.InstalledVersion
+                ? Visibility.Visible : Visibility.Collapsed;
             if (release.Version <= GitHubUpdateService.InstalledVersion)
-                GitHubResult(InfoBarSeverity.Success, "已是最新版本", $"GitHub 最新正式版本：{release.Tag}");
+                GitHubResult(InfoBarSeverity.Success, "已是最新版本", $"GitHub 最新正式版本：{release.Tag}。同版本可重新下载；不提供降级安装。");
             else if (release.Asset is null)
                 GitHubResult(InfoBarSeverity.Warning, "发现新版本，但没有匹配的安装包", "请在 GitHub 查看适用于当前安装方式与架构的文件。");
             else
@@ -164,9 +167,11 @@ public sealed partial class SettingsWindow
             GitHubSourcePicker.Items.Clear();
             GitHubSourcePicker.Items.Add(new ComboBoxItem { Content = "GitHub 官方直连", Tag = "direct" });
             GitHubSourcePicker.Items.Add(new ComboBoxItem { Content = "GH-Proxy", Tag = "ghproxy" });
+            GitHubSourcePicker.Items.Add(new ComboBoxItem { Content = "GHFast", Tag = "ghfast" });
+            GitHubSourcePicker.Items.Add(new ComboBoxItem { Content = "ghproxy.net", Tag = "ghproxynet" });
             foreach (var address in settings.GitHubCustomDownloadSources)
                 GitHubSourcePicker.Items.Add(new ComboBoxItem { Content = address, Tag = "custom" });
-            GitHubSourcePicker.SelectedIndex = settings.GitHubDownloadSourceId == "ghproxy" ? 1 : 0;
+            GitHubSourcePicker.SelectedIndex = settings.GitHubDownloadSourceId switch { "ghproxy" => 1, "ghfast" => 2, "ghproxynet" => 3, _ => 0 };
             if (settings.GitHubDownloadSourceId == "custom")
                 foreach (ComboBoxItem item in GitHubSourcePicker.Items)
                     if (item.Content?.ToString() == settings.GitHubCustomDownloadSource) GitHubSourcePicker.SelectedItem = item;

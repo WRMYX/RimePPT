@@ -11,6 +11,8 @@ void Check(bool condition, string message) { if (!condition) throw new Exception
 Test("download sources validate prefixes and preserve defaults", () => {
 var assetUrl = "https://github.com/WRMYX/RimePPT/releases/download/v1.2.4/test.zip";
 if (GitHubDownloadSource.Resolve(assetUrl, "ghproxy") != "https://gh-proxy.org/" + assetUrl) throw new Exception("proxy URL");
+if (GitHubDownloadSource.Resolve(assetUrl, "ghfast") != "https://ghfast.top/" + assetUrl) throw new Exception("ghfast URL");
+if (GitHubDownloadSource.Resolve(assetUrl, "ghproxynet") != "https://ghproxy.net/" + assetUrl) throw new Exception("ghproxy.net URL");
 if (GitHubDownloadSource.Resolve(assetUrl, "direct") != assetUrl) throw new Exception("direct URL");
 if (GitHubDownloadSource.Resolve(assetUrl, "custom", "https://example.com") != "https://example.com/" + assetUrl) throw new Exception("custom URL");
 foreach (var invalid in new[] { "http://example.com", "https://user:pass@example.com", "https://example.com/?x=1" }) {

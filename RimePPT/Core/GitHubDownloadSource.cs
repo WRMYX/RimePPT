@@ -16,6 +16,8 @@ public static class GitHubDownloadSource
             throw new ArgumentException("只能加速本项目的 GitHub 发布附件。");
         return source switch {
             "ghproxy" => "https://gh-proxy.org/" + original,
+            "ghfast" => "https://ghfast.top/" + original,
+            "ghproxynet" => "https://ghproxy.net/" + original,
             "custom" => NormalizePrefix(custom ?? "") + original,
             _ => original
         };
