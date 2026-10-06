@@ -206,6 +206,7 @@ namespace RimePPT
             }
 
             InitializeTray();
+            _ = CheckGitHubUpdatesAtStartupAsync();
             // 独立预览诊断入口，不读写课件或墨迹，用于验证原生询问框。
             var promptPreview = cliArgs.FirstOrDefault(a => a.StartsWith("--prompt-preview=", StringComparison.OrdinalIgnoreCase));
             if (promptPreview is not null)
@@ -851,6 +852,32 @@ namespace RimePPT
         {
             _trayIcon?.Dispose();
             Environment.Exit(0);
+        }
+
+        public static void ExitForGitHubUpdate() => _instance?.ExitApplication();
+
+        private async Task CheckGitHubUpdatesAtStartupAsync()
+        {
+            if (!AppSettings.Instance.CheckGitHubUpdatesOnStartup || GitHubUpdateService.Channel == GitHubUpdateChannel.Store) return;
+            try
+            {
+                await Task.Delay(5000);
+                using var cancellation = new System.Threading.CancellationTokenSource(TimeSpan.FromSeconds(30));
+                var release = await new GitHubUpdateService().CheckAsync(cancellation.Token);
+                if (release.Version <= GitHubUpdateService.InstalledVersion || release.Asset is null) return;
+                _dispatcher?.TryEnqueue(async () =>
+                {
+                    try
+                    {
+                        if (PowerPoint.IsPresenting || Wps.IsPresenting || Debug.IsPresenting || WhiteboardWindow.IsOpen) return;
+                        var answer = await ShowPromptAsync(DisplayArea.Primary, "发现 GitHub 更新 " + release.Tag,
+                            "可以在设置中查看并下载更新。不会自动下载或安装。", "查看更新", "稍后");
+                        if (answer == PromptResult.Primary) SettingsWindow.OpenGitHubUpdates();
+                    }
+                    catch (Exception ex) { CrashReporter.Report(ex, "github-update-notification"); }
+                });
+            }
+            catch (Exception ex) { CrashReporter.Log("GitHub startup check: " + ex.Message); }
         }
 
         public static void CloseAllToolbars()

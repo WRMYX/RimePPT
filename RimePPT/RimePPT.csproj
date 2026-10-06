@@ -32,6 +32,7 @@
     <Content Include="Assets\RimePPT-Logo.svg" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\Eraser-Light.svg" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\Eraser-Dark.svg" CopyToOutputDirectory="PreserveNewest" />
+    <Content Include="Assets\Update-Portable.ps1" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\MYXMJY-white.png" CopyToOutputDirectory="PreserveNewest" />
     <Content Include="Assets\MYXMJY-black.png" CopyToOutputDirectory="PreserveNewest" />
   </ItemGroup>

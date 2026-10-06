@@ -424,6 +424,46 @@ Test("old ink defaults to solid and erasing keeps selected style", () => {
     Check(page.Count == 2 && page.All(p => p.LineStyle == InkLineStyle.DashDot), "fragment style");
 });
 
+string ReleaseJson(string tag = "v1.2.3", string asset = "RimePPT-1.2.3.0-Portable-x64.zip", string digest = "sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa", bool draft = false, bool prerelease = false, string? url = null) => JsonSerializer.Serialize(new {
+    tag_name = tag, draft, prerelease, body = "Update notes", published_at = "2026-10-06T01:00:00Z",
+    assets = new[] { new { name = asset, size = 100, digest, browser_download_url = url ?? $"https://github.com/WRMYX/RimePPT/releases/download/{tag}/{asset}" } }
+});
+Test("GitHub update versions compare numerically", () => {
+    Check(GitHubRelease.ParseVersion("v1.10.0") > GitHubRelease.ParseVersion("v1.9.9"), "numeric comparison");
+    foreach (string tag in new[] { "v1.2.3.1", "v0.1.2", "v1.65536.0", "v1.02.3", "1.2.3", "v1.2.3-beta" }) {
+        bool rejected = false; try { GitHubRelease.ParseVersion(tag); } catch { rejected = true; }
+        Check(rejected, "invalid tag " + tag);
+    }
+});
+Test("GitHub update selects architecture and installed channel", () => {
+    var portable = GitHubRelease.Parse(ReleaseJson(), GitHubUpdateChannel.Portable, "x64");
+    Check(portable.Asset is not null && portable.Version == new Version(1,2,3,0), "portable matched");
+    Check(GitHubRelease.Parse(ReleaseJson(), GitHubUpdateChannel.Portable, "arm64").Asset is null, "no wrong architecture");
+    Check(GitHubRelease.Parse(ReleaseJson(), GitHubUpdateChannel.Msix, "x64").Asset is null, "no wrong channel");
+    var msix = GitHubRelease.Parse(ReleaseJson(asset: "RimePPT-1.2.3.0-MSIX-with-certificate-x64.zip"), GitHubUpdateChannel.Msix, "x64");
+    Check(msix.Asset is not null, "signed msix matched");
+    Check(GitHubRelease.Parse(ReleaseJson(), GitHubUpdateChannel.Store, "x64").Asset is null, "store not updated via github");
+});
+Test("GitHub update rejects drafts prereleases bad hash and foreign URL", () => {
+    foreach (string json in new[] { ReleaseJson(draft:true), ReleaseJson(prerelease:true), ReleaseJson(digest:""), ReleaseJson(url:"https://example.com/file.zip"), ReleaseJson(url:"http://github.com/WRMYX/RimePPT/releases/download/v1.2.3/a.zip") }) {
+        bool rejected=false; try { GitHubRelease.Parse(json,GitHubUpdateChannel.Portable,"x64"); } catch { rejected=true; }
+        Check(rejected,"unsafe release rejected");
+    }
+});
+Test("GitHub archive blocks traversal absolute and drive paths", () => {
+    string root=Path.Combine(Path.GetTempPath(),"rimeppt-update-test");
+    Check(GitHubRelease.SafeEntryPath(root,"RimePPT/Assets/icon.ico").StartsWith(root),"normal path");
+    foreach(string path in new[]{"../outside.exe","RimePPT/../../outside.exe","C:/outside.exe","/outside.exe","RimePPT\\..\\outside.exe","RimePPT/file:stream","./file"}) {
+        bool rejected=false;try{GitHubRelease.SafeEntryPath(root,path);}catch{rejected=true;}
+        Check(rejected,"unsafe archive path "+path);
+    }
+});
+Test("GitHub startup checks are opt in for new and existing settings", () => {
+    Check(!new AppSettings().CheckGitHubUpdatesOnStartup,"new default off");
+    Check(!JsonSerializer.Deserialize<AppSettings>("{}")!.CheckGitHubUpdatesOnStartup,"old default off");
+});
+
+GitHubUpdateTests.Register(Test, Check);
 foreach (var test in tests) { try { test.Run(); Console.WriteLine("PASS " + test.Name); } catch (Exception ex) { failures++; Console.WriteLine("FAIL " + test.Name + ": " + ex.Message); } }
 if (failures > 0) return 1;
 var page = Enumerable.Range(0, 500).Select(i => new StrokeData { Dots = Enumerable.Range(0, 400).Select(j => new StrokeData.Dot { X = .1 + j / 500d, Y = .1 + i / 1500d }).ToList() }).ToList();

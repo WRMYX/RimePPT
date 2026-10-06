@@ -25,5 +25,7 @@ jobs:
           dotnet-version: '8.0.x'
       - name: Run ink tests / 运行笔迹测试
         run: dotnet run --project tests/RimePPT.Ink.Tests -c Release
+      - name: Verify portable update rollback / 验证便携更新与回滚
+        run: ./tests/RimePPT.Update.Tests/Test-PortableUpdate.ps1
       - name: Build application / 编译程序
         run: dotnet build RimePPT/RimePPT.csproj -c Release -p:Platform=x64 -p:PublishTrimmed=false
