@@ -19,3 +19,4 @@
 *.pfx
 *.p12
 *.key
+/RimePPT/.tasks
