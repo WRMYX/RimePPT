@@ -59,10 +59,12 @@ try {
         if ((Get-FileHash -LiteralPath $file.Source).Hash -ne (Get-FileHash -LiteralPath $file.Target).Hash) { throw 'Installed file verification failed.' }
     }
     $mutex.ReleaseMutex(); $locked = $false
+    # Settings reads this result immediately during startup; a failed launch
+    # replaces it with the rollback result before restarting the old app.
+    'Update succeeded. Backup: ' + $backup | Set-Content -LiteralPath $log -Encoding UTF8
     $newProcess = Start-Process -FilePath (Join-Path $target 'RimePPT.exe') -ArgumentList '--settings' -WorkingDirectory $target -PassThru
     Start-Sleep -Seconds 5
     if ($newProcess.HasExited) { throw 'Updated application exited immediately.' }
-    'Update succeeded. Backup: ' + $backup | Set-Content -LiteralPath $log -Encoding UTF8
 } catch {
     $failure = $_.Exception.Message
     if ($ready) {
