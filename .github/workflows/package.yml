@@ -1,4 +1,4 @@
-name: Package application
+name: Package application / 打包程序
 
 on:
   push:
@@ -20,6 +20,7 @@ permissions:
 
 jobs:
   package:
+    name: Package / 打包
     permissions:
       contents: write
     runs-on: windows-2022
@@ -28,11 +29,13 @@ jobs:
       run:
         shell: pwsh
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-dotnet@v4
+      - name: Check out code / 获取源代码
+        uses: actions/checkout@v6
+      - name: Set up .NET / 配置 .NET 环境
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-      - name: Resolve package version
+      - name: Resolve package version / 确定安装包版本
         id: version
         env:
           REF_TYPE: ${{ github.ref_type }}
@@ -60,7 +63,7 @@ jobs:
           }
           "value=$version" >> $env:GITHUB_OUTPUT
           "tag=$tag" >> $env:GITHUB_OUTPUT
-      - name: Reject existing manual release tag
+      - name: Reject existing manual release tag / 检查版本标签是否重复
         if: github.event_name == 'workflow_dispatch' && steps.version.outputs.tag != ''
         env:
           RELEASE_TAG: ${{ steps.version.outputs.tag }}
@@ -70,15 +73,15 @@ jobs:
           if ($code -eq 0) { throw 'This version tag already exists. Choose a new version.' }
           if ($code -ne 2) { throw 'Unable to check remote version tags.' }
           $global:LASTEXITCODE = 0
-      - name: Run ink tests
+      - name: Run ink tests / 运行笔迹测试
         run: dotnet run --project tests/RimePPT.Ink.Tests -c Release
-      - name: Build portable archive
+      - name: Build portable archive / 生成便携版
         run: ./tools/Build-Portable.ps1 -OutputDirectory artifacts/Portable
-      - name: Build signed MSIX and public certificate
+      - name: Build signed MSIX and public certificate / 生成签名 MSIX 与证书
         env:
           PACKAGE_VERSION: ${{ steps.version.outputs.value }}
         run: ./tools/Build-MSIX.ps1 -Version $env:PACKAGE_VERSION -OutputDirectory artifacts/MSIX
-      - name: Prepare release archives
+      - name: Prepare release archives / 整理发布压缩包
         env:
           PACKAGE_VERSION: ${{ steps.version.outputs.value }}
         run: |
@@ -90,19 +93,19 @@ jobs:
             throw 'Expected one signed MSIX and one public certificate.'
           }
           Compress-Archive -Path artifacts/MSIX/*.msix, artifacts/MSIX/*.cer -DestinationPath "artifacts/Release/RimePPT-$env:PACKAGE_VERSION-MSIX-with-certificate-x64.zip"
-      - name: Upload portable archive
+      - name: Upload portable archive / 上传便携版
         uses: actions/upload-artifact@v4
         with:
           name: RimePPT-Portable-x64
           path: artifacts/Release/*-Portable-x64.zip
           if-no-files-found: error
-      - name: Upload MSIX and public certificate
+      - name: Upload MSIX and public certificate / 上传 MSIX 与证书
         uses: actions/upload-artifact@v4
         with:
           name: RimePPT-MSIX-with-certificate-x64
           path: artifacts/Release/*-MSIX-with-certificate-x64.zip
           if-no-files-found: error
-      - name: Create draft release
+      - name: Create draft release / 创建草稿发布
         if: steps.version.outputs.tag != ''
         env:
           GH_TOKEN: ${{ github.token }}

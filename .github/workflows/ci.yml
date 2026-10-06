@@ -1,4 +1,4 @@
-name: Build and test
+name: Build and test / 编译与测试
 
 on:
   push:
@@ -10,17 +10,20 @@ permissions:
 
 jobs:
   check:
+    name: Check / 检查
     runs-on: windows-2022
     timeout-minutes: 30
     defaults:
       run:
         shell: pwsh
     steps:
-      - uses: actions/checkout@v6
-      - uses: actions/setup-dotnet@v4
+      - name: Check out code / 获取源代码
+        uses: actions/checkout@v6
+      - name: Set up .NET / 配置 .NET 环境
+        uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
-      - name: Run ink tests
+      - name: Run ink tests / 运行笔迹测试
         run: dotnet run --project tests/RimePPT.Ink.Tests -c Release
-      - name: Build application
+      - name: Build application / 编译程序
         run: dotnet build RimePPT/RimePPT.csproj -c Release -p:Platform=x64 -p:PublishTrimmed=false
