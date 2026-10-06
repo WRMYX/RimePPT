@@ -22,17 +22,19 @@ jobs:
         run: dotnet run --project tests/RimePPT.Ink.Tests -c Release
       - name: Build portable archive
         run: ./tools/Build-Portable.ps1 -OutputDirectory artifacts/Portable
-      - name: Build Store package
-        run: ./tools/Build-MSIX.ps1 -Store -OutputDirectory artifacts/Store
+      - name: Build signed MSIX and public certificate
+        run: ./tools/Build-MSIX.ps1 -OutputDirectory artifacts/MSIX
       - name: Upload portable archive
         uses: actions/upload-artifact@v4
         with:
           name: RimePPT-Portable-x64
           path: artifacts/Portable/*.zip
           if-no-files-found: error
-      - name: Upload Store submission package
+      - name: Upload MSIX and public certificate
         uses: actions/upload-artifact@v4
         with:
-          name: RimePPT-Store-x64
-          path: artifacts/Store/*.msix
+          name: RimePPT-MSIX-with-certificate-x64
+          path: |
+            artifacts/MSIX/*.msix
+            artifacts/MSIX/*.cer
           if-no-files-found: error
