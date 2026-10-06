@@ -72,4 +72,9 @@
     <PublishTrimmed Condition="'$(Configuration)' == 'Debug'">False</PublishTrimmed>
     <PublishTrimmed Condition="'$(Configuration)' != 'Debug'">True</PublishTrimmed>
   </PropertyGroup>
+  <Target Name="PublishUpdater" BeforeTargets="ComputeFilesToPublish" Condition="'$(RuntimeIdentifier)' == 'win-x64'">
+    <PropertyGroup><UpdaterOutput>$(MSBuildProjectDirectory)/../.tasks/updater-runtime/</UpdaterOutput></PropertyGroup>
+    <Exec Command="dotnet publish &quot;$(MSBuildProjectDirectory)/../tools/RimePPT.Updater/RimePPT.Updater.csproj&quot; -c Release -r win-x64 --self-contained true -p:UseSharedCompilation=false -o &quot;$(UpdaterOutput)&quot;" />
+    <ItemGroup><ResolvedFileToPublish Include="$(UpdaterOutput)RimePPT.Updater.exe"><RelativePath>Updater/RimePPT.Updater.exe</RelativePath><CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory></ResolvedFileToPublish></ItemGroup>
+  </Target>
 </Project>

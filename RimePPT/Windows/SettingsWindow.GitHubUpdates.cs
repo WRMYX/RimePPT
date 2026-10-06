@@ -51,6 +51,7 @@ public sealed partial class SettingsWindow
     }
     private void GitHubResult(InfoBarSeverity severity, string title, string message)
     {
+        GitHubStatusTitle.Text = title;
         GitHubUpdateInfo.Severity = severity; GitHubUpdateInfo.Title = title;
         GitHubUpdateInfo.Message = message; GitHubUpdateInfo.IsOpen = true;
     }
@@ -68,6 +69,7 @@ public sealed partial class SettingsWindow
     {
         if (_closed || _githubBusy || GitHubUpdateService.Channel == GitHubUpdateChannel.Store) return;
         GitHubBusy(true);
+        GitHubStatusTitle.Text = "正在检查更新…";
         _githubRelease = null; _githubPayload = null;
         GitHubDownloadButton.Visibility = GitHubInstallButton.Visibility = Visibility.Collapsed;
         GitHubReleaseNotes.Text = "";
@@ -78,6 +80,7 @@ public sealed partial class SettingsWindow
             var release = await _githubService.CheckAsync(cancellation.Token);
             if (_closed) return;
             _githubRelease = release;
+            GitHubLastChecked.Text = $"上次成功检查：{DateTime.Now:yyyy-MM-dd HH:mm:ss} · 最新版本：{release.Tag}";
             GitHubReleaseNotes.Text = release.Notes;
             GitHubDownloadButton.Content = release.Version == GitHubUpdateService.InstalledVersion ? "重新下载" : "下载更新";
             GitHubDownloadButton.Visibility = release.Asset is not null && release.Version >= GitHubUpdateService.InstalledVersion
@@ -100,7 +103,7 @@ public sealed partial class SettingsWindow
     private async void OnDownloadGitHubUpdate(object sender, RoutedEventArgs args)
     {
         if (_closed || _githubBusy || _githubRelease?.Asset is not { } asset) return;
-        GitHubBusy(true); _githubPayload = null;
+        GitHubBusy(true); _githubPayload = null; GitHubStatusTitle.Text = "正在下载更新…";
         GitHubProgress.Visibility = Visibility.Visible; GitHubProgress.IsIndeterminate = false; GitHubProgress.Value = 0;
         using var cancellation = new CancellationTokenSource(); _githubCancellation = cancellation;
         try
@@ -128,6 +131,7 @@ public sealed partial class SettingsWindow
         if (_closed || _githubBusy || _githubPayload is null || _githubRelease is null) return;
         if (UpdateBlocked) { GitHubResult(InfoBarSeverity.Warning, "请先结束放映和关闭画板", "先保存板书，再安装更新。"); return; }
         GitHubBusy(true);
+        UpdateProgressWindow? progressWindow = null;
         try
         {
             bool portable = GitHubUpdateService.Channel == GitHubUpdateChannel.Portable;
@@ -144,17 +148,23 @@ public sealed partial class SettingsWindow
             if (UpdateBlocked) { GitHubResult(InfoBarSeverity.Warning, "请先结束放映和关闭画板", "未启动安装。"); return; }
             if (portable)
             {
-                PortableUpdateInstaller.Start(_githubPayload, _githubRelease.Version);
+                await PortableUpdateInstaller.StartAsync(_githubPayload, _githubRelease.Version);
                 App.ExitForGitHubUpdate();
             }
             else
             {
                 if (Directory.GetFiles(_githubPayload, "*.msix").Length != 1 || Directory.GetFiles(_githubPayload, "*.cer").Length != 1)
                     throw new InvalidDataException("更新包必须包含一个 MSIX 和一个公开证书。");
+                progressWindow = new UpdateProgressWindow(); progressWindow.Activate();
+                progressWindow.ShowStatus("等待 Windows 安装", "请在安装文件夹中手动信任证书并打开 MSIX。安装进度由 Windows 应用安装程序显示，RimePPT 不会将打开文件夹视为安装成功。");
+                UpdateHistory.Write(_githubRelease.Tag, "GitHub MSIX", "交由 Windows 安装", "已打开安装文件夹，安装结果请查看 Windows 应用安装程序。", progressWindow.LogPath);
                 await global::Windows.System.Launcher.LaunchFolderAsync(await global::Windows.Storage.StorageFolder.GetFolderFromPathAsync(_githubPayload));
             }
         }
-        catch (Exception ex) { if (!_closed) GitHubResult(InfoBarSeverity.Error, "无法启动安装", ex.Message); }
+        catch (Exception ex) { if (progressWindow is null) { progressWindow = new UpdateProgressWindow(); progressWindow.Activate(); }
+            progressWindow.ShowStatus("无法启动安装", ex.Message, finished: true);
+            UpdateHistory.Write(_githubRelease?.Tag ?? "", "GitHub", "error", ex.Message, progressWindow?.LogPath ?? "");
+            if (!_closed) GitHubResult(InfoBarSeverity.Error, "无法启动安装", ex.Message); }
         finally { if (!_closed) GitHubBusy(false); }
     }
     private bool _updatingSources;
@@ -207,6 +217,11 @@ public sealed partial class SettingsWindow
         settings.GitHubCustomDownloadSources.Remove(settings.GitHubCustomDownloadSource);
         settings.GitHubCustomDownloadSource = ""; settings.GitHubDownloadSourceId = "direct";
         settings.Save(); RefreshGitHubSources();
+    }
+    private void OnUpdateHistoryExpanding(Expander sender, ExpanderExpandingEventArgs args)
+    {
+        try { UpdateHistoryText.Text = UpdateHistory.Read(); }
+        catch (Exception ex) { UpdateHistoryText.Text = "无法读取更新历史：" + ex.Message; }
     }
     public static void OpenGitHubUpdates()
     {

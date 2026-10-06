@@ -42,7 +42,7 @@ if (-not $PublishedDirectory) {
     if ($LASTEXITCODE -ne 0) { throw 'MSIX payload publish failed.' }
 }
 $PublishedDirectory = [IO.Path]::GetFullPath($PublishedDirectory)
-foreach ($required in @('RimePPT.exe', 'coreclr.dll', 'Microsoft.UI.Xaml.dll', 'RimePPT.pri')) {
+foreach ($required in @('Updater/RimePPT.Updater.exe', 'RimePPT.exe', 'coreclr.dll', 'Microsoft.UI.Xaml.dll', 'RimePPT.pri')) {
     if (-not (Test-Path -LiteralPath (Join-Path $PublishedDirectory $required))) { throw "Missing payload: $required" }
 }
 $assets = Join-Path $PublishedDirectory 'Assets'

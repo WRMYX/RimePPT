@@ -408,52 +408,63 @@
                     </StackPanel></Border>
                 </StackPanel>
             </ScrollViewer>
-            <ScrollViewer x:Name="StoreUpdatePage" Grid.Row="1" Padding="24,0,24,24" Visibility="Collapsed" HorizontalContentAlignment="Stretch" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
-                <StackPanel MaxWidth="960" HorizontalAlignment="Left" Spacing="16">
-                    <Border x:Name="StoreUpdateCard" Style="{StaticResource CardBorder}" Padding="24"><Grid ColumnSpacing="20"><Grid.ColumnDefinitions><ColumnDefinition Width="Auto"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
-                        <FontIcon Glyph="&#xE895;" FontSize="44" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Top"/>
-                        <StackPanel Grid.Column="1" Spacing="12"><TextBlock x:Name="StoreUpdateHeading" Text="Microsoft Store 更新" Style="{StaticResource SubtitleTextBlockStyle}" TextWrapping="Wrap"/>
+            <ScrollViewer x:Name="StoreUpdatePage" Grid.Row="1" Padding="24,0,24,24" HorizontalContentAlignment="Stretch" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel MaxWidth="960" HorizontalAlignment="Stretch" Spacing="16">
+                    <Grid ColumnSpacing="24" Padding="0,20,0,24">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="96"/><ColumnDefinition Width="*"/></Grid.ColumnDefinitions>
+                        <FontIcon Glyph="&#xE895;" FontSize="72" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" VerticalAlignment="Top"/>
+                        <StackPanel x:Name="StoreUpdateCard" Grid.Column="1" Spacing="10">
+                            <TextBlock x:Name="StoreUpdateHeading" Text="检查 RimePPT 更新" Style="{StaticResource SubtitleTextBlockStyle}" TextWrapping="Wrap"/>
                             <TextBlock x:Name="StoreUpdateSummary" Style="{StaticResource SettingDesc}"/>
                             <TextBlock x:Name="StoreInstalledVersion" Style="{StaticResource SettingDesc}"/>
                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                <Button x:Name="StoreCheckButton" Content="检查更新" Style="{StaticResource AccentButtonStyle}" Click="OnCheckStoreUpdates" MinHeight="40"/>
-                                <Button x:Name="StoreInstallButton" Content="下载并安装" Style="{StaticResource AccentButtonStyle}" Click="OnInstallStoreUpdates" Visibility="Collapsed" MinHeight="40"/>
+                                <Button x:Name="StoreCheckButton" Content="检查更新" Style="{StaticResource AccentButtonStyle}" Click="OnCheckStoreUpdates"/>
+                                <Button x:Name="StoreInstallButton" Content="下载并安装" Click="OnInstallStoreUpdates" Visibility="Collapsed"/>
                             </StackPanel>
                             <TextBlock x:Name="StoreLastChecked" Text="尚未检查更新" Style="{StaticResource SettingDesc}"/>
-                            <ProgressBar x:Name="StoreProgress" Minimum="0" Maximum="100" Visibility="Collapsed"/>
+                            <ProgressBar x:Name="StoreProgress" Visibility="Collapsed"/>
                             <TextBlock x:Name="StoreProgressText" Visibility="Collapsed" Style="{StaticResource SettingDesc}"/>
+                            <InfoBar x:Name="StoreUpdateInfo" IsOpen="False"/>
                         </StackPanel>
+                        <StackPanel x:Name="GitHubUpdateCard" Grid.Column="1" Spacing="10">
+                            <TextBlock x:Name="GitHubStatusTitle" Text="检查 RimePPT 更新" Style="{StaticResource SubtitleTextBlockStyle}" TextWrapping="Wrap"/>
+                            <TextBlock x:Name="GitHubVersionText" Style="{StaticResource SettingDesc}"/>
+                            <TextBlock x:Name="GitHubChannelText" Style="{StaticResource SettingDesc}"/>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button x:Name="GitHubCheckButton" Content="检查更新" Style="{StaticResource AccentButtonStyle}" Click="OnCheckGitHubUpdates"/>
+                                <Button x:Name="GitHubDownloadButton" Content="下载更新" Click="OnDownloadGitHubUpdate" Visibility="Collapsed"/>
+                                <Button x:Name="GitHubInstallButton" Content="安装更新" Click="OnInstallGitHubUpdate" Visibility="Collapsed"/>
+                                <Button x:Name="GitHubCancelButton" Content="取消" Click="OnCancelGitHubUpdate" Visibility="Collapsed"/>
+                            </StackPanel>
+                            <TextBlock x:Name="GitHubLastChecked" Text="尚未检查更新" Style="{StaticResource SettingDesc}"/>
+                            <ProgressBar x:Name="GitHubProgress" Visibility="Collapsed"/>
+                            <InfoBar x:Name="GitHubUpdateInfo" IsOpen="False"/>
+                        </StackPanel>
+                    </Grid>
+                    <TextBlock Text="更多选项" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                    <Border Style="{StaticResource CardBorder}" Padding="20"><Grid ColumnSpacing="16">
+                        <Grid.ColumnDefinitions><ColumnDefinition Width="32"/><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                        <FontIcon Glyph="&#xE787;"/>
+                        <StackPanel Grid.Column="1"><TextBlock Text="启动时检查更新" Style="{StaticResource SettingTitle}"/><TextBlock Text="检查 GitHub 正式版本，下载和安装仍由你确认。商店版由 Microsoft Store 管理。" Style="{StaticResource SettingDesc}"/></StackPanel>
+                        <ToggleSwitch x:Name="GitHubStartupCheck" Grid.Column="2" Toggled="OnGitHubStartupCheckChanged"/>
                     </Grid></Border>
-                    <InfoBar x:Name="StoreUpdateInfo" IsOpen="False" IsClosable="True" Severity="Informational"/>
-                    <Border Style="{StaticResource CardBorder}" Padding="16"><StackPanel Spacing="8">
-                        <TextBlock Text="Microsoft Store" Style="{StaticResource BodyStrongTextBlockStyle}"/>
+                    <Expander x:Name="DownloadSourceOptions" Header="下载线路" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                        <StackPanel Spacing="12">
+                            <ComboBox x:Name="GitHubSourcePicker" Header="选择下载线路" SelectionChanged="OnGitHubSourceChanged" HorizontalAlignment="Stretch"/>
+                            <TextBox x:Name="GitHubSourceAddress" Header="自定义 HTTPS 加速前缀" PlaceholderText="https://example.com/"/>
+                            <StackPanel Orientation="Horizontal" Spacing="8"><Button Content="保存地址" Click="OnSaveGitHubSource"/><Button Content="删除所选地址" Click="OnDeleteGitHubSource"/></StackPanel>
+                            <TextBlock Text="线路只用于下载安装包；版本信息与文件校验信息来自 GitHub 官方。" Style="{StaticResource SettingDesc}"/>
+                        </StackPanel>
+                    </Expander>
+                    <Expander Header="更新说明" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"><TextBlock x:Name="GitHubReleaseNotes" Text="检查更新后显示版本说明。" TextWrapping="Wrap"/></Expander>
+                    <Expander Header="更新历史记录" Expanding="OnUpdateHistoryExpanding" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch"><TextBlock x:Name="UpdateHistoryText" Text="暂无更新记录。" TextWrapping="Wrap" IsTextSelectionEnabled="True"/></Expander>
+                    <Border Style="{StaticResource CardBorder}" Padding="20"><StackPanel Spacing="8">
+                        <TextBlock Text="Microsoft Store" Style="{StaticResource SettingTitle}"/>
                         <TextBlock x:Name="UpdateVersionText" Style="{StaticResource SettingDesc}"/>
                         <TextBlock x:Name="StoreChannelText" Style="{StaticResource SettingDesc}"/>
-                        <Button Content="在 Microsoft Store 中查看" Click="OnOpenMicrosoftStore" HorizontalAlignment="Left" MinHeight="40"/>
+                        <Button Content="在 Microsoft Store 中查看" Click="OnOpenMicrosoftStore" HorizontalAlignment="Left"/>
                     </StackPanel></Border>
-                    <Border x:Name="GitHubUpdateCard" Style="{StaticResource CardBorder}" Padding="24"><StackPanel Spacing="12">
-                        <TextBlock Text="GitHub 更新" Style="{StaticResource SubtitleTextBlockStyle}"/>
-                        <TextBlock x:Name="GitHubVersionText" Style="{StaticResource SettingDesc}"/>
-                        <TextBlock x:Name="GitHubChannelText" Style="{StaticResource SettingDesc}"/>
-                        <ComboBox x:Name="GitHubSourcePicker" Header="下载线路" SelectionChanged="OnGitHubSourceChanged" HorizontalAlignment="Stretch"/>
-                        <TextBox x:Name="GitHubSourceAddress" Header="自定义加速地址（HTTPS 前缀）" PlaceholderText="https://example.com/"/>
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Button Content="保存地址" Click="OnSaveGitHubSource"/>
-                            <Button Content="删除所选地址" Click="OnDeleteGitHubSource"/>
-                        </StackPanel>
-                        <TextBlock Text="线路只用于下载安装包；版本信息仍从 GitHub 官方获取。下载失败时可切换线路重试。" Style="{StaticResource SettingDesc}"/>
-                        <ToggleSwitch x:Name="GitHubStartupCheck" Header="启动时检查 GitHub 更新" Toggled="OnGitHubStartupCheckChanged"/>
-                        <StackPanel Orientation="Horizontal" Spacing="8">
-                            <Button x:Name="GitHubCheckButton" Content="检查 GitHub 更新" Click="OnCheckGitHubUpdates" MinHeight="40"/>
-                            <Button x:Name="GitHubDownloadButton" Content="下载更新" Click="OnDownloadGitHubUpdate" Visibility="Collapsed" MinHeight="40"/>
-                            <Button x:Name="GitHubInstallButton" Content="安装更新" Click="OnInstallGitHubUpdate" Visibility="Collapsed" MinHeight="40"/>
-                            <Button x:Name="GitHubCancelButton" Content="取消" Click="OnCancelGitHubUpdate" Visibility="Collapsed" MinHeight="40"/>
-                        </StackPanel>
-                        <ProgressBar x:Name="GitHubProgress" Visibility="Collapsed"/>
-                        <InfoBar x:Name="GitHubUpdateInfo" IsOpen="False" IsClosable="True"/>
-                        <TextBlock x:Name="GitHubReleaseNotes" TextWrapping="Wrap" MaxHeight="200" TextTrimming="CharacterEllipsis"/>
-                        <HyperlinkButton Content="在 GitHub 查看版本" NavigateUri="https://github.com/WRMYX/RimePPT/releases" HorizontalAlignment="Left"/>
-                    </StackPanel></Border>
+                    <Border Style="{StaticResource CardBorder}" Padding="20"><StackPanel Spacing="4"><TextBlock Text="项目发布页" Style="{StaticResource SettingTitle}"/><HyperlinkButton Content="GitHub · WRMYX/RimePPT" NavigateUri="https://github.com/WRMYX/RimePPT/releases" HorizontalAlignment="Left"/></StackPanel></Border>
                 </StackPanel>
             </ScrollViewer>
             <ScrollViewer x:Name="AboutPage" Grid.Row="1" Padding="24,0,24,24" Visibility="Collapsed" HorizontalContentAlignment="Stretch" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">

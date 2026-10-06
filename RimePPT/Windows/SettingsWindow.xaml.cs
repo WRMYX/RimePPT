@@ -345,6 +345,7 @@ namespace RimePPT.Windows
                 StoreInstalledVersion.Text = $"已安装版本：{version.Major}.{version.Minor}.{version.Build}.{version.Revision}";
             }
             else StoreInstalledVersion.Text = "当前运行：便携版";
+            DownloadSourceOptions.IsEnabled = !_supportsStoreUpdates;
             StoreUpdateCard.Visibility = _supportsStoreUpdates ? Visibility.Visible : Visibility.Collapsed;
             GitHubUpdateCard.Visibility = _supportsStoreUpdates ? Visibility.Collapsed : Visibility.Visible;
             UpdateVersionText.Text = "已安装版本：" + GitHubUpdateService.InstalledVersion;
@@ -429,6 +430,7 @@ namespace RimePPT.Windows
             SetStoreBusy(true);
             using var cancellation = new CancellationTokenSource();
             _storeCancellation = cancellation;
+            UpdateProgressWindow? installWindow = null;
             try
             {
                 var dialog = new ContentDialog
@@ -446,6 +448,8 @@ namespace RimePPT.Windows
                     ShowStoreResult(InfoBarSeverity.Warning, "请先结束放映", "放映正在进行，请结束后再安装更新。");
                     return;
                 }
+                installWindow = new UpdateProgressWindow(); installWindow.Activate();
+                installWindow.ShowStatus("正在下载和安装", "正在等待 Microsoft Store…");
                 StoreUpdateHeading.Text = "正在下载和安装…";
                 StoreUpdateInfo.IsOpen = false;
                 StoreProgress.Visibility = Visibility.Visible;
@@ -456,12 +460,16 @@ namespace RimePPT.Windows
                 {
                     DispatcherQueue.TryEnqueue(() =>
                     {
+                        installWindow.ShowStatus("Microsoft Store · " + status.PackageUpdateState, $"下载进度：{status.TotalDownloadProgress * 100:0}%", status.PackageUpdateState == StorePackageUpdateState.Downloading ? status.TotalDownloadProgress * 100 : null);
                         if (_closed) return;
-                        StoreProgress.IsIndeterminate = false;
+                        StoreProgress.IsIndeterminate = status.PackageUpdateState != StorePackageUpdateState.Downloading;
                         StoreProgress.Value = Math.Clamp(status.TotalDownloadProgress * 100, 0, 100);
-                        StoreProgressText.Text = $"下载和安装进度：{StoreProgress.Value:0}%";
+                        StoreProgressText.Text = $"下载进度：{StoreProgress.Value:0}%";
+
                     });
                 }, cancellation.Token);
+                installWindow?.ShowStatus(result.OverallState == StorePackageUpdateState.Completed ? "更新已完成" : "更新未完成", "Microsoft Store 状态：" + result.OverallState, result.OverallState == StorePackageUpdateState.Completed ? 100 : null, true);
+                UpdateHistory.Write(GitHubUpdateService.InstalledVersion.ToString(), "Microsoft Store", result.OverallState.ToString(), "Microsoft Store 返回安装结果。", installWindow?.LogPath ?? "");
                 if (_closed) return;
                 switch (result.OverallState)
                 {
@@ -480,10 +488,13 @@ namespace RimePPT.Windows
             }
             catch (OperationCanceledException)
             {
+                installWindow?.ShowStatus("已取消更新", "可以稍后重新安装。", finished: true);
                 if (!_closed) ShowStoreResult(InfoBarSeverity.Informational, "已取消更新", "你可以稍后重新检查更新。");
             }
             catch (Exception ex)
             {
+                installWindow?.ShowStatus("无法安装更新", ex.ToString(), finished: true);
+                UpdateHistory.Write(GitHubUpdateService.InstalledVersion.ToString(), "Microsoft Store", "error", ex.Message, installWindow?.LogPath ?? "");
                 CrashReporter.Report(ex, "store-update-install");
                 if (!_closed) ShowStoreResult(InfoBarSeverity.Error, "无法安装更新", $"请在 Microsoft Store 中重试。错误代码：0x{ex.HResult:X8}");
             }
