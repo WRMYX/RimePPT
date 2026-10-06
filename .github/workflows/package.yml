@@ -1,6 +1,9 @@
 name: Package application
 
 on:
+  push:
+    tags:
+      - 'v*'
   workflow_dispatch:
 
 permissions:
@@ -8,6 +11,8 @@ permissions:
 
 jobs:
   package:
+    permissions:
+      contents: write
     runs-on: windows-2022
     timeout-minutes: 45
     defaults:
@@ -18,23 +23,65 @@ jobs:
       - uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
+      - name: Resolve package version
+        id: version
+        env:
+          REF_TYPE: ${{ github.ref_type }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if ($env:REF_TYPE -eq 'tag') {
+            if ($env:REF_NAME -notmatch '^v([1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$') {
+              throw 'Release tags must use vMAJOR.MINOR.PATCH, for example v1.2.3.'
+            }
+            $version = "$($Matches[1]).$($Matches[2]).$($Matches[3]).0"
+          } else {
+            [xml]$manifest = Get-Content RimePPT/Package.appxmanifest -Raw
+            $version = [string]$manifest.Package.Identity.Version
+          }
+          $parsed = [version]$version
+          if ($parsed.Major -lt 1 -or $parsed.Major -gt 65535 -or $parsed.Minor -gt 65535 -or $parsed.Build -gt 65535 -or $parsed.Revision -ne 0) {
+            throw 'MSIX version components must be 0..65535, major must be nonzero and revision must be zero.'
+          }
+          "value=$version" >> $env:GITHUB_OUTPUT
       - name: Run ink tests
         run: dotnet run --project tests/RimePPT.Ink.Tests -c Release
       - name: Build portable archive
         run: ./tools/Build-Portable.ps1 -OutputDirectory artifacts/Portable
       - name: Build signed MSIX and public certificate
-        run: ./tools/Build-MSIX.ps1 -OutputDirectory artifacts/MSIX
+        env:
+          PACKAGE_VERSION: ${{ steps.version.outputs.value }}
+        run: ./tools/Build-MSIX.ps1 -Version $env:PACKAGE_VERSION -OutputDirectory artifacts/MSIX
+      - name: Prepare release archives
+        env:
+          PACKAGE_VERSION: ${{ steps.version.outputs.value }}
+        run: |
+          New-Item -ItemType Directory artifacts/Release -Force | Out-Null
+          $portable = @(Get-ChildItem artifacts/Portable -Filter '*.zip')
+          if ($portable.Count -ne 1) { throw 'Expected exactly one portable archive.' }
+          Copy-Item -LiteralPath $portable[0].FullName -Destination "artifacts/Release/RimePPT-$env:PACKAGE_VERSION-Portable-x64.zip"
+          if (@(Get-ChildItem artifacts/MSIX -Filter '*.msix').Count -ne 1 -or @(Get-ChildItem artifacts/MSIX -Filter '*.cer').Count -ne 1) {
+            throw 'Expected one signed MSIX and one public certificate.'
+          }
+          Compress-Archive -Path artifacts/MSIX/*.msix, artifacts/MSIX/*.cer -DestinationPath "artifacts/Release/RimePPT-$env:PACKAGE_VERSION-MSIX-with-certificate-x64.zip"
       - name: Upload portable archive
         uses: actions/upload-artifact@v4
         with:
           name: RimePPT-Portable-x64
-          path: artifacts/Portable/*.zip
+          path: artifacts/Release/*-Portable-x64.zip
           if-no-files-found: error
       - name: Upload MSIX and public certificate
         uses: actions/upload-artifact@v4
         with:
           name: RimePPT-MSIX-with-certificate-x64
-          path: |
-            artifacts/MSIX/*.msix
-            artifacts/MSIX/*.cer
+          path: artifacts/Release/*-MSIX-with-certificate-x64.zip
           if-no-files-found: error
+      - name: Create draft release
+        if: github.event_name == 'push' && github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          $archives = @(Get-ChildItem artifacts/Release -Filter '*.zip' | ForEach-Object { $_.FullName })
+          gh release create $env:RELEASE_TAG @archives --verify-tag --draft --title "RimePPT $env:RELEASE_TAG" --generate-notes
+          if ($LASTEXITCODE -ne 0) { throw 'Draft release creation failed.' }
