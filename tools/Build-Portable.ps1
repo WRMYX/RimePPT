@@ -1,6 +1,14 @@
-param([string]$OutputDirectory = '')
+#Requires -Version 7.2
+param([string]$OutputDirectory = '', [string]$Version = '')
 $ErrorActionPreference = 'Stop'
 $projectRoot = Split-Path $PSScriptRoot -Parent
+if (-not $Version) {
+    [xml]$manifest = Get-Content (Join-Path $projectRoot 'RimePPT/Package.appxmanifest') -Raw
+    $Version = [string]$manifest.Package.Identity.Version
+}
+if ($Version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$') { throw 'Version must have four numeric components.' }
+$parsedVersion = [version]$Version
+if ($parsedVersion.Major -lt 1 -or $parsedVersion.Major -gt 65535 -or $parsedVersion.Minor -gt 65535 -or $parsedVersion.Build -gt 65535 -or $parsedVersion.Revision -gt 65535) { throw 'Invalid package version.' }
 if (-not $OutputDirectory) { $OutputDirectory = Join-Path $projectRoot 'artifacts' }
 $OutputDirectory = [IO.Path]::GetFullPath($OutputDirectory)
 $stage = Join-Path $projectRoot ('.tasks\portable-clean-' + [Guid]::NewGuid().ToString('N'))
@@ -9,7 +17,7 @@ $runtime = $bundle
 New-Item -ItemType Directory -Path $runtime -Force | Out-Null
 # WinUI XAML targets concatenate filenames with OutputPath; the separator is required.
 $build = (Join-Path $stage 'build') + [IO.Path]::DirectorySeparatorChar
-& dotnet publish (Join-Path $projectRoot 'RimePPT\RimePPT.csproj') -c Release -r win-x64 -p:Platform=x64 "-p:OutputPath=$build" --self-contained true -p:WindowsAppSDKSelfContained=true -p:PublishTrimmed=false -p:PublishSingleFile=false -o $runtime
+& dotnet publish (Join-Path $projectRoot 'RimePPT\RimePPT.csproj') -c Release -r win-x64 -p:Platform=x64 "-p:Version=$Version" "-p:OutputPath=$build" --self-contained true -p:WindowsAppSDKSelfContained=true -p:PublishTrimmed=false -p:PublishSingleFile=false -o $runtime
 if ($LASTEXITCODE -ne 0) { throw 'Publish failed; no ZIP created.' }
 # WinUI MUI folders are native resources, so managed satellite filtering alone is insufficient.
 $keepLanguages = @('en-US', 'zh-CN', 'zh-Hans', 'zh')

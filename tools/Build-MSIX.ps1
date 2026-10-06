@@ -1,10 +1,16 @@
+#Requires -Version 7.2
 param(
     [string]$PublishedDirectory = '',
-    [string]$Version = '1.2.2.0',
+    [string]$Version = '',
     [string]$OutputDirectory = '',
     [switch]$Store
 )
 $ErrorActionPreference = 'Stop'
+$projectRoot = Split-Path $PSScriptRoot -Parent
+if (-not $Version) {
+    [xml]$versionManifest = Get-Content (Join-Path $projectRoot 'RimePPT/Package.appxmanifest') -Raw
+    $Version = [string]$versionManifest.Package.Identity.Version
+}
 # Reject invalid Store versions before publishing or creating package files.
 if ($Version -notmatch '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$') {
     throw 'Package version must contain four numeric components.'
@@ -32,7 +38,7 @@ if (-not $PublishedDirectory) {
     $build = (Join-Path $stage 'build') + '\'
     # Build the self-contained desktop payload, then create its full-trust package
     # with MakeAppx; this avoids the SDK recipe task's dependency on Visual Studio.
-    & dotnet publish (Join-Path $projectRoot 'RimePPT\RimePPT.csproj') -c Release -r win-x64 -p:Platform=x64 "-p:OutputPath=$build" -p:WindowsPackageType=None -p:GenerateAppxPackageOnBuild=false -p:AppxPackageSigningEnabled=false --self-contained true -p:WindowsAppSDKSelfContained=true -p:PublishTrimmed=false -p:PublishSingleFile=false -o $PublishedDirectory
+    & dotnet publish (Join-Path $projectRoot 'RimePPT\RimePPT.csproj') -c Release -r win-x64 -p:Platform=x64 "-p:Version=$Version" "-p:OutputPath=$build" -p:WindowsPackageType=None -p:GenerateAppxPackageOnBuild=false -p:AppxPackageSigningEnabled=false --self-contained true -p:WindowsAppSDKSelfContained=true -p:PublishTrimmed=false -p:PublishSingleFile=false -o $PublishedDirectory
     if ($LASTEXITCODE -ne 0) { throw 'MSIX payload publish failed.' }
 }
 $PublishedDirectory = [IO.Path]::GetFullPath($PublishedDirectory)

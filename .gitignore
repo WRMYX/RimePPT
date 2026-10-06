@@ -12,3 +12,10 @@
 /tests/RimePPT.Ink.Tests/bin
 
 /artifacts
+
+**/bin/
+**/obj/
+*.csproj.user
+*.pfx
+*.p12
+*.key

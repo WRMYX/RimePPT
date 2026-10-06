@@ -53,7 +53,7 @@ RimePPT 将翻页、批注、擦除和课堂辅助工具放在浮动工具栏中
 
 ## 从源码构建
 
-使用 Windows 开发环境，安装 .NET 8 SDK、Windows SDK，以及相应的 WinUI 开发工具。仓库中的解决方案使用 `.slnx` 格式；若工具不支持该格式，可直接构建项目文件。
+使用 Windows 开发环境，安装 .NET 8 SDK、Windows SDK，以及相应的 WinUI 开发工具。打包脚本需要 **PowerShell 7.2 或更高版本（`pwsh`）**，不支持 Windows 自带的 PowerShell 5.1。仓库中的解决方案使用 `.slnx` 格式；若工具不支持该格式，可直接构建项目文件。
 
 以下命令在仓库根目录运行，以 x64 为例：
 
@@ -71,16 +71,35 @@ dotnet publish RimePPT/RimePPT.csproj -c Release -r win-x64 -p:Platform=x64 --se
 打包便携版：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools/Build-Portable.ps1
+pwsh -NoProfile -File tools/Build-Portable.ps1
 ```
 
 生成 MSIX：
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File tools/Build-MSIX.ps1
+pwsh -NoProfile -File tools/Build-MSIX.ps1
 ```
 
 MSIX 打包需要 Windows SDK 中的 MakeAppx / SignTool。商店提交包与本地签名包的用途不同，请根据脚本参数和自己的发布身份配置选择；不要上传签名私钥或账号凭据。
+
+## GitHub 自动检查与发布
+
+上传代码或创建 PR 后，**Build and test / 编译与测试** 自动运行笔迹测试并编译 x64 程序。
+
+无需命令发布新版本：
+
+1. 打开仓库 **Actions → Package application / 打包程序 → Run workflow**，选择要发布的分支，通常为 `main`。
+2. 在 `release_version` 输入未使用过的三段版本标签，例如 `v1.2.3`；留空则仅打包，不创建 Release。
+3. 等待测试与打包通过。在 Actions 运行页面的 **Artifacts** 下载便携版、MSIX＋证书或 Store 提交包。
+4. 填写版本号的运行会创建草稿 Release，仅附便携版 ZIP 和 MSIX＋证书 ZIP。下载并实际测试后，再点击 **Publish release** 公开发布。
+
+也支持推送 `v1.2.3` 这样的标签触发打包。版本转换为 `1.2.3.0`，便携程序与 MSIX 使用同一版本。四段标签暂不支持；没有指定版本时读取 `RimePPT/Package.appxmanifest`，修改默认版本只需修改该清单。
+
+- **便携版**：解压运行，无需安装。
+- **MSIX＋证书**：本地安装版本，安装前需要信任附带的 `.cer`。当前每次打包生成新自签名证书，并非固定的发布证书。
+- **Store 提交包**：只在 Actions 产物中提供，不附到 Release；上传微软合作伙伴中心，由微软审核并签名。
+
+私有仓库的下载需要相应访问权限。草稿用于发布者验收，不供普通用户更新。第三方依赖与素材来源见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
 
 ## 测试
 

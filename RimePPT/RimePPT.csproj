@@ -14,6 +14,7 @@
     <ApplicationIcon>Assets\icon.ico</ApplicationIcon>
     <EnableMsixTooling>true</EnableMsixTooling>
     <Nullable>enable</Nullable>
+    <Version Condition="'$(Version)' == ''">$([System.Text.RegularExpressions.Regex]::Match($([System.IO.File]::ReadAllText('$(MSBuildProjectDirectory)/Package.appxmanifest')), '(?&lt;=Version=&quot;)[0-9.]+').Value)</Version>
   </PropertyGroup>
 
   <ItemGroup>

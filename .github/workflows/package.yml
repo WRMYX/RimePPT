@@ -76,7 +76,9 @@ jobs:
       - name: Run ink tests / 运行笔迹测试
         run: dotnet run --project tests/RimePPT.Ink.Tests -c Release
       - name: Build portable archive / 生成便携版
-        run: ./tools/Build-Portable.ps1 -OutputDirectory artifacts/Portable
+        env:
+          PACKAGE_VERSION: ${{ steps.version.outputs.value }}
+        run: ./tools/Build-Portable.ps1 -Version $env:PACKAGE_VERSION -OutputDirectory artifacts/Portable
       - name: Build signed MSIX and public certificate / 生成签名 MSIX 与证书
         env:
           PACKAGE_VERSION: ${{ steps.version.outputs.value }}
