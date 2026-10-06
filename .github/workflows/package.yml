@@ -81,6 +81,10 @@ jobs:
         env:
           PACKAGE_VERSION: ${{ steps.version.outputs.value }}
         run: ./tools/Build-MSIX.ps1 -Version $env:PACKAGE_VERSION -OutputDirectory artifacts/MSIX
+      - name: Build Store package / 生成 Store 提交包
+        env:
+          PACKAGE_VERSION: ${{ steps.version.outputs.value }}
+        run: ./tools/Build-MSIX.ps1 -Store -Version $env:PACKAGE_VERSION -OutputDirectory artifacts/Store
       - name: Prepare release archives / 整理发布压缩包
         env:
           PACKAGE_VERSION: ${{ steps.version.outputs.value }}
@@ -93,6 +97,9 @@ jobs:
             throw 'Expected one signed MSIX and one public certificate.'
           }
           Compress-Archive -Path artifacts/MSIX/*.msix, artifacts/MSIX/*.cer -DestinationPath "artifacts/Release/RimePPT-$env:PACKAGE_VERSION-MSIX-with-certificate-x64.zip"
+          $store = @(Get-ChildItem artifacts/Store -Filter '*.msix')
+          if ($store.Count -ne 1) { throw 'Expected exactly one Store package.' }
+          Copy-Item -LiteralPath $store[0].FullName -Destination "artifacts/Release/RimePPT-$env:PACKAGE_VERSION-Store-x64.msix"
       - name: Upload portable archive / 上传便携版
         uses: actions/upload-artifact@v4
         with:
@@ -105,6 +112,12 @@ jobs:
           name: RimePPT-MSIX-with-certificate-x64
           path: artifacts/Release/*-MSIX-with-certificate-x64.zip
           if-no-files-found: error
+      - name: Upload Store package / 上传 Store 提交包
+        uses: actions/upload-artifact@v4
+        with:
+          name: RimePPT-Store-x64
+          path: artifacts/Release/*-Store-x64.msix
+          if-no-files-found: error
       - name: Create draft release / 创建草稿发布
         if: steps.version.outputs.tag != ''
         env:
@@ -114,7 +127,7 @@ jobs:
           RELEASE_COMMIT: ${{ github.sha }}
           EVENT_NAME: ${{ github.event_name }}
         run: |
-          $archives = @(Get-ChildItem artifacts/Release -Filter '*.zip' | ForEach-Object { $_.FullName })
+          $archives = @(Get-ChildItem artifacts/Release -File | Where-Object { $_.Extension -in @('.zip', '.msix') } | ForEach-Object { $_.FullName })
           $options = @('--draft', '--title', "RimePPT $env:RELEASE_TAG", '--generate-notes')
           if ($env:EVENT_NAME -eq 'push') {
             $options += '--verify-tag'
