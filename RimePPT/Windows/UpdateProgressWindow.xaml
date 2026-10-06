@@ -1,11 +1,11 @@
 <Window x:Class="RimePPT.Windows.UpdateProgressWindow" xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation" xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
-    <Grid><Grid.RowDefinitions><RowDefinition Height="48"/><RowDefinition Height="*"/></Grid.RowDefinitions><Grid x:Name="ProgressTitleBar" Padding="20,0"><TextBlock Text="RimePPT · 安装更新" VerticalAlignment="Center"/></Grid><ScrollViewer Grid.Row="1" Padding="28,12,28,28"><StackPanel Spacing="16">
+    <Grid><Grid.RowDefinitions><RowDefinition Height="48"/><RowDefinition Height="*"/></Grid.RowDefinitions><Grid x:Name="ProgressTitleBar" Padding="20,0" Margin="0,0,48,0"><TextBlock Text="RimePPT · 安装更新" VerticalAlignment="Center"/></Grid><Button Width="48" Height="48" HorizontalAlignment="Right" VerticalAlignment="Top" Background="Transparent" BorderThickness="0" AutomationProperties.Name="最小化" ToolTipService.ToolTip="最小化" Click="OnMinimize"><FontIcon Glyph="&#xE921;" FontSize="12"/></Button><ScrollViewer Grid.Row="1" Padding="28,12,28,28"><StackPanel Spacing="16">
         <FontIcon Glyph="&#xE895;" FontSize="42" Foreground="{ThemeResource AccentTextFillColorPrimaryBrush}" HorizontalAlignment="Left"/>
         <TextBlock Text="RimePPT 更新" Style="{StaticResource SubtitleTextBlockStyle}"/>
         <TextBlock x:Name="StageText" Text="准备安装" TextWrapping="Wrap"/>
         <ProgressBar x:Name="InstallProgress" IsIndeterminate="True"/>
         <TextBlock x:Name="PercentText"/>
         <ScrollViewer MaxHeight="180"><TextBlock x:Name="DetailText" TextWrapping="Wrap" IsTextSelectionEnabled="True"/></ScrollViewer>
-        <StackPanel Orientation="Horizontal" Spacing="8"><Button Content="复制详情" Click="OnCopyDetails"/><Button Content="打开日志" Click="OnOpenLog"/></StackPanel>
+        <StackPanel Orientation="Horizontal" Spacing="8"><Button Content="复制详情" Click="OnCopyDetails"/><Button Content="打开日志" Click="OnOpenLog"/><Button x:Name="CloseButton" Content="关闭" Click="OnClose" IsEnabled="False"/></StackPanel>
     </StackPanel></ScrollViewer></Grid>
 </Window>

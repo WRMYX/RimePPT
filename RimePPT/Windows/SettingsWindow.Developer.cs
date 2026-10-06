@@ -52,4 +52,21 @@ public sealed partial class SettingsWindow
             Content = "开发者的调试页面。实验功能默认关闭，可自行开启或退出开发者调试。", CloseButtonText = "知道了" }.ShowAsync(); }
         catch (Exception ex) { CrashReporter.Report(ex, "developer-notice"); }
     }
+    private async void OnPreviewUpdateProgress(object sender, RoutedEventArgs e)
+    {
+        if (!AppSettings.Instance.DeveloperModeEnabled) return;
+        try
+        {
+            string updater = System.IO.Path.Combine(AppContext.BaseDirectory, "Updater", "RimePPT.Updater.exe");
+            if (!System.IO.File.Exists(updater)) throw new System.IO.FileNotFoundException("找不到更新进度程序，请使用完整发布测试版。", updater);
+            var start = new System.Diagnostics.ProcessStartInfo(updater) { UseShellExecute = false, WorkingDirectory = System.IO.Path.GetDirectoryName(updater)! };
+            start.ArgumentList.Add((sender as Button)?.Tag as string == "error" ? "--preview-error" : "--preview-success");
+            using var process = System.Diagnostics.Process.Start(start) ?? throw new InvalidOperationException("无法打开更新进度测试窗口。");
+        }
+        catch (Exception ex)
+        {
+            CrashReporter.Report(ex, "update-progress-preview");
+            await new ContentDialog { XamlRoot = WindowRoot.XamlRoot, Title = "无法打开测试窗口", Content = ex.Message, CloseButtonText = "知道了" }.ShowAsync();
+        }
+    }
 }

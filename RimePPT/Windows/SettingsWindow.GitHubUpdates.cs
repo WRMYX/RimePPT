@@ -156,7 +156,7 @@ public sealed partial class SettingsWindow
                 if (Directory.GetFiles(_githubPayload, "*.msix").Length != 1 || Directory.GetFiles(_githubPayload, "*.cer").Length != 1)
                     throw new InvalidDataException("更新包必须包含一个 MSIX 和一个公开证书。");
                 progressWindow = new UpdateProgressWindow(); progressWindow.Activate();
-                progressWindow.ShowStatus("等待 Windows 安装", "请在安装文件夹中手动信任证书并打开 MSIX。安装进度由 Windows 应用安装程序显示，RimePPT 不会将打开文件夹视为安装成功。");
+                progressWindow.ShowStatus("等待 Windows 安装", "请在安装文件夹中手动信任证书并打开 MSIX。安装进度由 Windows 应用安装程序显示，RimePPT 不会将打开文件夹视为安装成功。", allowClose: true);
                 UpdateHistory.Write(_githubRelease.Tag, "GitHub MSIX", "交由 Windows 安装", "已打开安装文件夹，安装结果请查看 Windows 应用安装程序。", progressWindow.LogPath);
                 await global::Windows.System.Launcher.LaunchFolderAsync(await global::Windows.Storage.StorageFolder.GetFolderFromPathAsync(_githubPayload));
             }

@@ -8,7 +8,12 @@ public partial class App : Application
     {
         var arguments = Environment.GetCommandLineArgs();
         if (arguments.Length != 2) { Exit(); return; }
-        _window = new ProgressWindow(System.IO.Path.GetFullPath(arguments[1]));
+        _window = arguments[1] switch
+        {
+            "--preview-success" => new ProgressWindow("", "success"),
+            "--preview-error" => new ProgressWindow("", "error"),
+            _ => new ProgressWindow(System.IO.Path.GetFullPath(arguments[1]))
+        };
         _window.Activate();
     }
 }

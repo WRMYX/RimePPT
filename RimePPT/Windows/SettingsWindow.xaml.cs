@@ -468,7 +468,7 @@ namespace RimePPT.Windows
 
                     });
                 }, cancellation.Token);
-                installWindow?.ShowStatus(result.OverallState == StorePackageUpdateState.Completed ? "更新已完成" : "更新未完成", "Microsoft Store 状态：" + result.OverallState, result.OverallState == StorePackageUpdateState.Completed ? 100 : null, true);
+                installWindow?.ShowStatus(result.OverallState == StorePackageUpdateState.Completed ? "更新已完成" : "更新未完成", "Microsoft Store 状态：" + result.OverallState, result.OverallState == StorePackageUpdateState.Completed ? 100 : null, true, succeeded: result.OverallState == StorePackageUpdateState.Completed);
                 UpdateHistory.Write(GitHubUpdateService.InstalledVersion.ToString(), "Microsoft Store", result.OverallState.ToString(), "Microsoft Store 返回安装结果。", installWindow?.LogPath ?? "");
                 if (_closed) return;
                 switch (result.OverallState)
