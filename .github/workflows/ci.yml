@@ -1,0 +1,26 @@
+name: Build and test
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    runs-on: windows-2022
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '8.0.x'
+      - name: Run ink tests
+        run: dotnet run --project tests/RimePPT.Ink.Tests -c Release
+      - name: Build application
+        run: dotnet build RimePPT/RimePPT.csproj -c Release -p:Platform=x64 -p:PublishTrimmed=false
