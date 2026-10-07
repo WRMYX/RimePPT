@@ -86,6 +86,8 @@ namespace RimePPT.Windows
             CenterOnPrimary();
 
             LoadValues();
+            Activated += (_, args) => { if (args.WindowActivationState != WindowActivationState.Deactivated) _ = RefreshStartupAsync(); };
+            _ = RefreshStartupAsync();
             LoadImages();
             VersionText.Text = "版本 " + GitHubUpdateService.InstalledVersion;
             InitializeStoreUpdates();
@@ -221,7 +223,7 @@ namespace RimePPT.Windows
             ShowTextToggle.IsOn = settings.ShowToolbarText;
             MarginBox.Value = settings.EdgeMargin;
             AutoShowToggle.IsOn = settings.AutoShowOverlay;
-            StartupToggle.IsOn = Startup.GetRunAtStartup();
+            StartupToggle.IsEnabled = false;
             LoadToolbarToggles();
         }
 
@@ -577,16 +579,6 @@ namespace RimePPT.Windows
             AppSettings.Instance.Save();
         }
 
-        private void OnStartupToggled(object sender, RoutedEventArgs e)
-        {
-            if (_suppress)
-            {
-                return;
-            }
-            AppSettings.Instance.RunAtStartup = StartupToggle.IsOn;
-            Startup.SetRunAtStartup(StartupToggle.IsOn);
-            AppSettings.Instance.Save();
-        }
 
         // ———— 工具栏 ————
 

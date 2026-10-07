@@ -133,6 +133,10 @@ $cms.CheckSignature($true)
 [xml]$checkedManifest = Get-Content -LiteralPath (Join-Path $validation 'AppxManifest.xml') -Raw
 if ($checkedManifest.Package.Identity.Version -ne $Version) { throw 'Packaged version differs from the requested version.' }
 if ($checkedManifest.Package.Identity.Name -ne $manifest.Package.Identity.Name -or $checkedManifest.Package.Identity.Publisher -ne $manifest.Package.Identity.Publisher -or $checkedManifest.Package.Properties.PublisherDisplayName -ne $manifest.Package.Properties.PublisherDisplayName) { throw 'Packaged identity differs from the project manifest.' }
+$startup = $checkedManifest.SelectSingleNode("//*[local-name()='Extension' and @Category='windows.startupTask']")
+if (-not $startup -or $startup.NamespaceURI -ne 'http://schemas.microsoft.com/appx/manifest/desktop/windows10' -or $startup.GetAttribute('Executable') -ne 'RimePPT.exe' -or $startup.GetAttribute('EntryPoint') -ne 'Windows.FullTrustApplication') { throw 'Packaged startup extension is missing or invalid.' }
+$startupTask = $startup.SelectSingleNode("*[local-name()='StartupTask']")
+if (-not $startupTask -or $startupTask.GetAttribute('TaskId') -ne 'RimePPTStartup' -or $startupTask.GetAttribute('Enabled') -ne 'false') { throw 'Packaged startup task is missing or changes existing user defaults.' }
 [pscustomobject]@{ Package = $package; Certificate = $publicCertificate; Distribution = $(if ($Store) { 'Microsoft Store submission; signed by Store' } else { 'Self-signed local test' }); SizeMB = [Math]::Round((Get-Item -LiteralPath $package).Length / 1MB, 1); Payload = $PublishedDirectory; Validation = $validation } |
     Tee-Object -Variable result
 $result | ConvertTo-Json | Set-Content -LiteralPath (Join-Path $stage 'result.json')

@@ -169,10 +169,13 @@
                                 </Grid.ColumnDefinitions>
                                 <StackPanel VerticalAlignment="Center" Spacing="4">
                                     <TextBlock Text="开机自启" Style="{StaticResource SettingTitle}" />
-                                    <TextBlock Text="登录 Windows 后自动运行并驻留托盘" Style="{StaticResource SettingDesc}" />
+                                    <TextBlock x:Name="StartupDescription" Text="正在读取 Windows 自启动状态…" Style="{StaticResource SettingDesc}" />
                                 </StackPanel>
                                 <ToggleSwitch x:Name="StartupToggle" Grid.Column="1" VerticalAlignment="Center" OnContent="" OffContent="" Toggled="OnStartupToggled" />
                             </Grid>
+                            <InfoBar x:Name="StartupInfo" IsOpen="False" IsClosable="True" Margin="16,0,16,12">
+                                <InfoBar.ActionButton><Button Content="Windows 启动应用设置" Click="OnOpenStartupSettings" /></InfoBar.ActionButton>
+                            </InfoBar>
                         </StackPanel>
                     </Border>
                 </StackPanel>

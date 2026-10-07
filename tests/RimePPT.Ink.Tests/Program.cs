@@ -8,6 +8,29 @@ var view = new InkViewport(1920, 1080);
 var tests = new List<(string Name, Action Run)>();
 void Test(string name, Action run) => tests.Add((name, run));
 void Check(bool condition, string message) { if (!condition) throw new Exception(message); }
+Test("startup registration belongs to the current executable only", () => {
+    string current = Path.GetFullPath("current/RimePPT.exe");
+    Check(StartupPolicy.MatchesExecutable($"\"{current}\"", current), "current path rejected");
+    Check(!StartupPolicy.MatchesExecutable($"\"{Path.GetFullPath("old/RimePPT.exe")}\"", current), "other installation claimed");
+    Check(!StartupPolicy.MatchesExecutable($"\"{current}\" --settings", current), "foreign command claimed");
+    Check(!StartupPolicy.MatchesExecutable(null, current), "missing command enabled");
+    Check(!StartupPolicy.MatchesExecutable("\"RimePPT.exe\"", current), "relative path claimed");
+});
+Test("startup migration respects existing choices and Windows blocks", () => {
+    var off = new StartupResult(StartupStatus.Disabled, "");
+    Check(StartupPolicy.ShouldInitialize(true, true, true, false, off), "fresh default not enabled");
+    Check(StartupPolicy.ShouldInitialize(false, true, true, false, off), "existing opt-in not migrated");
+    Check(!StartupPolicy.ShouldInitialize(false, true, false, false, off), "existing opt-out changed");
+    Check(!StartupPolicy.ShouldInitialize(false, false, true, false, off), "portable overwritten on launch");
+    Check(!StartupPolicy.ShouldInitialize(true, true, true, true, off), "migration repeated");
+    foreach (var status in new[] { StartupStatus.DisabledByUser, StartupStatus.DisabledByPolicy, StartupStatus.EnabledByPolicy, StartupStatus.Error })
+        Check(!StartupPolicy.ShouldInitialize(true, true, true, false, new(status, "")), "Windows state overridden");
+});
+Test("startup failures and restrictions never report enabled", () => {
+    foreach (var status in new[] { StartupStatus.Disabled, StartupStatus.DisabledByUser, StartupStatus.DisabledByPolicy, StartupStatus.OtherLocation, StartupStatus.Error })
+        Check(!new StartupResult(status, "reason").Enabled, "inactive startup displayed as enabled");
+    Check(new StartupResult(StartupStatus.EnabledByPolicy, "policy").Enabled, "policy state lost");
+});
 Test("download sources validate prefixes and preserve defaults", () => {
 var assetUrl = "https://github.com/WRMYX/RimePPT/releases/download/v1.2.4/test.zip";
 if (GitHubDownloadSource.Resolve(assetUrl, "ghproxy") != "https://gh-proxy.org/" + assetUrl) throw new Exception("proxy URL");

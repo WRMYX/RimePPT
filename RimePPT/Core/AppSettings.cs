@@ -167,6 +167,8 @@ namespace RimePPT.Core
             if (Theme is not ("auto" or "light" or "dark")) Theme = "auto";
         }
         public bool RunAtStartup { get; set; } = true;
+        public List<string> StartupMigrationCompletedFor { get; set; } = new();
+        public string StartupLastError { get; set; } = "";
         public bool AutoShowOverlay { get; set; } = true;
 
         // 工具条五区显示开关：默认保持历史行为（仅左右两条侧栏）。

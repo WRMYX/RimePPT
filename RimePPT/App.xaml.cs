@@ -161,9 +161,9 @@ namespace RimePPT
             AppSettings.Load();
             if (AppSettings.IsFreshInstallation)
             {
-                Startup.SetRunAtStartup(AppSettings.Instance.RunAtStartup);
                 AppSettings.Instance.Persist();
             }
+            _ = Startup.InitializeAsync(AppSettings.Instance, AppSettings.IsFreshInstallation);
             _toolbarSettingsSnapshot = ToolbarSettingsSignature();
             AppSettings.SettingsChanged += (_, _) => QueueSettingsRefresh();
 
