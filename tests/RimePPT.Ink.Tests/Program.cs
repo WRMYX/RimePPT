@@ -8,6 +8,33 @@ var view = new InkViewport(1920, 1080);
 var tests = new List<(string Name, Action Run)>();
 void Test(string name, Action run) => tests.Add((name, run));
 void Check(bool condition, string message) { if (!condition) throw new Exception(message); }
+Test("directional animation migration preserves old mode and timings", () => {
+    var migrated = AppSettings.FromExistingJson("{\"InkPageAnimation\":1,\"InkFadeDurationMs\":450,\"InkReplayDurationMs\":1600}");
+    Check(migrated.InkNextPageAnimation == InkPageAnimationMode.Fade && migrated.InkNextFadeDurationMs == 450 && migrated.InkNextReplayDurationMs == 1600, "old timing changed");
+    Check(AppSettings.FromExistingJson("{}").InkNextPageAnimation == InkPageAnimationMode.Fade, "sparse legacy default changed");
+});
+Test("next animation is independent and validates corrupt settings", () => {
+    var settings = AppSettings.FromExistingJson("{\"InkPageAnimation\":0,\"InkNextPageAnimation\":3,\"InkNextReplayDurationMs\":9000}");
+    Check(settings.InkPageAnimation == InkPageAnimationMode.None && settings.InkNextPageAnimation == InkPageAnimationMode.Retract && settings.InkNextReplayDurationMs == 4000, "directions coupled");
+    var corrupt = AppSettings.FromExistingJson("{\"InkNextPageAnimation\":99,\"InkNextFadeDurationMs\":-10}");
+    Check(corrupt.InkNextPageAnimation == InkPageAnimationMode.Fade && corrupt.InkNextFadeDurationMs == 100, "invalid next values escaped");
+});
+Test("retraction removes last stroke and tail first without changing ink", () => {
+    var a = new StrokeData { Dots = new() { new() { X=0, Y=0 }, new() { X=.5, Y=0 } } };
+    var b = new StrokeData { Dots = new() { new() { X=0, Y=.5 }, new() { X=.5, Y=.5 } } };
+    var strokes = new[] { a, b }; string before = JsonSerializer.Serialize(strokes);
+    var plan = new InkReplayPlan(strokes, view);
+    Check(plan.AtReverse(0).CompletedStrokes == 2, "begin must show all ink");
+    var quarter = plan.AtReverse(.25);
+    Check(quarter.CompletedStrokes == 1 && ReferenceEquals(quarter.PartialStroke, b) && quarter.Tail is { } tail && Math.Abs(tail.X - 480) < .01, "last tail not retracted first");
+    Check(plan.AtReverse(.75).CompletedStrokes == 0 && ReferenceEquals(plan.AtReverse(.75).PartialStroke, a), "first stroke order wrong");
+    Check(plan.AtReverse(1).CompletedStrokes == 0 && plan.AtReverse(1).PartialStroke is null, "end must show no ink");
+    Check(JsonSerializer.Serialize(strokes) == before, "saved ink mutated");
+});
+Test("empty and invalid reverse progress are safe", () => {
+    var plan = new InkReplayPlan(Array.Empty<StrokeData>(), view);
+    foreach (double progress in new[] { -1d, 0d, .5, 1d, 2d, double.NaN }) Check(plan.AtReverse(progress).CompletedStrokes == 0, "empty reverse failed");
+});
 Test("startup registration belongs to the current executable only", () => {
     string current = Path.GetFullPath("current/RimePPT.exe");
     Check(StartupPolicy.MatchesExecutable($"\"{current}\"", current), "current path rejected");
@@ -383,24 +410,27 @@ Test("adjusted eraser respects narrow width", () => {
     Check(eraser.EraseSweep(list,new(new(100,100),new(100,100),56,72),view).Changed,"default did not erase");
 });
 
-Test("fade has complementary opacity and exact endpoints", () => {
+Test("fade finishes outgoing ink before incoming ink appears", () => {
     var animation = new InkPageTransition(InkPageAnimationMode.Fade, 240, 1000, true, true);
-    var first = animation.At(0); var middle = animation.At(120); var last = animation.At(240);
+    var first = animation.At(0); var middle = animation.At(120); var boundary = animation.At(240); var last = animation.At(480);
     Check(first.OutgoingOpacity == 1 && first.IncomingOpacity == 0 && !first.IsComplete, "first frame");
-    Check(Math.Abs(middle.IncomingOpacity - .5f) < .0001 && middle.IncomingOpacity + middle.OutgoingOpacity == 1, "crossfade");
+    Check(Math.Abs(middle.OutgoingOpacity - .5f) < .0001 && middle.IncomingOpacity == 0 && !middle.DrawIncoming, "outgoing-only phase");
+    Check(boundary.OutgoingOpacity == 0 && boundary.IncomingOpacity == 0 && boundary.DrawIncoming && !boundary.IsComplete, "phase boundary");
+    Check(Math.Abs(animation.At(360).IncomingOpacity - .5f) < .0001 && animation.At(360).OutgoingOpacity == 0, "incoming-only phase");
     Check(last.OutgoingOpacity == 0 && last.IncomingOpacity == 1 && last.IsComplete, "end frame");
 });
-Test("replay and outgoing fade use independent durations", () => {
+Test("replay starts after outgoing fade without overlapping pages", () => {
     var animation = new InkPageTransition(InkPageAnimationMode.Replay, 200, 1000, true, true);
-    Check(animation.At(200).OutgoingOpacity == 0 && Math.Abs(animation.At(200).ReplayProgress - .2) < .0001 && !animation.At(200).IsComplete, "independent clocks");
-    Check(animation.At(1000).IsComplete && animation.At(1000).ReplayProgress == 1, "replay finish");
+    Check(!animation.At(100).DrawIncoming && animation.At(100).IncomingOpacity == 0, "replay hidden during old page fade");
+    Check(animation.At(200).OutgoingOpacity == 0 && animation.At(200).ReplayProgress == 0 && !animation.At(200).IsComplete, "separate replay clock");
+    Check(animation.At(1200).IsComplete && animation.At(1200).ReplayProgress == 1, "replay finish");
     Check(new InkPageTransition(InkPageAnimationMode.Replay, 200, 4000, true, false).At(200).IsComplete, "empty page must not wait for replay");
 });
 Test("disabled or empty animation settles immediately and invalid durations are bounded", () => {
     Check(new InkPageTransition(InkPageAnimationMode.None, 240, 1000, true, true).At(0).IsComplete, "disabled");
     Check(new InkPageTransition(InkPageAnimationMode.Fade, 240, 1000, false, false).At(0).IsComplete, "empty");
     var corrupt = new InkPageTransition(InkPageAnimationMode.Replay, double.NaN, double.PositiveInfinity, true, true);
-    Check(double.IsFinite(corrupt.At(double.NaN).ReplayProgress) && corrupt.At(1000).IsComplete, "nonfinite duration");
+    Check(double.IsFinite(corrupt.At(double.NaN).ReplayProgress) && corrupt.At(1240).IsComplete, "nonfinite duration");
 });
 Test("replay follows arc length through uneven samples and original direction", () => {
     var line = Stroke(new(100, 100), new(110, 100), new(500, 100));

@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Threading.Tasks;
@@ -13,6 +13,13 @@ public static class ToolbarEntranceAnimator
 {
     private sealed record Motion(Window Window, PointInt32 Start, PointInt32 End, long Started, double Duration = 220, TaskCompletionSource? Completion = null);
     private static readonly Dictionary<Window, Motion> Motions = new();
+    private static readonly System.Runtime.CompilerServices.ConditionalWeakTable<Window, object> Observed = new();
+    private static void Observe(Window window)
+    {
+        if (Observed.TryGetValue(window, out _)) return;
+        Observed.Add(window, new object());
+        window.Closed += (_, _) => Cancel(window);
+    }
     private static readonly Dictionary<Window, TaskCompletionSource> Entrances = new();
     internal static Task WaitForEntranceAsync(Window window) => Entrances.TryGetValue(window, out var completion)
         ? completion.Task : Task.CompletedTask;
@@ -31,7 +38,7 @@ public static class ToolbarEntranceAnimator
             _ => new PointInt32(end.X, bounds.Y + bounds.Height)
         };
         window.AppWindow.Move(start); Motions[window] = new(window, start, end, 0, 300);
-        window.Closed += (_, _) => Cancel(window);
+        Observe(window);
         Timer.Start();
     }
     public static bool Retarget(Window window, PointInt32 end)
@@ -59,7 +66,7 @@ public static class ToolbarEntranceAnimator
         };
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         Motions[window] = new(window, start, end, Stopwatch.GetTimestamp(), 180, completion);
-        window.Closed += (_, _) => Cancel(window);
+        Observe(window);
         Timer.Start();
         return completion.Task;
     }
@@ -72,10 +79,14 @@ public static class ToolbarEntranceAnimator
                 Motions[motion.Window] = motion with { Started = Stopwatch.GetTimestamp() };
                 continue;
             }
+            try
+            {
             double t = Math.Clamp(Stopwatch.GetElapsedTime(motion.Started).TotalMilliseconds / motion.Duration, 0, 1);
             double eased = 1 - Math.Pow(1 - t, 3);
             motion.Window.AppWindow.Move(new((int)Math.Round(motion.Start.X + (motion.End.X - motion.Start.X) * eased), (int)Math.Round(motion.Start.Y + (motion.End.Y - motion.Start.Y) * eased)));
             if (t >= 1) Cancel(motion.Window);
+            }
+            catch (Exception ex) { Cancel(motion.Window); CrashReporter.Report(ex, "toolbar-animation"); }
         }
     }
 }

@@ -23,8 +23,10 @@ public sealed partial class SettingsWindow
         };
         var tests = new StackPanel { Spacing = 12, Padding = new Thickness(16) };
         tests.Children.Add(new TextBlock { Text = "实验功能", FontSize = 20 });
-        var separator = new ToggleSwitch { Header = "退出按钮旁显示分隔线", IsOn = AppSettings.Instance.ExitSeparatorEnabled };
-        var separate = new ToggleSwitch { Header = "退出按钮使用独立工具栏", IsOn = AppSettings.Instance.SeparateExitToolbarEnabled };
+        var separator = new ToggleSwitch { IsOn = AppSettings.Instance.ExitSeparatorEnabled, OnContent = "", OffContent = "", MinWidth = 0 };
+        var separate = new ToggleSwitch { IsOn = AppSettings.Instance.SeparateExitToolbarEnabled, OnContent = "", OffContent = "", MinWidth = 0 };
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(separator, "退出按钮旁显示分隔线");
+        Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(separate, "退出按钮使用独立工具栏");
         bool changing = false;
         void Save()
         {
@@ -33,7 +35,8 @@ public sealed partial class SettingsWindow
         }
         separator.Toggled += (_, _) => { if (changing) return; changing = true; if (separator.IsOn) separate.IsOn = false; Save(); changing = false; };
         separate.Toggled += (_, _) => { if (changing) return; changing = true; if (separate.IsOn) separator.IsOn = false; Save(); changing = false; };
-        tests.Children.Add(separator); tests.Children.Add(separate);
+        tests.Children.Add(new RimePPT.Controls.SettingRow { Title = "退出按钮旁显示分隔线", Editor = separator, EditorWidth = 60, RowPadding = new Thickness(0, 8, 0, 8) });
+        tests.Children.Add(new RimePPT.Controls.SettingRow { Title = "退出按钮使用独立工具栏", Editor = separate, EditorWidth = 60, RowPadding = new Thickness(0, 8, 0, 8) });
         var exit = new Button { Content = "退出开发者调试", MinHeight = 40 };
         exit.Click += (_, _) =>
         {
@@ -42,7 +45,18 @@ public sealed partial class SettingsWindow
             s.ExitSeparatorEnabled = false; s.SeparateExitToolbarEnabled = false; s.Save();
             DeveloperNav.Visibility = Visibility.Collapsed; Nav.SelectedItem = Nav.MenuItems[0]; _developerNoticeShown = false;
         };
-        tests.Children.Add(exit); ((StackPanel)DebugPage.Content).Children.Add(tests);
+        tests.Children.Add(exit);
+        var diagnostics = new TextBox { IsReadOnly = true, TextWrapping = TextWrapping.Wrap, MinHeight = 140, MaxHeight = 260, Text = "点击刷新查看首次放映耗时和透明批注层状态。" };
+        var refresh = new Button { Content = "刷新放映与透明批注诊断" };
+        refresh.Click += (_, _) => diagnostics.Text = PresentationDiagnostics.Snapshot() + "\nPowerPoint: " + App.PowerPoint.ConnectionState;
+        var export = new Button { Content = "导出白屏与启动诊断日志" };
+        export.Click += (_, _) =>
+        {
+            try { string path = PresentationDiagnostics.Export(); diagnostics.Text = "已导出：" + path + "\n\n" + PresentationDiagnostics.Snapshot(); }
+            catch (Exception ex) { diagnostics.Text = "导出失败：" + ex.Message; CrashReporter.Report(ex, "presentation-diagnostic-export"); }
+        };
+        tests.Children.Add(new TextBlock { Text = "放映速度与透明批注层诊断", FontSize = 20 });
+        tests.Children.Add(refresh); tests.Children.Add(export); tests.Children.Add(diagnostics); ((StackPanel)DebugPage.Content).Children.Add(tests);
     }
     private async void ShowDeveloperNotice()
     {

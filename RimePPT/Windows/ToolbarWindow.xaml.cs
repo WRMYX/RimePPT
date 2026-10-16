@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.UI.Windowing;
@@ -78,11 +78,16 @@ namespace RimePPT.Windows
         private DisplayArea? _targetArea;
         private bool _firstPlacement = true;
         private PointInt32 _entranceTarget;
+        private EventHandler<object>? _frameHandler;
+        private bool _warming;
+        private bool _prewarmed;
+        public event EventHandler? FirstFrameVisible;
         public void BeginEntrance()
         {
             if (!_firstPlacement || _closing || _targetArea is null) return;
             _firstPlacement = false;
             ToolbarEntranceAnimator.Start(this, _layout, _targetArea.OuterBounds, _entranceTarget);
+            _detachedExit?.BeginEntrance();
         }
         private bool _closing;
         private ToolArrowWindow? _toolArrow;
@@ -115,13 +120,14 @@ namespace RimePPT.Windows
 
             HostCard().SizeChanged += (_, _) =>
             {
+                if (_warming) return;
                 UpdatePlacement();
                 if (_placementOwner is { } owner) owner.RootGrid.DispatcherQueue.TryEnqueue(owner.UpdatePlacement);
             };
 
             ThemeResources.Attach(this, RootGrid, HostCard());
             ApplyTheme();
-            Closed += (_, _) => { _toolArrow?.Dismiss(); _toolArrow = null; _detachedExit?.Dismiss(); _detachedExit = null; };
+            Closed += (_, _) => { CancelFirstFrameNotification(); _toolArrow?.Dismiss(); _toolArrow = null; _detachedExit?.Dismiss(); _detachedExit = null; };
         }
 
         /// <summary>工具条布局（供 App 定位批注箭头窗）。</summary>
@@ -203,15 +209,17 @@ namespace RimePPT.Windows
         }
 
         public FrameworkElement? GetCommandTarget(ToolbarCommand command) => _buttons.FirstOrDefault(b => b.Command == command);
+        private int _lastCurrent = -1, _lastTotal = -1;
         public void UpdatePresentation(int current, int total, bool canUndo, bool canRedo)
         {
+            bool pageChanged = current != _lastCurrent || total != _lastTotal;
             foreach (var button in _buttons)
             {
-                if (button.Command == ToolbarCommand.Pages) button.SetPageNumber(current, total);
+                if (pageChanged && button.Command == ToolbarCommand.Pages) button.SetPageNumber(current, total);
                 if (button.Command == ToolbarCommand.Undo) button.SetEnabled(canUndo);
                 if (button.Command == ToolbarCommand.Redo) button.SetEnabled(canRedo);
             }
-            UpdatePlacement();
+            if (pageChanged) { _lastCurrent = current; _lastTotal = total; UpdatePlacement(); }
         }
         public async void Dismiss()
         {
@@ -265,15 +273,80 @@ namespace RimePPT.Windows
             WindowPlumbing.EnableTransparency(this);
             WindowPlumbing.RemoveWindowBorder(this);
             WindowPlumbing.RemoveResizableFrame(this);
+            _firstPlacement = true;
             UpdatePlacement();
-            Activate();
+            ArmFirstFrameNotification();
+            WindowPlumbing.SetOpacity(this, 255);
+            AppWindow.Show(false);
             ApplyTheme();
-            if (_detachedExit is not null) { _detachedExit._firstPlacement = false; _detachedExit.ShowOn(area); PositionDetachedExit(); }
+            if (_detachedExit is not null) { _detachedExit.ShowOn(area); PositionDetachedExit(); }
+        }
+
+        internal bool IsWarming => _warming;
+        internal bool IsClosing => _closing;
+        internal System.Threading.Tasks.Task WaitForEntranceAsync() => System.Threading.Tasks.Task.WhenAll(
+            ToolbarEntranceAnimator.WaitForEntranceAsync(this), _detachedExit is null
+                ? System.Threading.Tasks.Task.CompletedTask : ToolbarEntranceAnimator.WaitForEntranceAsync(_detachedExit));
+        internal async System.Threading.Tasks.Task PrewarmAsync()
+        {
+            if (_closing || _prewarmed) return;
+            _warming = true;
+            try
+            {
+                WindowPlumbing.ApplyPointerNoActivate(this);
+                WindowPlumbing.SetClickThrough(this, true);
+                WindowPlumbing.SetOpacity(this, 0);
+                HostCard().Measure(new global::Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity));
+                var desired = HostCard().DesiredSize;
+                AppWindow.Resize(new SizeInt32(Math.Max(1, (int)Math.Ceiling(desired.Width)), Math.Max(1, (int)Math.Ceiling(desired.Height))));
+                AppWindow.Move(new PointInt32(-32000, -32000));
+                var complete = new System.Threading.Tasks.TaskCompletionSource<bool>(System.Threading.Tasks.TaskCreationOptions.RunContinuationsAsynchronously);
+                EventHandler<object>? frame = null;
+                frame = (_, _) =>
+                {
+                    if (!RootGrid.IsLoaded || RootGrid.ActualWidth <= 0) return;
+                    Microsoft.UI.Xaml.Media.CompositionTarget.Rendering -= frame;
+                    complete.TrySetResult(true);
+                };
+                Microsoft.UI.Xaml.Media.CompositionTarget.Rendering += frame;
+                try
+                {
+                    AppWindow.Show(false);
+                    await complete.Task.WaitAsync(TimeSpan.FromSeconds(2));
+                    if (!_closing) _prewarmed = true;
+                }
+                finally { Microsoft.UI.Xaml.Media.CompositionTarget.Rendering -= frame; if (!_closing) AppWindow.Hide(); }
+                if (_detachedExit is not null) await _detachedExit.PrewarmAsync();
+            }
+            finally
+            {
+                _warming = false;
+                if (!_closing) { AppWindow.Hide(); WindowPlumbing.SetClickThrough(this, false); }
+            }
+        }
+
+        private void CancelFirstFrameNotification()
+        {
+            if (_frameHandler is not null) Microsoft.UI.Xaml.Media.CompositionTarget.Rendering -= _frameHandler;
+            _frameHandler = null;
+        }
+        private void ArmFirstFrameNotification()
+        {
+            CancelFirstFrameNotification();
+            int frames = 0;
+            _frameHandler = (_, _) =>
+            {
+                if (!RootGrid.IsLoaded || RootGrid.ActualWidth <= 0 || ++frames < 2) return;
+                CancelFirstFrameNotification();
+                if (!_closing) FirstFrameVisible?.Invoke(this, EventArgs.Empty);
+            };
+            Microsoft.UI.Xaml.Media.CompositionTarget.Rendering += _frameHandler;
         }
 
         /// <summary>同步某命令按钮的选中态（批注/橡皮开关样态）。</summary>
         public void SetCommandChecked(ToolbarCommand command, bool isChecked)
         {
+            if (_closing) return;
             foreach (var button in _buttons)
             {
                 if (button.Command == command)
@@ -281,16 +354,30 @@ namespace RimePPT.Windows
                     button.SetChecked(isChecked);
                 }
             }
-            if (!_buttons.Any(b => b.Command == command)) return;
-            if (isChecked && _arrowCommand != command)
+            if (!_buttons.Any(b => b.Command == command))
             {
-                _toolArrow?.Dismiss(); _arrowCommand = command;
-                _toolArrow = new ToolArrowWindow(this, command, () => ToolSettingsRequested?.Invoke(this, command));
+                if (_arrowCommand == command) { _toolArrow?.Hide(); _arrowCommand = null; }
+                return;
+            }
+            if (isChecked)
+            {
+                _arrowCommand = command;
+                GetOrCreateArrow().ShowFor(command);
             }
             else if (!isChecked && _arrowCommand == command)
             {
-                _toolArrow?.Dismiss(); _toolArrow = null; _arrowCommand = null;
+                _toolArrow?.Hide(); _arrowCommand = null;
             }
+        }
+
+        private ToolArrowWindow GetOrCreateArrow() => _toolArrow ??= new ToolArrowWindow(this,
+            command => ToolSettingsRequested?.Invoke(this, command));
+
+        internal System.Threading.Tasks.Task PrewarmToolArrowAsync()
+        {
+            if (_closing || !_buttons.Any(b => b.Command is ToolbarCommand.Annotate or ToolbarCommand.Eraser))
+                return System.Threading.Tasks.Task.CompletedTask;
+            return GetOrCreateArrow().PrewarmAsync();
         }
 
         internal IReadOnlyList<ToolbarCommand> OrderedCommands => _configuredCommands;
@@ -380,8 +467,12 @@ namespace RimePPT.Windows
             bool rail = _layout is ToolbarLayout.LeftRail or ToolbarLayout.RightRail;
             double reservedHeight = _detachedExit is not null && rail ? _detachedExit.AppWindow.Size.Height + 8 * scale : 0;
             double reservedWidth = _detachedExit is not null && !rail ? _detachedExit.AppWindow.Size.Width + 8 * scale : 0;
-            SideScroll.MaxHeight = Math.Max(40, (bounds.Height - 2 * margin - reservedHeight) / scale - 6);
-            BottomScroll.MaxWidth = Math.Max(40, (bounds.Width - 2 * margin - reservedWidth) / scale - 6);
+            double sideLimit = Math.Max(44, (bounds.Height - 2 * margin - reservedHeight) / scale - 6);
+            double bottomLimit = Math.Max(44, (bounds.Width - 2 * margin - reservedWidth) / scale - 6);
+            ConfigureWrapPanel(SideList, sideLimit);
+            ConfigureWrapPanel(BottomList, bottomLimit);
+            SideList.Measure(new global::Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity));
+            BottomList.Measure(new global::Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity));
             card.Measure(new global::Windows.Foundation.Size(double.PositiveInfinity, double.PositiveInfinity));
             int width = (int)Math.Ceiling(card.DesiredSize.Width * scale);
             int height = (int)Math.Ceiling(card.DesiredSize.Height * scale);
@@ -458,7 +549,20 @@ namespace RimePPT.Windows
             int y = vertical ? p.Y + size.Height + gap : p.Y + size.Height - child.Height;
             x = Math.Clamp(x, bounds.X, Math.Max(bounds.X, bounds.X + bounds.Width - child.Width));
             y = Math.Clamp(y, bounds.Y, Math.Max(bounds.Y, bounds.Y + bounds.Height - child.Height));
-            _detachedExit.AppWindow.Move(new PointInt32(x, y));
+            var target = new PointInt32(x, y);
+            _detachedExit._entranceTarget = target;
+            if (_detachedExit._firstPlacement)
+                _detachedExit.AppWindow.Move(vertical
+                    ? new PointInt32(_layout == ToolbarLayout.LeftRail ? bounds.X - child.Width : bounds.X + bounds.Width, y)
+                    : new PointInt32(x, bounds.Y + bounds.Height));
+            else if (!ToolbarEntranceAnimator.Retarget(_detachedExit, target)) _detachedExit.AppWindow.Move(target);
+        }
+
+        private static void ConfigureWrapPanel(DependencyObject node, double limit)
+        {
+            if (node is RimePPT.Controls.ToolbarWrapPanel panel) { panel.PrimaryLimit = limit; return; }
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(node); i++)
+                ConfigureWrapPanel(VisualTreeHelper.GetChild(node, i), limit);
         }
     }
 }

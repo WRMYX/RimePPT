@@ -12,6 +12,7 @@
     <Compile Include="../../RimePPT/Core/ToolbarConfiguration.cs" Link="ToolbarConfiguration.cs" />
     <Compile Include="../../RimePPT/Core/ToolbarCommand.cs" Link="ToolbarCommand.cs" />
     <Compile Include="../../RimePPT/Core/ToolbarLayout.cs" Link="ToolbarLayout.cs" />
+    <Compile Include="../../RimePPT/Core/ToolbarEntranceOrder.cs" Link="ToolbarEntranceOrder.cs" />
     <Compile Include="../../RimePPT/Core/QuickLaunchEntry.cs" Link="QuickLaunchEntry.cs" />
     <Compile Include="../../RimePPT/Core/PresentationCapabilities.cs" Link="PresentationCapabilities.cs" />
     <Compile Include="../../RimePPT/Core/Ink/InkDrawing.cs" Link="Ink/InkDrawing.cs" />

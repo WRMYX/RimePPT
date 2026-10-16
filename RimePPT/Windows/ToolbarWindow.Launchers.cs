@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Linq;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -27,6 +27,7 @@ public sealed partial class ToolbarWindow
             panel.Children.Add(new TextBlock { Text = entry.Name, FontSize = 11, MaxWidth = 88,
                 TextTrimming = TextTrimming.CharacterEllipsis, HorizontalAlignment = HorizontalAlignment.Center });
             var button = new Button { Tag = "launcher:" + entry.Id, Content = panel, MinWidth = 44, MinHeight = 44, Padding = new Thickness(8) };
+            RimePPT.Controls.ToolbarButton.ConfigureToolInput(button);
             Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(button, entry.Name);
             ToolTipService.SetToolTip(button, entry.Name);
             button.Click += async (_, _) =>

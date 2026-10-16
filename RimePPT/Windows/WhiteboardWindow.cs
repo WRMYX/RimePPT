@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
@@ -24,6 +24,8 @@ public sealed class WhiteboardWindow : Window
     private readonly InkHistory _history;
     private readonly InkContactManager _contacts = new();
     private readonly StrokeEraser _eraser = new();
+    private readonly DispatcherTimer _animationTimer = new() { Interval = TimeSpan.FromMilliseconds(16) };
+    private readonly System.Threading.CancellationTokenSource _lifetime = new();
     private readonly DispatcherTimer _shapeTimer = new() { Interval = TimeSpan.FromMilliseconds(100) };
     private readonly Dictionary<uint, long> _lastMotion = new();
     private readonly Dictionary<uint, Vector2> _holdPositions = new();
@@ -54,7 +56,11 @@ public sealed class WhiteboardWindow : Window
             case ToolbarCommand.Annotate: board._erase = false; break;
             case ToolbarCommand.Eraser: board._erase = true; break;
             case ToolbarCommand.Prev: if (board._page > 1) board.SetPage(board._page - 1); break;
-            case ToolbarCommand.Next: if (board._page == board._pageCount) board._pageCount++; board.SetPage(board._page + 1); break;
+            case ToolbarCommand.Next:
+                if (board._closed) return;
+                if (board._page == board._pageCount) board._pageCount++;
+                board.SetPage(board._page + 1);
+                break;
             case ToolbarCommand.Undo: if (board._history.Undo(board._page)) board.Changed(); break;
             case ToolbarCommand.Redo: if (board._history.Redo(board._page)) board.Changed(); break;
             case ToolbarCommand.Pages:
@@ -158,6 +164,8 @@ public sealed class WhiteboardWindow : Window
     }
     public WhiteboardWindow()
     {
+        _animationTimer.Tick += (_, _) => { _canvas.Invalidate(); if (_renderer?.IsAnimating != true) _animationTimer.Stop(); };
+        Closed += (_, _) => { _lifetime.Cancel(); _animationTimer.Stop(); _lifetime.Dispose(); };
         Title = "RimePPT 独立画板"; _shapeTimer.Tick += OnShapeFrame; _history = new(_pages);
         if (AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
         {
@@ -308,7 +316,19 @@ public sealed class WhiteboardWindow : Window
     }
     private void SetPage(int page)
     {
-        FinishAll(); _page = page; _pageText.Text = $"{_page} / {_pageCount}";
+        FinishAll();
+        if (page != _page && _renderer is not null)
+        {
+            var settings = AppSettings.Instance;
+            var mode = page < _page ? settings.InkPageAnimation : settings.InkNextPageAnimation;
+            if (!new global::Windows.UI.ViewManagement.UISettings().AnimationsEnabled) mode = InkPageAnimationMode.None;
+            var incoming = _pages.TryGetValue(page, out var strokes) ? (IReadOnlyList<StrokeData>)strokes : Array.Empty<StrokeData>();
+            _renderer.BeginSlideTransition(Viewport, incoming, mode,
+                page < _page ? settings.InkFadeDurationMs : settings.InkNextFadeDurationMs,
+                page < _page ? settings.InkReplayDurationMs : settings.InkNextReplayDurationMs);
+            if (_renderer.IsAnimating) _animationTimer.Start();
+        }
+        _page = page; _pageText.Text = $"{_page} / {_pageCount}";
         _renderer?.InvalidateSlide(); _eraser.Reset(); _canvas.Invalidate();
         foreach (var toolbar in App.ActiveToolbars) toolbar.UpdatePresentation(_page, _pageCount, _history.CanUndo(_page), _history.CanRedo(_page));
     }

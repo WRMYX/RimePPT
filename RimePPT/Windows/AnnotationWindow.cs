@@ -2,6 +2,8 @@
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Numerics;
+using System.Threading;
+using System.Threading.Tasks;
 using System.Linq;
 using Microsoft.Graphics.Canvas.UI;
 using Microsoft.Graphics.Canvas.UI.Xaml;
@@ -18,6 +20,7 @@ using Windows.Graphics;
 namespace RimePPT.Windows;
 
 public enum AnnotationTool { Pen, Eraser }
+internal enum AnnotationSurfaceState { Created, BackdropAttached, FirstTransparentFrameReady, Visible, Failed }
 
 /// <summary>Transparent, non-activating ink surface. All contacts use the same event-driven adapter.</summary>
 public sealed class AnnotationWindow : Window
@@ -45,11 +48,25 @@ public sealed class AnnotationWindow : Window
     private InkRenderer? _renderer;
     private int _activeSlide = 1;
     private AnnotationTool _tool;
-    private bool _enabled, _closed, _isDark;
+    private bool _enabled, _closed, _isDark, _renderingFailed, _recoveringDevice;
+    private readonly TransparentBackdrop _backdrop = new();
+    private TaskCompletionSource<bool> _firstTransparentFrame = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private bool _showRequested;
+    private int _showVersion;
+    private CancellationTokenRegistration _sessionRegistration;
+    private AnnotationSurfaceState _surfaceState = AnnotationSurfaceState.Created;
+    public bool IsReady => !_closed && !_renderingFailed && !_recoveringDevice && _backdrop.IsReady && _firstTransparentFrame.Task.IsCompletedSuccessfully && _firstTransparentFrame.Task.Result;
+    private void SetSurfaceState(AnnotationSurfaceState state)
+    {
+        _surfaceState = state;
+        PresentationDiagnostics.Record("透明批注层", state.ToString());
+        PresentationDiagnostics.RecordWindow(this, state.ToString());
+    }
     private Vector2? _eraserPosition;
     private readonly DispatcherTimer _animationTimer = new() { Interval = TimeSpan.FromMilliseconds(16) };
 
     public event EventHandler? InkChanged;
+    public event EventHandler<string>? RenderingFailed;
     public Action? CompanionsRaise;
     public AnnotationTool Tool
     {
@@ -62,8 +79,10 @@ public sealed class AnnotationWindow : Window
         set
         {
             if (_closed) return;
+            if (value && !IsReady) throw new InvalidOperationException("批注层尚未准备完成，请稍后重试。");
+            if (_enabled == value) return;
             if (!value) FinishInput();
-            WindowPlumbing.SetClickThrough(this, !value);
+            WindowPlumbing.SetClickThrough(this, !value, preserveLayered: true);
             _enabled = value;
             if (!value) _eraserPosition = null;
             Invalidate();
@@ -87,7 +106,9 @@ public sealed class AnnotationWindow : Window
         _root.Children.Add(_canvas);
         Content = _root;
         Title = "RimePPT Annotation";
-        SystemBackdrop = new TransparentBackdrop();
+        SystemBackdrop = _backdrop;
+        _backdrop.Disconnected += OnBackdropDisconnected;
+        _backdrop.Connected += OnBackdropConnected;
         if (AppWindow.Presenter is OverlappedPresenter presenter)
         {
             presenter.SetBorderAndTitleBar(false, false); presenter.IsAlwaysOnTop = true;
@@ -101,31 +122,85 @@ public sealed class AnnotationWindow : Window
 
     public void ShowOn(DisplayArea area)
     {
+        _showRequested = true;
+        _recoveringDevice = true;
+        _firstTransparentFrame = new(TaskCreationOptions.RunContinuationsAsynchronously);
         WindowPlumbing.ApplyNoActivate(this); WindowPlumbing.EnableTransparency(this);
         WindowPlumbing.RemoveWindowBorder(this); WindowPlumbing.RemoveResizableFrame(this);
         var bounds = area.OuterBounds;
         AppWindow.Resize(new SizeInt32(bounds.Width, bounds.Height));
         AppWindow.Move(new PointInt32(bounds.X, bounds.Y));
-        Activate();
+        WindowPlumbing.SetOpacity(this, 0);
+        AppWindow.Show(false);
         // 显示/恢复窗口不能覆盖当前笔状态，否则 UI 已选中画笔却穿透到 PPT。
-        WindowPlumbing.SetClickThrough(this, !_enabled);
+        WindowPlumbing.SetClickThrough(this, true, preserveLayered: true);
         Invalidate();
+    }
+
+    public async Task<bool> ShowOnAsync(DisplayArea area, CancellationToken cancellationToken)
+    {
+        ++_showVersion;
+        ShowOn(area);
+        int version = _showVersion;
+        _sessionRegistration.Dispose();
+        _sessionRegistration = cancellationToken.Register(() => DispatcherQueue.TryEnqueue(() =>
+        {
+            if (_closed || version != _showVersion) return;
+            _showRequested = false;
+            AnnotationEnabled = false;
+            AppWindow.Hide();
+        }));
+        bool ready;
+        try
+        {
+            ready = await _backdrop.Ready.WaitAsync(TimeSpan.FromSeconds(5), cancellationToken);
+            if (ready)
+            {
+                SetSurfaceState(AnnotationSurfaceState.BackdropAttached);
+                Invalidate();
+                ready = await _firstTransparentFrame.Task.WaitAsync(TimeSpan.FromSeconds(2), cancellationToken);
+            }
+        }
+        catch (TimeoutException) { ready = false; }
+        cancellationToken.ThrowIfCancellationRequested();
+        if (_closed || version != _showVersion || !_showRequested) return false;
+        if (!ready || _renderingFailed) { _showRequested = false; SetSurfaceState(AnnotationSurfaceState.Failed); AnnotationEnabled = false; AppWindow.Hide(); return false; }
+        _recoveringDevice = false;
+        WindowPlumbing.SetOpacity(this, 255);
+        WindowPlumbing.SetClickThrough(this, !_enabled, preserveLayered: true);
+        SetSurfaceState(AnnotationSurfaceState.Visible);
+        return true;
     }
 
     public void SetActiveSlide(int slideIndex)
     {
+        if (slideIndex == _activeSlide) { Invalidate(); return; }
         FinishInput();
         if (slideIndex != _activeSlide && _renderer is not null)
         {
             var settings = AppSettings.Instance;
-            var mode = new global::Windows.UI.ViewManagement.UISettings().AnimationsEnabled ? settings.InkPageAnimation : InkPageAnimationMode.None;
+            var mode = new global::Windows.UI.ViewManagement.UISettings().AnimationsEnabled ? (slideIndex < _activeSlide ? settings.InkPageAnimation : settings.InkNextPageAnimation) : InkPageAnimationMode.None;
             IReadOnlyList<StrokeData> incoming = _slides.TryGetValue(slideIndex, out var strokes) ? strokes : Array.Empty<StrokeData>();
-            _renderer.BeginSlideTransition(Viewport, incoming, mode, settings.InkFadeDurationMs, settings.InkReplayDurationMs);
+            _renderer.BeginSlideTransition(Viewport, incoming, mode,
+                slideIndex < _activeSlide ? settings.InkFadeDurationMs : settings.InkNextFadeDurationMs,
+                slideIndex < _activeSlide ? settings.InkReplayDurationMs : settings.InkNextReplayDurationMs);
             if (_renderer.IsAnimating) _animationTimer.Start();
         }
         else StopAnimation();
         _activeSlide = slideIndex; _eraser.Reset(); _eraserPosition = null;
         _renderer?.InvalidateSlide(); Invalidate();
+    }
+
+    /// <summary>Refresh restored ink without treating the reload as a page transition.</summary>
+    public void RefreshActiveSlide(int slideIndex)
+    {
+        if (_closed) return;
+        FinishInput();
+        StopAnimation();
+        _activeSlide = slideIndex;
+        _eraser.Reset(); _eraserPosition = null;
+        _renderer?.InvalidateSlide();
+        Invalidate();
     }
 
     private void OnAnimationFrame(object? sender, object args) { Invalidate(); if (_renderer?.IsAnimating != true) _animationTimer.Stop(); }
@@ -297,23 +372,91 @@ public sealed class AnnotationWindow : Window
     private void OnCreateResources(CanvasControl sender, CanvasCreateResourcesEventArgs args)
     {
         _animationTimer.Stop();
-        _renderer?.Dispose();
-        _renderer = new InkRenderer(sender.Device, CurrentStrokes, Previews) { IsDark = _isDark };
+        try
+        {
+            _renderer?.Dispose(); _renderer = null;
+            _renderer = new InkRenderer(sender.Device, CurrentStrokes, Previews) { IsDark = _isDark };
+        }
+        catch (Exception ex)
+        {
+            if (sender.Device.IsDeviceLost(ex.HResult))
+            {
+                FinishInput();
+                WindowPlumbing.SetOpacity(this, 0); WindowPlumbing.SetClickThrough(this, true, preserveLayered: true);
+                _firstTransparentFrame = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                _recoveringDevice = true;
+                PresentationDiagnostics.Record("Win2D 设备丢失", $"0x{ex.HResult:X8}，绘制层暂时隐藏");
+                throw; // Win2D recreates the device and raises CreateResources.
+            }
+            DisableFailedRendering(ex);
+        }
     }
     private void OnDraw(CanvasControl sender, CanvasDrawEventArgs args)
     {
-        if (_closed) return;
+        if (_closed || _renderingFailed || !_backdrop.IsReady || !Viewport.IsValid) return;
         long start = Stopwatch.GetTimestamp();
-        _renderer ??= new InkRenderer(sender.Device, CurrentStrokes, Previews) { IsDark = _isDark };
-        _renderer.EraserPosition = _enabled && _tool == AnnotationTool.Eraser ? _eraserPosition : null;
-        _renderer.EraserSize = new((float)AppSettings.Instance.EraserWidthDip, (float)AppSettings.Instance.EraserHeightDip);
-        _renderer.EraserPositions = _eraserPositions.Values.ToArray();
-        _renderer.Draw(args.DrawingSession, Viewport);
-        if (!_renderer.IsAnimating) _animationTimer.Stop();
+        try
+        {
+            _renderer ??= new InkRenderer(sender.Device, CurrentStrokes, Previews) { IsDark = _isDark };
+            _renderer.EraserPosition = _enabled && _tool == AnnotationTool.Eraser ? _eraserPosition : null;
+            _renderer.EraserSize = new((float)AppSettings.Instance.EraserWidthDip, (float)AppSettings.Instance.EraserHeightDip);
+            _renderer.EraserPositions = _eraserPositions.Values.ToArray();
+            _renderer.Draw(args.DrawingSession, Viewport);
+            if (_firstTransparentFrame.TrySetResult(true)) SetSurfaceState(AnnotationSurfaceState.FirstTransparentFrameReady);
+            if (_recoveringDevice && _backdrop.IsReady && _showRequested)
+            {
+                int version = _showVersion;
+                DispatcherQueue.TryEnqueue(() =>
+                {
+                    if (_closed || version != _showVersion || !_showRequested || !_backdrop.IsReady || _renderingFailed) return;
+                    _recoveringDevice = false;
+                    WindowPlumbing.SetOpacity(this, 255);
+                    WindowPlumbing.SetClickThrough(this, !_enabled, preserveLayered: true);
+                    SetSurfaceState(AnnotationSurfaceState.Visible);
+                });
+            }
+        }
+        catch (Exception ex)
+        {
+            if (sender.Device.IsDeviceLost(ex.HResult))
+            {
+                FinishInput();
+                WindowPlumbing.SetOpacity(this, 0); WindowPlumbing.SetClickThrough(this, true, preserveLayered: true);
+                _firstTransparentFrame = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                _recoveringDevice = true;
+                PresentationDiagnostics.Record("Win2D 设备丢失", $"0x{ex.HResult:X8}，绘制层暂时隐藏");
+                throw; // Win2D recreates the device and raises CreateResources.
+            }
+            DisableFailedRendering(ex);
+        }
+        if (_renderer?.IsAnimating != true) _animationTimer.Stop();
         foreach (var log in _logs.Values) log.Draw(start);
     }
     private void OnSizeChanged(object sender, SizeChangedEventArgs e)
     { FinishInput(); StopAnimation(); _eraser.Reset(); _renderer?.InvalidateSlide(); Invalidate(); }
+    private void OnBackdropDisconnected()
+    {
+        if (_closed) return;
+        FinishInput(); StopAnimation();
+        _recoveringDevice = true;
+        _firstTransparentFrame = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        WindowPlumbing.SetOpacity(this, 0);
+        WindowPlumbing.SetClickThrough(this, true, preserveLayered: true);
+        SetSurfaceState(AnnotationSurfaceState.Created);
+    }
+    private void OnBackdropConnected() { if (!_closed) Invalidate(); }
+
+    private void DisableFailedRendering(Exception exception)
+    {
+        if (_renderingFailed) return;
+        _renderingFailed = true;
+        SetSurfaceState(AnnotationSurfaceState.Failed);
+        _firstTransparentFrame.TrySetResult(false);
+        StopAnimation(); AnnotationEnabled = false; AppWindow.Hide();
+        CrashReporter.Report(exception, "annotation-rendering");
+        RenderingFailed?.Invoke(this, "批注绘制初始化失败，已隐藏绘制层。笔迹数据仍保留，请重新开始放映后重试。");
+    }
+
     private void OnSettingsChanged(object? sender, EventArgs e)
     {
         StopAnimation();
@@ -324,7 +467,11 @@ public sealed class AnnotationWindow : Window
     private void Invalidate() { if (!_closed) _canvas?.Invalidate(); }
     private void OnClosed(object sender, WindowEventArgs args)
     {
+        _backdrop.Disconnected -= OnBackdropDisconnected;
+        _backdrop.Connected -= OnBackdropConnected;
+        _sessionRegistration.Dispose(); _showRequested = false;
         _closed = true; FinishInput(); StopAnimation(); _animationTimer.Tick -= OnAnimationFrame; AppSettings.SettingsChanged -= OnSettingsChanged;
+        _firstTransparentFrame.TrySetResult(false);
         _shapeTimer.Stop(); _shapeTimer.Tick -= OnShapeFrame; _shapePreviews.Clear(); _lastMotion.Clear(); _holdPositions.Clear();
         _root.PointerPressed -= OnPressed; _root.PointerMoved -= OnMoved; _root.PointerReleased -= OnReleased;
         _root.PointerCanceled -= OnCanceled; _root.PointerCaptureLost -= OnCaptureLost; _root.SizeChanged -= OnSizeChanged;
@@ -334,6 +481,6 @@ public sealed class AnnotationWindow : Window
             _canvas.CreateResources -= OnCreateResources; _canvas.Draw -= OnDraw;
             _canvas.RemoveFromVisualTree(); _canvas = null;
         }
-        CompanionsRaise = null; InkChanged = null; Closed -= OnClosed;
+        CompanionsRaise = null; InkChanged = null; RenderingFailed = null; Closed -= OnClosed;
     }
 }

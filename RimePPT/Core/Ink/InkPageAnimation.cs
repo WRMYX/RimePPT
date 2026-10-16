@@ -1,12 +1,12 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Numerics;
 
 namespace RimePPT.Core.Ink;
 
-public enum InkPageAnimationMode { None, Fade, Replay }
+public enum InkPageAnimationMode { None, Fade, Replay, Retract }
 
-public readonly record struct InkAnimationFrame(float OutgoingOpacity, float IncomingOpacity, double ReplayProgress, bool IsComplete);
+public readonly record struct InkAnimationFrame(float OutgoingOpacity, float IncomingOpacity, double ReplayProgress, bool IsComplete, bool DrawIncoming = true);
 
 /// <summary>Presentation-only timing; saved strokes and undo history are never modified.</summary>
 public sealed class InkPageTransition
@@ -27,11 +27,22 @@ public sealed class InkPageTransition
     {
         if (Mode == InkPageAnimationMode.None) return new(0, 1, 1, true);
         double elapsed = double.IsFinite(elapsedMs) ? Math.Max(0, elapsedMs) : 0;
-        double fade = Math.Clamp(elapsed / _fade, 0, 1);
-        float eased = (float)(fade * fade * (3 - 2 * fade));
-        double replay = Mode == InkPageAnimationMode.Replay ? Math.Clamp(elapsed / _replay, 0, 1) : 1;
-        double duration = Math.Max(_outgoing ? _fade : 0, _incoming ? (Mode == InkPageAnimationMode.Replay ? _replay : _fade) : 0);
-        return new(_outgoing ? 1 - eased : 0, Mode == InkPageAnimationMode.Fade && _incoming ? eased : 1, replay, elapsed >= duration);
+        double outgoingDuration = !_outgoing ? 0 : Mode == InkPageAnimationMode.Retract ? _replay : _fade;
+        if (elapsed < outgoingDuration)
+        {
+            double progress = Math.Clamp(elapsed / outgoingDuration, 0, 1);
+            float opacity = Mode == InkPageAnimationMode.Retract ? 1 : (float)(1 - progress * progress * (3 - 2 * progress));
+            return new(opacity, 0, progress, false, false);
+        }
+        // The presentation has already changed; only ink appearance is sequenced here.
+        double incomingElapsed = elapsed - outgoingDuration;
+        double incomingDuration = !_incoming ? 0
+            : Mode == InkPageAnimationMode.Replay ? _replay : _fade;
+        double incomingProgress = incomingDuration == 0 ? 1 : Math.Clamp(incomingElapsed / incomingDuration, 0, 1);
+        float incomingOpacity = Mode is InkPageAnimationMode.Fade or InkPageAnimationMode.Retract
+            ? (float)(incomingProgress * incomingProgress * (3 - 2 * incomingProgress)) : 1;
+        return new(0, incomingOpacity, Mode == InkPageAnimationMode.Replay ? incomingProgress : 1,
+            incomingElapsed >= incomingDuration);
     }
 }
 
@@ -61,6 +72,12 @@ public sealed class InkReplayPlan
             _ends[i] = total;
         }
         TotalLength = total;
+    }
+
+    public InkReplayFrame AtReverse(double progress)
+    {
+        progress = double.IsFinite(progress) ? Math.Clamp(progress, 0, 1) : 0;
+        return At(1 - progress);
     }
 
     public InkReplayFrame At(double progress)

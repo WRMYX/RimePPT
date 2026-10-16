@@ -29,3 +29,7 @@ jobs:
         run: ./tests/RimePPT.Update.Tests/Test-PortableUpdate.ps1
       - name: Build application / 编译程序
         run: dotnet build RimePPT/RimePPT.csproj -c Release -p:Platform=x64 -p:PublishTrimmed=false
+      - name: Build Office add-in / 编译 Office 加载项
+        run: ./tools/Build-OfficeAddin.ps1
+      - name: Verify Office bridge contract / 验证 Office 桥接接口
+        run: powershell -NoProfile -File ./tools/Test-OfficeAddin.ps1

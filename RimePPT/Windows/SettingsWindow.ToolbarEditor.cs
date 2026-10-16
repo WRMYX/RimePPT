@@ -12,12 +12,12 @@ namespace RimePPT.Windows;
 
 public sealed partial class SettingsWindow
 {
-    private readonly ComboBox _toolbarPosition = new() { Header = "编辑位置", HorizontalAlignment = HorizontalAlignment.Stretch };
+    private readonly ComboBox _toolbarPosition = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
     private readonly ListView _toolbarOrder = new() { SelectionMode = ListViewSelectionMode.None,
         CanReorderItems = true, CanDragItems = true, AllowDrop = true, IsSwipeEnabled = true,
         ReorderMode = ListViewReorderMode.Enabled,
         HorizontalAlignment = HorizontalAlignment.Stretch };
-    private readonly ComboBox _toolbarAvailable = new() { Header = "可添加功能", HorizontalAlignment = HorizontalAlignment.Stretch };
+    private readonly ComboBox _toolbarAvailable = new() { HorizontalAlignment = HorizontalAlignment.Stretch };
     private readonly TextBlock _toolbarEmpty = new() { Text = "此位置没有按钮，工具栏将隐藏。", TextWrapping = TextWrapping.Wrap };
     private ObservableCollection<ToolbarEditorItem> _toolbarRows = new();
     private bool _toolbarDragHandle;
@@ -56,7 +56,7 @@ public sealed partial class SettingsWindow
         AutomationProperties.SetName(_toolbarPosition, "编辑工具栏位置");
         AutomationProperties.SetName(_toolbarOrder, "已显示功能顺序");
         AutomationProperties.SetName(_toolbarAvailable, "可添加功能");
-        host.Children.Add(_toolbarPosition);
+        host.Children.Add(new RimePPT.Controls.SettingRow { Title = "编辑位置", Editor = _toolbarPosition, RowPadding = new Thickness(0, 8, 0, 8) });
         host.Children.Add(new TextBlock { Text = "已显示功能", FontSize = 18 });
         host.Children.Add(_toolbarEmpty);
         host.Children.Add(_toolbarOrder);
@@ -126,7 +126,7 @@ public sealed partial class SettingsWindow
         var actions = new Grid { ColumnSpacing = 8, Margin = new Thickness(0, 8, 0, 0) };
         actions.ColumnDefinitions.Add(new() { Width = new GridLength(1, GridUnitType.Star) });
         actions.ColumnDefinitions.Add(new() { Width = GridLength.Auto });
-        actions.Children.Add(_toolbarAvailable);
+        actions.Children.Add(new RimePPT.Controls.SettingRow { Title = "可添加功能", Editor = _toolbarAvailable, RowPadding = new Thickness(0, 8, 0, 8) });
         var add = new Button { Content = "添加到此工具栏", MinHeight = 40 };
         add.Click += (_, _) =>
         {

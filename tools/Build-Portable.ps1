@@ -19,6 +19,7 @@ New-Item -ItemType Directory -Path $runtime -Force | Out-Null
 $build = (Join-Path $stage 'build') + [IO.Path]::DirectorySeparatorChar
 & dotnet publish (Join-Path $projectRoot 'RimePPT\RimePPT.csproj') -c Release -r win-x64 -p:Platform=x64 "-p:Version=$Version" "-p:OutputPath=$build" --self-contained true -p:WindowsAppSDKSelfContained=true -p:PublishTrimmed=false -p:PublishSingleFile=false -o $runtime
 if ($LASTEXITCODE -ne 0) { throw 'Publish failed; no ZIP created.' }
+# The main project includes the optional Office integration payload in every channel.
 # WinUI MUI folders are native resources, so managed satellite filtering alone is insufficient.
 $keepLanguages = @('en-US', 'zh-CN', 'zh-Hans', 'zh')
 foreach ($directory in Get-ChildItem -LiteralPath $runtime -Directory) {
@@ -32,7 +33,7 @@ foreach ($directory in Get-ChildItem -LiteralPath $runtime -Directory) {
 foreach ($file in Get-ChildItem -LiteralPath $runtime -File -Recurse | Where-Object { $_.Extension -eq '.pdb' -or $_.Name -eq '使用说明.txt' }) {
     Remove-Item -LiteralPath $file.FullName -Force
 }
-foreach ($required in @('Updater/RimePPT.Updater.exe', 'Updater/RimePPT.Updater.pri', 'Updater/Microsoft.UI.Xaml.dll', 'Updater/coreclr.dll', 'RimePPT.exe','coreclr.dll','Microsoft.UI.Xaml.dll','Assets\RimePPT-Logo.svg')) {
+foreach ($required in @('OfficeAddin/RimePPT.OfficeAddin.dll', 'OfficeAddin/Register-OfficeAddin.ps1', 'Updater/RimePPT.Updater.exe', 'Updater/RimePPT.Updater.pri', 'Updater/Microsoft.UI.Xaml.dll', 'Updater/coreclr.dll', 'RimePPT.exe','coreclr.dll','Microsoft.UI.Xaml.dll','Assets\RimePPT-Logo.svg')) {
     if (-not (Test-Path -LiteralPath (Join-Path $runtime $required))) { throw "Missing runtime file: $required" }
 }
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null

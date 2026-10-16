@@ -1,145 +1,168 @@
-<div align="center">
-  <img src="RimePPT/Assets/RimePPT-Logo.svg" width="96" alt="RimePPT Logo" />
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="RimePPT/Assets/MYXMJY-white.png" />
-    <img src="RimePPT/Assets/MYXMJY-black.png" width="112" alt="开发者 MYXMJY Logo" />
-  </picture>
-  <h1>RimePPT · 雾淞 PPT 助手</h1>
-  <p>面向课堂演示与触摸屏的 Windows 放映助手。</p>
+﻿<div align="center">
+  <img src="RimePPT/Assets/RimePPT-Logo.svg" width="88" height="88" alt="RimePPT Logo" />
+  <h1>RimePPT</h1>
+  <p><strong>让翻页、批注与板书，留在课堂演示之中。</strong></p>
+  <p>面向 Windows、PowerPoint 与触摸屏的放映助手 · 原生 WinUI 3</p>
   <p>
     <a href="https://RimePPT.MYXMJY.Top">官方网站</a> ·
     <a href="https://apps.microsoft.com/detail/9MV9Q91FTTFZ">Microsoft Store</a> ·
-    <a href="https://github.com/WRMYX/RimePPT/issues">问题反馈</a>
+    <a href="https://github.com/WRMYX/RimePPT/releases">下载发布版</a> ·
+    <a href="https://github.com/WRMYX/RimePPT/issues">反馈问题</a>
   </p>
+  <p><strong>WinUI 3</strong> &nbsp; / &nbsp; <strong>.NET 8</strong> &nbsp; / &nbsp; <strong>GPL v3</strong></p>
 </div>
 
-![RimePPT 封面](docs/images/RimePPT-Cover.png)
+![RimePPT 产品封面](docs/images/RimePPT-Cover.png)
 
-RimePPT 将翻页、批注、擦除和课堂辅助工具放在浮动工具栏中，帮助教师在演示过程中直接操作。界面采用 WinUI 与 Fluent 风格，支持鼠标、触笔及触摸操作。
+RimePPT 把翻页、批注、橡皮和课堂辅助工具放在屏幕边缘的浮动工具栏中。支持鼠标、触笔与触摸操作，也能在放映中打开全屏独立画板，继续多页书写。
 
-## 主要功能
+[功能介绍](#功能介绍) · [安装与上手](#安装与上手) · [软件更新](#软件更新) · [源码构建](#源码构建) · [自动打包与发布](#自动打包与发布) · [反馈与贡献](#反馈与贡献)
 
-- **放映工具栏**：上一页、下一页、页面导航、批注、橡皮、撤销、重做及退出放映。
-- **工具栏自定义**：分别设置左右侧栏及底部各位置的显示项目，拖动调整顺序；支持主题、按钮文字和屏幕边距设置。
-- **两种批注模式**：PowerPoint 原生 COM 笔迹与 RimePPT 自研笔迹。线型、形状及自定义尺寸使用自研模式。
-- **颜色、线型与形状**：预设及自定义颜色，虚线、点线、波浪线等线型；直接绘制直线、箭头、矩形、椭圆和三角形。
-- **智能图形整理**：自研实线自由书写后保持按住约 0.6 秒，可整理为直线、圆、矩形或三角形；继续明显移动可恢复自由书写，可在设置中关闭。
-- **笔迹切页动画**：渐隐渐显或按书写顺序重播。
-- **独立画板**：覆盖放映屏幕，支持多页书写、页面缩略图导航、擦除、撤销、重做，以及 PNG / PDF 导出。
-- **课堂辅助工具**：聚光与选区放大、保存选区图片、黑屏、计时器及板书导出。
-- **应用与文件快速启动**：自定义名称、固定到指定工具栏，并与其他工具按钮一起排序。
-- **Class Widgets 2 联动**：通过插件获取当前科目，设置页面提供连接状态检查。
-- **使用引导**：简短入门与完整指南，均可跳过。
-- **微软商店更新入口**：商店更新适用于通过 Microsoft Store 安装的版本。
+## 功能介绍
 
-> WPS 适配代码已接入，但仍需要真实 WPS 环境验证。智能整理的实际效果取决于书写方式和设备，不能保证每一笔都会识别。
+### 按自己的习惯安排工具栏
 
-## 安装与使用
+- **放映控制**：上一页、下一页、页码与缩略图导航、退出放映。
+- **独立配置**：左右侧栏和底部各位置分别选择显示项目，拖动调整排列。
+- **外观与入场**：主题、按钮文字、屏幕边距和工具栏出现顺序均可设置。
+- **快捷启动**：添加应用或文件，自定义名称，固定到指定工具栏并调整位置。
 
-优先从 [Microsoft Store](https://apps.microsoft.com/detail/9MV9Q91FTTFZ) 安装，或通过 [官方网站](https://RimePPT.MYXMJY.Top) 查看下载渠道。
+### 自由书写，也能画得规整
 
-便携版解压后运行 `RimePPT.exe`。打开 PowerPoint 并开始放映后，工具栏会按设置显示。需要线型、形状、智能整理或可调橡皮时，请选择 **RimePPT 自研** 模式。
+- **两种批注模式**：PowerPoint 原生 COM 笔迹与 RimePPT 自研笔迹。
+- **颜色与线型**：预设色、自定义颜色、粗细，以及虚线、点线、波浪线等。
+- **直接绘制形状**：直线、箭头、矩形、椭圆、三角形。
+- **智能图形整理**：自由书写后保持按住约 0.6 秒，尝试整理为直线、圆、矩形或三角形；继续明显移动可恢复自由书写。
+- **逐页编辑与保存**：擦除、撤销、重做；再次放映课件时，可加载之前保存的笔迹。
+- **独立翻页动画**：上一页与下一页分别设置动画和时长；支持淡入淡出、按书写顺序重播，以及下一页的倒放收回后淡入。
 
-独立画板中的退出按钮用于返回 PPT。导出板书前请确认当前内容；程序设置中的使用指南可帮助重新了解各个工具。
+线型、形状、智能整理和可调橡皮使用 **RimePPT 自研** 模式。原生 COM 模式不支持这些扩展绘制功能。新用户默认上一页按书写顺序重播、下一页倒放收回，已有用户的设置保留。
 
-## 技术栈
+### 放映之外的课堂工具
 
-- C# / .NET 8
-- WinUI 3 / Windows App SDK
-- Win2D：笔迹和画板渲染
-- PowerPoint COM：放映控制与原生批注
-- H.NotifyIcon.WinUI：系统托盘
-- MSIX 与自包含便携版发布
+- **全屏独立画板**：多页书写、页面缩略图、清空当前页、撤销与重做，支持 PNG / PDF 导出。
+- **聚光与选区放大**：突出讲解内容，可保存选区图片。
+- **其他辅助功能**：黑屏、计时器、板书导出，以及可重新打开的使用指南。
+- **第三方连接**：Class Widgets 2 课程信息联动，以及可选的 Office COM 事件加载项。
 
-## 从源码构建
+> WPS 适配已接入，仍需真实 WPS 环境验证。智能图形整理的效果与书写方式、设备有关。
 
-使用 Windows 开发环境，安装 .NET 8 SDK、Windows SDK，以及相应的 WinUI 开发工具。打包脚本需要 **PowerShell 7.2 或更高版本（`pwsh`）**，不支持 Windows 自带的 PowerShell 5.1。仓库中的解决方案使用 `.slnx` 格式；若工具不支持该格式，可直接构建项目文件。
+## 安装与上手
 
-以下命令在仓库根目录运行，以 x64 为例：
+**推荐从 [Microsoft Store](https://apps.microsoft.com/detail/9MV9Q91FTTFZ) 安装。** 也可以在 [GitHub Releases](https://github.com/WRMYX/RimePPT/releases) 获取以下版本：
+
+- **便携版**：下载 Portable ZIP，完整解压后运行 `RimePPT.exe`。保留随包提供的资源和运行依赖。
+- **MSIX＋证书版**：下载 MSIX-with-certificate ZIP，按 Windows 提示信任随附的公开证书 `.cer`，再安装 MSIX。
+
+Store 提交包仅作为 Actions 构建产物提供，供维护者上传合作伙伴中心，不放入 Releases。
+
+### 第一次使用
+
+1. 启动 RimePPT，通过托盘菜单打开设置。
+2. 打开 PowerPoint 课件并开始放映，工具栏随设置显示。
+3. 点击“批注”书写，通过旁边的箭头展开颜色、线型与形状；需要扩展绘制时使用自研模式。
+4. 在工具菜单中打开独立画板；画板工具栏的返回按钮用于回到 PPT。
+5. 退出放映时，按提示选择是否保存笔迹。
+
+### 可选的 Office 加载项
+
+RimePPT 无需注册加载项也能检测 PowerPoint。可选加载项用于通知放映开始、翻页和结束，**不会自动启动 RimePPT**。
+
+可在设置的“第三方连接 → Office COM”查看状态、注册或卸载。操作前先关闭 PowerPoint；全机注册需要管理员授权。详细说明见 [Office 加载项文档](tools/RimePPT.OfficeAddin/README.md)。
+
+## 软件更新
+
+设置中的“更新”页面根据安装渠道提供更新方式：
+
+- **Microsoft Store 版**：继续通过 Microsoft Store 更新。
+- **便携版**：通过 GitHub 正式 Release 检查与下载，确认后由独立的原生 WinUI 3 窗口显示安装进度、结果或错误，失败时尝试回滚。
+- **非商店 MSIX 版**：下载匹配的安装包后，打开安装文件夹，由用户信任证书并通过 Windows 安装界面升级。
+
+启动时自动检查 GitHub 更新默认关闭，可以在设置中开启；检查不会自动下载或安装。GitHub 下载支持官方直连、预设加速源及自定义 HTTPS 加速前缀，版本信息仍来自官方 API。
+
+自动更新只使用匹配版本、安装类型和进程架构的附件，并校验文件大小与官方 SHA-256 digest。缺少合适附件或校验信息时，可通过页面中的链接手动下载。草稿和预发布不作为软件更新来源。
+
+便携更新会备份并替换程序文件，之后重新启动；用户设置和笔迹文件保留。更新记录与备份位于 `%LOCALAPPDATA%\RimePPT\Updates`，记录目录为其下的 `History`。程序所在目录需要写入权限。
+
+> 当前自动打包流程每次生成新的自签名证书。非商店 MSIX 更新仍需手动信任相应证书，程序不会自动安装证书。
+
+## 源码构建
+
+项目使用 **C# / .NET 8、WinUI 3 / Windows App SDK、Win2D 和 PowerPoint COM**；托盘基于 H.NotifyIcon.WinUI。
+
+在 Windows 上准备 .NET 8 SDK、Windows SDK 和 WinUI 开发工具。可选 Office 加载项面向 .NET Framework 4.8。打包脚本要求 **PowerShell 7.2 或更新版本（`pwsh`）**。
+
+以下命令在仓库根目录运行，以 x64 为例；直接使用项目文件，不依赖工具对 `.slnx` 的支持：
 
 ```powershell
 dotnet restore RimePPT/RimePPT.csproj
-dotnet build RimePPT/RimePPT.csproj -c Release -p:Platform=x64
+dotnet build RimePPT/RimePPT.csproj -c Debug -p:Platform=x64 -p:RuntimeIdentifier=win-x64
 ```
 
-直接发布可运行程序：
-
-```powershell
-dotnet publish RimePPT/RimePPT.csproj -c Release -r win-x64 -p:Platform=x64 --self-contained true -p:WindowsAppSDKSelfContained=true -p:PublishTrimmed=false -p:PublishSingleFile=false -o artifacts/publish
-```
-
-打包便携版：
+生成便携版：
 
 ```powershell
 pwsh -NoProfile -File tools/Build-Portable.ps1
 ```
 
-生成 MSIX：
+生成本地签名 MSIX 或 Store 提交包：
 
 ```powershell
 pwsh -NoProfile -File tools/Build-MSIX.ps1
+pwsh -NoProfile -File tools/Build-MSIX.ps1 -Store
 ```
 
-MSIX 打包需要 Windows SDK 中的 MakeAppx / SignTool。商店提交包与本地签名包的用途不同，请根据脚本参数和自己的发布身份配置选择；不要上传签名私钥或账号凭据。
+MSIX 打包还需要 Windows SDK 中的 MakeAppx / SignTool。请根据脚本参数配置自己的发布身份，不要提交签名私钥或账号凭据。
 
-## GitHub 自动检查与发布
-
-上传代码或创建 PR 后，**Build and test / 编译与测试** 自动运行笔迹测试并编译 x64 程序。
-
-无需命令发布新版本：
-
-1. 打开仓库 **Actions → Package application / 打包程序 → Run workflow**，选择要发布的分支，通常为 `main`。
-2. 在 `release_version` 输入未使用过的三段版本标签，例如 `v1.2.3`；留空则仅打包，不创建 Release。
-3. 等待测试与打包通过。在 Actions 运行页面的 **Artifacts** 下载便携版、MSIX＋证书或 Store 提交包。
-4. 填写版本号的运行会创建草稿 Release，仅附便携版 ZIP 和 MSIX＋证书 ZIP。下载并实际测试后，再点击 **Publish release** 公开发布。
-
-也支持推送 `v1.2.3` 这样的标签触发打包。版本转换为 `1.2.3.0`，便携程序与 MSIX 使用同一版本。四段标签暂不支持；没有指定版本时读取 `RimePPT/Package.appxmanifest`，修改默认版本只需修改该清单。
-
-- **便携版**：解压运行，无需安装。
-- **MSIX＋证书**：本地安装版本，安装前需要信任附带的 `.cer`。当前每次打包生成新自签名证书，并非固定的发布证书。
-- **Store 提交包**：只在 Actions 产物中提供，不附到 Release；上传微软合作伙伴中心，由微软审核并签名。
-
-私有仓库的下载需要相应访问权限。草稿用于发布者验收，不供普通用户更新。第三方依赖与素材来源见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
-
-## 软件内 GitHub 更新
-
-设置的更新页面提供 GitHub 正式 Release 查询、更新说明、下载进度和取消下载。启动时自动检查默认关闭，可自行开启；该选项不会自动下载或安装更新。程序不内置 GitHub 令牌，仓库必须公开且有正式 Release，草稿和预发布不供软件更新。
-
-下载文件必须匹配版本、安装类型与进程架构，且 GitHub API 必须提供有效 SHA-256 digest。便携版文件名为 `RimePPT-1.2.3.0-Portable-x64.zip`，非商店 MSIX 为 `RimePPT-1.2.3.0-MSIX-with-certificate-x64.zip`；现有发布流程自动生成这些名称。缺少文件或校验信息时不会自动安装，可通过页面中的 GitHub 链接手动查看。
-
-便携版确认更新后会退出，通过独立进程备份并替换程序文件，再打开设置；失败时尝试恢复原文件。下载、备份与结果记录在 `%LOCALAPPDATA%\RimePPT\Updates`。不会修改用户设置和板书文件，不会自动删除旧备份。程序目录须有写入权限；如无权限，可手动解压新版本到可写目录。
-
-非商店 MSIX 下载后打开安装文件夹，由用户信任证书并使用 Windows 安装界面验证升级。当前证书每次生成，仍需手动信任，不会自动安装证书。商店安装版继续使用 Microsoft Store 更新。
-
-## 测试
+### 检查与测试
 
 ```powershell
 dotnet run --project tests/RimePPT.Ink.Tests -c Release
 pwsh -NoProfile -File tests/RimePPT.Update.Tests/Test-PortableUpdate.ps1
 ```
 
-自动化测试覆盖笔迹几何、擦除、图形识别、撤销、重播和设置兼容性等。自动化通过不代表真实触摸、PowerPoint / WPS 兼容性或界面交互已完成验收。
+测试源码覆盖笔迹几何、擦除、图形识别、撤销、动画与设置兼容性等。编译或自动化检查通过，不代表真实触摸、PowerPoint / WPS 兼容性和界面效果已经验收。
 
-## 反馈
+## 自动打包与发布
 
-请通过 [GitHub Issues](https://github.com/WRMYX/RimePPT/issues) 提交问题，尽量附上软件版本、Windows 版本、放映软件、操作步骤以及截图。提交课件、日志或配置前，请移除个人信息。
+仓库提供两条 GitHub Actions 工作流：
 
-## 许可证与署名
+- **Build and test / 编译与测试**：推送代码或创建 PR 后执行测试与编译检查。
+- **Package application / 打包程序**：生成便携版、MSIX＋证书和 Store 提交包，并可创建草稿 Release。
 
-Copyright © 2026 **MYXMJY**。
+保留“先测试、再发布”的流程，无需在本地输入 Git 命令：
 
-本项目采用 **GNU General Public License v3.0（GPL-3.0-only）**，完整条款见 [LICENSE](LICENSE)，官方文本见 [GNU GPL v3](https://www.gnu.org/licenses/gpl-3.0.html)。
+1. 打开 **Actions → Package application / 打包程序 → Run workflow**，选择分支。
+2. 在 `release_version` 输入未使用过的三段版本标签，例如 `v1.2.5`；留空则仅打包。
+3. 等待工作流成功，从 **Artifacts** 下载产物进行实际测试。
+4. 有版本标签时会创建草稿 Release，仅附便携版和 MSIX＋证书压缩包。确认可用后，再点击 **Publish release**。
 
-- 允许使用、学习、修改和分发，也允许商业使用，无需另行申请商业授权。
-- 分发本作品或基于本作品的衍生作品时，须遵守 GPL v3，保留适用的版权、许可证及相关声明，并标明修改。
-- 分发可执行程序时，须按 GPL v3 规定提供相应源码或符合条款的源码获取方式；对受 GPL 覆盖的衍生作品采用 GPL v3 授权。
-- 仅在本地使用或修改、不向他人分发，不因 GPL v3 而必须公开修改后的源码。
-- 第三方依赖与素材遵循各自许可证；本软件不提供任何担保，具体要求以许可证全文为准。
+也支持推送版本标签触发。当前要求 `v主版本.次版本.修订版本`，例如 `v1.2.5` 对应包版本 `1.2.5.0`，四段标签不受支持。未指定版本时，读取 [Package.appxmanifest](RimePPT/Package.appxmanifest) 中的默认版本。
 
-请保留原作者 **MYXMJY** 的版权声明。GPL v3 不代表原作者为衍生版本提供认可或背书。
+## 反馈与贡献
 
-更新页面会根据安装类型提供 Microsoft Store 或 GitHub 更新。GitHub 下载默认官方直连，可选择 GH-Proxy 或管理自定义 HTTPS 加速前缀；版本信息仍来自官方 API，所有线路均校验官方附件大小和 SHA-256。
+欢迎通过 [GitHub Issues](https://github.com/WRMYX/RimePPT/issues) 反馈问题或提出功能建议。请尽量提供：
 
-便携版安装由独立更新窗口显示备份、文件替换、校验及回滚状态，安装期间请等待完成。更新记录位于 `%LOCALAPPDATA%/RimePPT/Updates/History`。非商店 MSIX 的安装进度由 Windows 应用安装程序提供；商店版显示 Store API 返回的进度。
+- RimePPT 版本、安装渠道和 Windows 版本。
+- PowerPoint / WPS 版本、复现步骤及截图或视频。
+- 相关日志；发送前请移除个人信息和不宜公开的课件内容。
 
-独立安装窗口使用原生 WinUI 3，携带完整运行依赖，启动前复制到暂存目录。
+运行日志位于 `%TEMP%\rimeppt_app.log` 和 `%TEMP%\rimeppt_com.log`。讨论改动时，请区分编译结果与真实设备上的测试结果。
+
+## 许可证
+
+Copyright © 2026 **MYXMJY**。本项目采用 **GNU GPL v3（GPL-3.0-only）**，完整条款见 [LICENSE](LICENSE)。请保留适用的原作者版权与许可证声明；使用和分发以许可证全文为准。
+
+第三方依赖与素材来源见 [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)。
+
+---
+
+<div align="center">
+  <p>由 <strong>MYXMJY</strong> 开发与维护</p>
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="RimePPT/Assets/MYXMJY-white.png" />
+    <source media="(prefers-color-scheme: light)" srcset="RimePPT/Assets/MYXMJY-black.png" />
+    <img src="RimePPT/Assets/MYXMJY-black.png" width="180" height="40" alt="开发者 MYXMJY Logo" />
+  </picture>
+  <p><a href="https://RimePPT.MYXMJY.Top">了解 RimePPT</a> · <a href="https://github.com/WRMYX/RimePPT/releases">查看最新版本</a></p>
+</div>

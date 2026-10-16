@@ -1,4 +1,4 @@
-using Microsoft.UI.Dispatching;
+﻿using Microsoft.UI.Dispatching;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
 using Microsoft.UI.Windowing;
@@ -24,6 +24,9 @@ namespace RimePPT
         private System.Threading.Mutex? _singleInstance;
         private DispatcherQueue? _dispatcher;
         private IPresentationController? _presenting;
+        private System.Threading.CancellationTokenSource? _showCancellation;
+        private bool _navigating;
+        private int _toolSelectionVersion;
         private AnnotationWindow? _annotation;
         private PromptWindow? _promptWindow;
         private ToolsMenuWindow? _toolsMenu;
@@ -43,6 +46,7 @@ namespace RimePPT
         private int _toolTransitionVersion;
         private static App? _instance;
         private readonly ToolbarOnboardingSession _onboarding = new();
+        private bool _inkLoadChecked;
         public static bool ResetToolbarOnboarding()
         {
             if (!OnboardingState.TryReset()) return false;
@@ -206,6 +210,8 @@ namespace RimePPT
             }
 
             InitializeTray();
+            CrashReporter.Log("startup: tray initialized");
+            PreparePresentationToolbars();
             _ = CheckGitHubUpdatesAtStartupAsync();
             // 独立预览诊断入口，不读写课件或墨迹，用于验证原生询问框。
             var promptPreview = cliArgs.FirstOrDefault(a => a.StartsWith("--prompt-preview=", StringComparison.OrdinalIgnoreCase));
@@ -230,12 +236,18 @@ namespace RimePPT
         {
             // TryEnqueue 回调是 async void 语义：体内异常会直接杀死进程，
             // 必须整体兜住（"莫名退出"的最大嫌疑入口）
+            long? controllerSession = (sender as PowerPointController)?.SessionVersion;
+            CrashReporter.Log("show-started: event received");
             _dispatcher?.TryEnqueue(async () =>
             {
                 try
                 {
+                    if (sender is not IPresentationController controller || !controller.IsPresenting) return;
+                    if (sender is PowerPointController ppt && ppt.SessionVersion != controllerSession) return;
+                    PresentationDiagnostics.Record("UI 调度", "开始处理放映");
                     await OnShowStartedCore(sender!);
                 }
+                catch (OperationCanceledException) { }
                 catch (Exception ex)
                 {
                     CrashReporter.Report(ex, "show-started");
@@ -245,7 +257,12 @@ namespace RimePPT
 
         private async Task OnShowStartedCore(object sender)
         {
-            if (_presenting is { IsPresenting: true } && !ReferenceEquals(sender, _presenting)) return;
+            if (_presenting is { IsPresenting: true } && (!ReferenceEquals(sender, _presenting) || ActiveToolbars.Count > 0)) return;
+            _showCancellation?.Cancel();
+            _showCancellation?.Dispose();
+            var sessionCancellation = _showCancellation = new System.Threading.CancellationTokenSource();
+            var sessionToken = sessionCancellation.Token;
+            bool CurrentSession() => !sessionToken.IsCancellationRequested && ReferenceEquals(_presenting, sender);
             CloseAllToolbars();
             ClosePrompt();
             CloseAnnotation();
@@ -258,6 +275,7 @@ namespace RimePPT
             _inkDirty = false;
             _saveSettled = false;
             _presenting = (IPresentationController)sender;
+            _inkLoadChecked = false;
 
                 ToolbarLayout[] layouts = sender is DebugPresentationController debug
                     ? debug.DebugLayouts
@@ -268,34 +286,58 @@ namespace RimePPT
                     : DisplayArea.Primary;
                 _showArea = area;
 
-                foreach (var layout in layouts.Where(x => AppSettings.Instance.GetToolbarCommands(x).Count > 0 || AppSettings.Instance.QuickLaunchEntries.Any(e => e.PinnedLayout == x)))
+                var visibleLayouts = layouts.Where(x => AppSettings.Instance.GetToolbarCommands(x).Count > 0 || AppSettings.Instance.QuickLaunchEntries.Any(e => e.PinnedLayout == x)).ToArray();
+                if (!CurrentSession()) return;
+
+                var entering = new List<ToolbarWindow>();
+                foreach (var layout in visibleLayouts)
                 {
-                    var toolbar = new ToolbarWindow(layout, AppSettings.Instance.GetToolbarCommands(layout));
-                    toolbar.ToolbarClicked += OnToolbarClicked;
-                    toolbar.ToolSettingsRequested += OpenToolSettings;
-                    toolbar.ApplySettings();
-                    toolbar.ShowOn(area);
+                    var toolbar = TakePreparedToolbar(layout);
+                    toolbar.FirstFrameVisible += (_, _) => PresentationDiagnostics.Record("工具栏首帧", layout.ToString());
+                    toolbar.UpdatePresentation(_presenting.CurrentSlide, _presenting.SlideCount, false, false);
                     ActiveToolbars.Add(toolbar);
+                    entering.Add(toolbar);
                 }
+                var entranceTask = ShowToolbarsInOrderAsync(entering, area);
+                CrashReporter.Log("show-started: toolbar entrance started");
+                // Yield one render pass; Office and ink initialization never gate toolbar visibility.
+                await Task.Yield();
+                if (!CurrentSession()) return;
 
                 // 批注层最后创建（创建顺序影响置顶带内的输入路由稳定性）；
                 // 书写时批注层会盖住工具条，笔画结束（松开）后 App 会把工具条重提上来
-                _annotation = new AnnotationWindow(SessionInk);
+                _annotation = _preparedAnnotation ?? new AnnotationWindow(SessionInk);
+                _preparedAnnotation = null;
+                DiscardPreparedToolbars();
                 _annotation.InkChanged += (_, _) => { _inkDirty = true; SyncPresentationControls(); };
                 _annotation.CompanionsRaise = RaiseCompanions;
-                _annotation.ShowOn(area);
+                _annotation.RenderingFailed += async (_, message) =>
+                {
+                    if (!CurrentSession()) return;
+                    _annotating = false; _erasing = false; SyncAnnotationChecks();
+                    try { await ShowPromptAsync(area, "批注暂不可用", message, "确定", "关闭"); }
+                    catch (Exception ex) { CrashReporter.Report(ex, "annotation-failure-prompt"); }
+                };
+                var annotation = _annotation;
+                bool ready = await annotation.ShowOnAsync(area, sessionToken);
+                if (!CurrentSession()) return;
+                if (!ready)
+                {
+                    await ShowPromptAsync(area, "批注暂不可用", "透明绘制层初始化失败。工具栏仍可用于翻页，请重新开始放映后重试。", "确定", "关闭");
+                    if (!CurrentSession()) return;
+                }
                 _annotation.SetActiveSlide(_presenting.CurrentSlide);
                 SyncPresentationControls();
-                _backend = new InkBackendCoordinator(_presenting, _annotation);
+                _backend = new InkBackendCoordinator(_presenting, _annotation, sessionToken);
                 await _backend.SwitchBackendAsync(AppSettings.Instance.InkBackend);
-                foreach (var toolbar in ActiveToolbars) toolbar.BeginEntrance();
+                if (!CurrentSession()) return;
+                CrashReporter.Log("show-started: toolbar and annotation initialized");
 
                 // 墨迹持久化：放映开始时询问是否加载之前保存的墨迹
-                var path = _presenting.ShowFilePath;
-                if (!string.IsNullOrEmpty(path) && File.Exists(path))
-                {
-                    await HandleInkLoadAsync(path, _presenting.CurrentSlide, area);
-                }
+                await LoadSessionInkWhenAvailableAsync();
+                if (!CurrentSession()) return;
+                if (!await entranceTask || !CurrentSession()) return;
+                CrashReporter.Log("show-started: toolbar entrance completed");
                 if (WhiteboardWindow.IsOpen) SetWhiteboardMode(true);
                 else _ = _onboarding.StartAsync(ActiveToolbars.ToArray());
         }
@@ -303,7 +345,7 @@ namespace RimePPT
         private void OnSlideChanged(object? sender, int slide)
         {
             Log($"slide changed -> {slide}");
-            _dispatcher?.TryEnqueue(() =>
+            _dispatcher?.TryEnqueue(async () =>
             {
                 try
                 {
@@ -311,7 +353,10 @@ namespace RimePPT
                     _spotlight?.Close(); _spotlight = null;
                     _annotation?.SetActiveSlide(slide);
                     if (!WhiteboardWindow.IsOpen) SyncPresentationControls();
+                    _navigator?.RefreshPresentation();
+                    await LoadSessionInkWhenAvailableAsync();
                 }
+                catch (OperationCanceledException) { }
                 catch (Exception ex)
                 {
                     CrashReporter.Report(ex, "slide-changed");
@@ -319,11 +364,24 @@ namespace RimePPT
             });
         }
 
+        private async Task LoadSessionInkWhenAvailableAsync()
+        {
+            if (_inkLoadChecked || _annotation is null || _backend is null || _showCancellation is null || _showArea is null) return;
+            var path = _presenting?.ShowFilePath;
+            if (string.IsNullOrEmpty(path) || !File.Exists(path)) return;
+            _inkLoadChecked = true;
+            // Late COM metadata must not replace ink already written during fast startup.
+            if (_inkDirty) return;
+            await HandleInkLoadAsync(path, _showArea, _showCancellation.Token);
+        }
+
         private void OnShowEnded(object? sender, SlideEndedReason reason)
         {
+            long? endedVersion = (sender as PowerPointController)?.SessionVersion;
             _dispatcher?.TryEnqueue(async () =>
             {
                 if (!ReferenceEquals(sender, _presenting)) return;
+                if (sender is PowerPointController ppt && (ppt.IsPresenting || ppt.SessionVersion != endedVersion)) return;
                 try
                 {
                     await OnShowEndedCore();
@@ -337,6 +395,8 @@ namespace RimePPT
 
         private async Task OnShowEndedCore()
         {
+            _showCancellation?.Cancel();
+            var endedSession = _showCancellation;
             var path = _presenting?.ShowFilePath;
             _toolTransitionVersion++;
             _backend = null;
@@ -369,12 +429,14 @@ namespace RimePPT
                 }
             }
 
+            if (!ReferenceEquals(endedSession, _showCancellation)) return;
             SessionInk.Clear();
             _annotating = false;
             _erasing = false;
             _inkDirty = false;
             _presenting = null;
             if (WhiteboardWindow.IsOpen) SetWhiteboardMode(true);
+            else PreparePresentationToolbars();
         }
 
         // ———— 工具条命令 ————
@@ -409,7 +471,16 @@ namespace RimePPT
                         await controller.PreviousAsync();
                         break;
                     case ToolbarCommand.Next:
-                        await controller.NextAsync();
+                        if (_navigating) break;
+                        _navigating = true;
+                        try
+                        {
+                            int originalSlide = controller.CurrentSlide;
+                            var token = _showCancellation?.Token ?? System.Threading.CancellationToken.None;
+                            token.ThrowIfCancellationRequested();
+                            if (ReferenceEquals(controller, _presenting) && controller.CurrentSlide == originalSlide) await controller.NextAsync();
+                        }
+                        finally { _navigating = false; }
                         break;
                     case ToolbarCommand.ExitShow:
                     {
@@ -496,6 +567,7 @@ namespace RimePPT
                         _toolbarSettingsSnapshot = signature;
                         foreach (var toolbar in ActiveToolbars) toolbar.ApplySettings();
                         RebuildToolbars();
+                        if (_presenting is null) PreparePresentationToolbars();
                     }
                     if (_backend is not null && _presenting is not null && !WhiteboardWindow.IsOpen)
                     {
@@ -519,17 +591,30 @@ namespace RimePPT
 
         private async Task ToggleToolAsync(AnnotationTool tool)
         {
-            if (_backend is null) return;
+            if (_backend is null) { SyncAnnotationChecks(); return; }
+            var backend = _backend;
+            var cancellation = _showCancellation;
+            int version = ++_toolSelectionVersion;
+            bool CurrentSession() => version == _toolSelectionVersion && ReferenceEquals(backend, _backend)
+                && cancellation?.IsCancellationRequested != true && !WhiteboardWindow.IsOpen;
             bool selected = _annotating && _erasing == (tool == AnnotationTool.Eraser);
+            AnnotationTool? requested = selected ? null : tool;
             _picker?.Dismiss(); _picker = null;
+            _annotating = !selected; _erasing = !selected && tool == AnnotationTool.Eraser;
+            SyncAnnotationChecks(); RaiseCompanions();
             try
             {
-                await _backend.SetToolAsync(selected ? null : tool);
-                _annotating = !selected; _erasing = !selected && tool == AnnotationTool.Eraser;
+                // Return to the UI dispatcher before doing backend work, so feedback is not gated by COM.
+                await Task.Yield();
+                if (!CurrentSession()) return;
+                await backend.SetToolAsync(requested, CurrentSession);
+                if (!CurrentSession()) return;
             }
             catch (Exception ex)
             {
+                if (!CurrentSession()) return;
                 _annotating = false; _erasing = false;
+                SyncAnnotationChecks(); RaiseCompanions();
                 await ShowPromptAsync(_showArea, "工具切换失败", ex.Message, "确定", "关闭");
             }
             SyncAnnotationChecks(); RaiseCompanions();
@@ -723,9 +808,10 @@ namespace RimePPT
 
         // ———— 墨迹持久化 ————
 
-        private async Task HandleInkLoadAsync(string pptxPath, int currentSlide, DisplayArea area)
+        private async Task HandleInkLoadAsync(string pptxPath, DisplayArea area, System.Threading.CancellationToken cancellationToken)
         {
             var doc = await InkStore.TryLoadAsync(pptxPath);
+            cancellationToken.ThrowIfCancellationRequested();
             if (doc is null || !doc.Slides.Values.Any(strokes => strokes.Count > 0))
             {
                 return;
@@ -739,6 +825,7 @@ namespace RimePPT
                 $"是否加载该课件上次保存的批注墨迹？\n（{doc.Slides.Count} 页有墨迹，保存于 {doc.SavedAtUtc.ToLocalTime():yyyy-MM-dd HH:mm}）",
                 "加载", "不加载", "删除墨迹");
 
+            cancellationToken.ThrowIfCancellationRequested();
             switch (result)
             {
                 case PromptResult.Primary:
@@ -746,8 +833,10 @@ namespace RimePPT
                     {
                         SessionInk[pair.Key] = pair.Value;
                     }
-                    _annotation?.SetActiveSlide(currentSlide);
-                    Log($"ink loaded: {SessionInk.Count} slide(s)");
+                    // The prompt can remain open while the presentation advances.
+                    int currentSlide = _presenting?.CurrentSlide ?? 0;
+                    if (currentSlide > 0) _annotation?.RefreshActiveSlide(currentSlide);
+                    Log($"ink loaded: {SessionInk.Count} slide(s); refreshed slide={currentSlide}");
                     break;
 
                 case PromptResult.Delete:
@@ -850,6 +939,8 @@ namespace RimePPT
 
         private void ExitApplication()
         {
+            PowerPoint.Stop(); Wps.Stop();
+            DiscardPreparedToolbars();
             _trayIcon?.Dispose();
             Environment.Exit(0);
         }
@@ -882,6 +973,7 @@ namespace RimePPT
 
         public static void CloseAllToolbars()
         {
+            _instance?.CancelToolbarEntrances();
             _instance?._onboarding.Stop();
             foreach (var toolbar in ActiveToolbars)
             {
@@ -919,15 +1011,15 @@ namespace RimePPT
                 ActiveToolbars.Remove(toolbar);
                 toolbar.Dismiss();
             }
+            var entering = new List<ToolbarWindow>();
             foreach (var layout in added)
             {
                 var toolbar = new ToolbarWindow(layout, settings.GetToolbarCommands(layout));
                 toolbar.ToolbarClicked += OnToolbarClicked;
                 toolbar.ToolSettingsRequested += OpenToolSettings;
                 toolbar.ApplySettings();
-                toolbar.ShowOn(_showArea);
                 ActiveToolbars.Add(toolbar);
-                toolbar.BeginEntrance();
+                entering.Add(toolbar);
             }
             if (_annotating)
             {
@@ -935,7 +1027,7 @@ namespace RimePPT
             }
             SyncAnnotationChecks();
             RaiseCompanions();
-            _ = _onboarding.StartAsync(ActiveToolbars.ToArray(), resumeGuide);
+            _ = GuideAfterEntranceAsync(ShowToolbarsInOrderAsync(entering, _showArea), resumeGuide);
         }
 
         private static readonly object LogLock = new();

@@ -22,7 +22,8 @@ public sealed partial class SettingsWindow
         menuSettings.Children.Add(new TextBlock { Text = "控制展开工具菜单后显示的项目，不影响各位置的独立按钮。", TextWrapping = TextWrapping.Wrap });
         foreach (var item in new[] { ("spotlight","聚光与放大"), ("blackout","黑屏模式"), ("timer","计时器"), ("export","导出课堂板书"), ("whiteboard","独立画板"), ("launcher","快捷启动"), ("guide","使用指南") })
         {
-            var box = new ToggleSwitch { Header = item.Item2, IsOn = AppSettings.Instance.IsToolVisible(item.Item1), MinHeight = 48 };
+            var box = new ToggleSwitch { IsOn = AppSettings.Instance.IsToolVisible(item.Item1), OnContent = "", OffContent = "", MinWidth = 0 };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(box, item.Item2);
             box.Toggled += (_, _) =>
             {
                 var settings = AppSettings.Instance;
@@ -30,7 +31,7 @@ public sealed partial class SettingsWindow
                 if (box.IsOn) settings.VisibleToolItems.Add(item.Item1); else settings.VisibleToolItems.Remove(item.Item1);
                 settings.Save();
             };
-            menuSettings.Children.Add(box);
+            menuSettings.Children.Add(new RimePPT.Controls.SettingRow { Title = item.Item2, Editor = box, EditorWidth = 60, RowPadding = new Thickness(0, 8, 0, 8) });
         }
         host.Children.Add(new Border { Style = (Style)PageHost.Resources["CardBorder"], Child = menuSettings });
         var launchers = new StackPanel { Spacing = 12, Padding = new Thickness(20) };
@@ -104,11 +105,12 @@ public sealed partial class SettingsWindow
             ToolTipService.SetToolTip(remove, "删除"); Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(remove, entry.Name + " 删除");
             remove.Click += (_, _) => { entries.Remove(entry); AppSettings.Instance.Save(); RefreshLauncherRows(); RefreshToolbarEditor(); };
             var footer = new StackPanel { Spacing = 12 };
-            var pin = new ComboBox { Header = "固定到工具栏", HorizontalAlignment = HorizontalAlignment.Stretch };
+            var pin = new ComboBox { HorizontalAlignment = HorizontalAlignment.Stretch };
+            Microsoft.UI.Xaml.Automation.AutomationProperties.SetName(pin, "固定到工具栏");
             foreach (string label in new[] { "不固定", "左侧", "右侧", "底部左侧", "底部中间", "底部右侧" }) pin.Items.Add(label);
             pin.SelectedIndex = entry.PinnedLayout is { } layout ? (int)layout + 1 : 0;
             pin.SelectionChanged += (_, _) => { entry.PinnedLayout = pin.SelectedIndex > 0 ? (ToolbarLayout)(pin.SelectedIndex - 1) : null; AppSettings.Instance.Save(); RefreshToolbarEditor(); };
-            footer.Children.Add(pin);
+            footer.Children.Add(new RimePPT.Controls.SettingRow { Title = "固定到工具栏", Editor = pin, RowPadding = new Thickness(0, 8, 0, 8) });
             footer.Children.Add(new TextBlock { Text = "固定后，可在上方“已显示功能”中与其他按钮一起排序。",
                 TextWrapping = TextWrapping.Wrap, Style = (Style)PageHost.Resources["SettingDesc"] });
             var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Right };

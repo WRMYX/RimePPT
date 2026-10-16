@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Controls;
@@ -27,6 +27,9 @@ namespace RimePPT.Windows
         private static SettingsWindow? _instance;
 
         private bool _suppress = true;
+        private bool _settingsRefreshQueued;
+        private bool _savingInkAnimation;
+        private bool? _animationOptionsForNext;
         private readonly DispatcherTimer _connectionTimer = new() { Interval = TimeSpan.FromSeconds(3) };
         private bool _refreshingConnection;
         private bool _closed;
@@ -58,7 +61,7 @@ namespace RimePPT.Windows
             InitializeFeatureSettings();
             InitializeDeveloperSettings();
             // XAML 中的命名设置控件保留实例与事件，只更换原生导航容器。
-            foreach (var page in new[] { AppearancePage, InkPage, ToolbarPage, ClassWidgetsPage, StoreUpdatePage, DebugPage, AboutPage })
+            foreach (var page in new[] { AppearancePage, InkPage, ToolbarPage, ClassWidgetsPage, OfficePage, StoreUpdatePage, DebugPage, AboutPage })
             {
                 PageHost.Children.Remove(page);
                 page.Visibility = Visibility.Visible;
@@ -163,10 +166,27 @@ namespace RimePPT.Windows
 
         private void SettingsUpdated(object? sender, EventArgs e)
         {
-            _suppress = true; BackendCombo.SelectedIndex = (int)AppSettings.Instance.InkBackend;
-            LoadInkAnimationValues();
-            WindowRoot.RequestedTheme = App.ToolbarTheme; BackendDescription.Text = App.InkBackendStatus + "。原生墨迹由 PowerPoint 管理；自研模式支持多指、尺寸调节和逐页撤销。";
-            _suppress = false;
+            // Save raises this synchronously: do not rewrite a control in its own input event.
+            if (_closed || _savingInkAnimation || _settingsRefreshQueued) return;
+            _settingsRefreshQueued = true;
+            if (!DispatcherQueue.TryEnqueue(() =>
+            {
+                _settingsRefreshQueued = false;
+                if (_closed) return;
+                bool previous = _suppress;
+                _suppress = true;
+                try
+                {
+                    int backend = (int)AppSettings.Instance.InkBackend;
+                    if (BackendCombo.SelectedIndex != backend) BackendCombo.SelectedIndex = backend;
+                    LoadInkAnimationValues();
+                    if (WindowRoot.RequestedTheme != App.ToolbarTheme) WindowRoot.RequestedTheme = App.ToolbarTheme;
+                    string description = App.InkBackendStatus + "。原生墨迹由 PowerPoint 管理；自研模式支持多指、尺寸调节和逐页撤销。";
+                    if (BackendRow.Description != description) BackendRow.Description = description;
+                }
+                catch (Exception ex) { CrashReporter.Report(ex, "settings-window-sync"); }
+                finally { _suppress = previous; }
+            })) _settingsRefreshQueued = false;
         }
         private void OnBackendChanged(object sender, SelectionChangedEventArgs e)
         {
@@ -181,7 +201,7 @@ namespace RimePPT.Windows
             SectionHeader.Width = contentWidth;
             SectionHeader.HorizontalAlignment = HorizontalAlignment.Center;
             SectionHeader.Margin = new Thickness(0, 28, 0, 24);
-            foreach (var section in new[] { AppearancePage, InkPage, ToolbarPage, ClassWidgetsPage, StoreUpdatePage, DebugPage, AboutPage })
+            foreach (var section in new[] { AppearancePage, InkPage, ToolbarPage, ClassWidgetsPage, OfficePage, StoreUpdatePage, DebugPage, AboutPage })
             {
                 section.Padding = new Thickness(0, 0, 0, 32);
                 if (section.Content is FrameworkElement content)
@@ -221,6 +241,7 @@ namespace RimePPT.Windows
                 _ => 0,
             };
             ShowTextToggle.IsOn = settings.ShowToolbarText;
+            EntranceOrderCombo.SelectedIndex = (int)settings.EntranceOrder;
             MarginBox.Value = settings.EdgeMargin;
             AutoShowToggle.IsOn = settings.AutoShowOverlay;
             StartupToggle.IsEnabled = false;
@@ -247,20 +268,23 @@ namespace RimePPT.Windows
                 return;
             }
 
-            string tag = (string)args.SelectedItemContainer.Tag;
-            PageTitle.Text = tag switch { "ink" => "笔迹", "toolbar" => "工具栏", "classwidgets" => "ClassWidgets 2", "updates" => "更新", "debug" => "调试", "about" => "关于", _ => "外观" };
+            if (args.SelectedItemContainer.Tag is not string tag) return;
+            if (tag is "classwidgets" or "office") ThirdPartyConnectionsNav.IsExpanded = true;
+            PageTitle.Text = tag switch { "ink" => "笔迹", "toolbar" => "工具栏", "classwidgets" => "ClassWidgets 2", "office" => "Office COM", "updates" => "更新", "debug" => "调试", "about" => "关于", _ => "外观" };
             PageDescription.Text = tag switch
             {
                 "ink" => "调整书写、智能图形、板书导出与翻页动画。",
                 "classwidgets" => "查看课表插件的连接状态与当前课程。",
+                "office" => "查看和管理 PowerPoint 的放映事件加载项。",
                 "updates" => "查看 Microsoft Store 更新与发布状态。",
                 "toolbar" => "选择浮动工具栏的位置、布局与常用操作。",
                 "debug" => "模拟放映、验证工具栏，或重置使用引导。",
                 "about" => "了解 RimePPT、开发者与软件技术。",
                 _ => "选择书写模式，调整主题与启动行为。"
             };
-            NavigateSection(tag switch { "ink" => InkPage, "toolbar" => ToolbarPage, "classwidgets" => ClassWidgetsPage, "updates" => StoreUpdatePage, "debug" => DebugPage, "about" => AboutPage, _ => AppearancePage }, true);
+            NavigateSection(tag switch { "ink" => InkPage, "toolbar" => ToolbarPage, "classwidgets" => ClassWidgetsPage, "office" => OfficePage, "updates" => StoreUpdatePage, "debug" => DebugPage, "about" => AboutPage, _ => AppearancePage }, true);
             if (tag == "classwidgets") OnRefreshClassWidgets(this, new RoutedEventArgs());
+            if (tag == "office") OnRefreshOfficeAddin(this, new RoutedEventArgs());
             if (tag == "debug") ShowDeveloperNotice();
             AdaptLayout();
         }
@@ -279,22 +303,94 @@ namespace RimePPT.Windows
 
         // ———— 外观 ————
 
+        private bool EditingNextAnimation => InkAnimationDirectionCombo.SelectedIndex == 1;
+
         private void LoadInkAnimationValues()
         {
-            var settings = AppSettings.Instance;
-            SmartShapesToggle.IsOn = settings.SmartShapesEnabled;
-            InkAnimationCombo.SelectedIndex = (int)settings.InkPageAnimation;
-            InkFadeDurationBox.Value = settings.InkFadeDurationMs;
-            InkReplayDurationBox.Value = settings.InkReplayDurationMs;
-            InkFadeDurationBox.IsEnabled = settings.InkPageAnimation != InkPageAnimationMode.None;
-            InkReplayDurationBox.IsEnabled = settings.InkPageAnimation == InkPageAnimationMode.Replay;
+            bool enabled = AppSettings.Instance.SmartShapesEnabled;
+            if (SmartShapesToggle.IsOn != enabled) SmartShapesToggle.IsOn = enabled;
+            RefreshAnimationEditors();
+        }
+
+        private void OnInkAnimationDirectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_closed || _suppress) return;
+            try { RefreshAnimationEditors(); }
+            catch (Exception ex) { CrashReporter.Report(ex, "ink-animation-direction"); }
+        }
+
+        private void RefreshAnimationEditors()
+        {
+            bool previous = _suppress;
+            _suppress = true;
+            try
+            {
+                if (InkAnimationDirectionCombo.SelectedIndex < 0) InkAnimationDirectionCombo.SelectedIndex = 0;
+                var settings = AppSettings.Instance;
+                bool next = EditingNextAnimation;
+                if (_animationOptionsForNext != next)
+                {
+                    // Preserve the shared choices; only the next-page direction supports retract.
+                    if (_animationOptionsForNext is null)
+                        foreach (string label in new[] { "关闭动画", "渐隐渐显", "按书写顺序重播" })
+                            InkAnimationCombo.Items.Add(new ComboBoxItem { Content = label });
+                    if (next) InkAnimationCombo.Items.Add(new ComboBoxItem { Content = "倒放收回" });
+                    else if (InkAnimationCombo.Items.Count > 3) InkAnimationCombo.Items.RemoveAt(3);
+                    _animationOptionsForNext = next;
+                }
+                int mode = (int)(next ? settings.InkNextPageAnimation : settings.InkPageAnimation);
+                if (InkAnimationCombo.SelectedIndex != mode) InkAnimationCombo.SelectedIndex = mode;
+                double fade = next ? settings.InkNextFadeDurationMs : settings.InkFadeDurationMs;
+                double replay = next ? settings.InkNextReplayDurationMs : settings.InkReplayDurationMs;
+                if (InkFadeDurationBox.Value != fade) InkFadeDurationBox.Value = fade;
+                if (InkReplayDurationBox.Value != replay) InkReplayDurationBox.Value = replay;
+                RefreshAnimationAvailability();
+            }
+            finally { _suppress = previous; }
         }
 
         private void OnInkAnimationChanged(object sender, SelectionChangedEventArgs e)
         {
-            if (_suppress || InkAnimationCombo.SelectedIndex < 0) return;
-            AppSettings.Instance.InkPageAnimation = (InkPageAnimationMode)InkAnimationCombo.SelectedIndex;
-            AppSettings.Instance.Save();
+            if (_closed || _suppress || InkAnimationCombo.SelectedIndex < 0) return;
+            try
+            {
+                var settings = AppSettings.Instance;
+                var mode = (InkPageAnimationMode)InkAnimationCombo.SelectedIndex;
+                if (EditingNextAnimation) settings.InkNextPageAnimation = mode;
+                else settings.InkPageAnimation = mode;
+                RefreshAnimationAvailability();
+                SaveInkAnimationSettings("style");
+            }
+            catch (Exception ex) { CrashReporter.Report(ex, "ink-animation-style"); }
+        }
+
+        private void SaveInkAnimationSettings(string control)
+        {
+            bool previous = _savingInkAnimation;
+            _savingInkAnimation = true;
+            try
+            {
+                var settings = AppSettings.Instance;
+                bool next = EditingNextAnimation;
+                CrashReporter.Log($"ink-animation settings: control={control}; direction={(next ? "next" : "previous")}; " +
+                    $"mode={(next ? settings.InkNextPageAnimation : settings.InkPageAnimation)}; " +
+                    $"fade={(next ? settings.InkNextFadeDurationMs : settings.InkFadeDurationMs)}; " +
+                    $"replay={(next ? settings.InkNextReplayDurationMs : settings.InkReplayDurationMs)}");
+                settings.Save();
+            }
+            finally { _savingInkAnimation = previous; }
+        }
+
+        private void RefreshAnimationAvailability()
+        {
+            var settings = AppSettings.Instance;
+            var mode = EditingNextAnimation ? settings.InkNextPageAnimation : settings.InkPageAnimation;
+            InkFadeDurationBox.IsEnabled = mode is InkPageAnimationMode.Fade or InkPageAnimationMode.Replay or InkPageAnimationMode.Retract;
+            InkReplayDurationBox.IsEnabled = mode is InkPageAnimationMode.Replay or InkPageAnimationMode.Retract;
+            InkFadeRow.Title = mode == InkPageAnimationMode.Retract ? "新页淡入时长" : mode == InkPageAnimationMode.Replay ? "旧页淡出时长" : "淡入淡出时长";
+            InkFadeRow.Description = mode == InkPageAnimationMode.Retract ? "100–1000 毫秒；旧页倒放收回后，新页笔迹平滑淡入。" : mode == InkPageAnimationMode.Replay ? "100–1000 毫秒；旧页先淡出，再重播新页笔迹。" : "100–1000 毫秒；分别用于旧页淡出、新页淡入。";
+            InkReplayRow.Title = mode == InkPageAnimationMode.Retract ? "倒放收回时长" : "书写重播时长";
+            InkReplayRow.Description = mode == InkPageAnimationMode.Retract ? "300–4000 毫秒；旧页从最后一笔退回起点，完成后淡入新页笔迹。" : "300–4000 毫秒；控制新页面全部笔迹的重播速度。";
         }
 
         private void OnSmartShapesToggled(object sender, RoutedEventArgs e)
@@ -528,10 +624,26 @@ namespace RimePPT.Windows
 
         private void OnInkDurationChanged(NumberBox sender, NumberBoxValueChangedEventArgs args)
         {
-            if (_suppress || !double.IsFinite(args.NewValue)) return;
-            if (sender == InkFadeDurationBox) AppSettings.Instance.InkFadeDurationMs = (int)Math.Round(args.NewValue);
-            else AppSettings.Instance.InkReplayDurationMs = (int)Math.Round(args.NewValue);
-            AppSettings.Instance.Save();
+            if (_closed || _suppress || !double.IsFinite(args.NewValue)) return;
+            try
+            {
+                var settings = AppSettings.Instance;
+                bool fade = ReferenceEquals(sender, InkFadeDurationBox);
+                if (!fade && !ReferenceEquals(sender, InkReplayDurationBox)) return;
+                int value = (int)Math.Round(Math.Clamp(args.NewValue, sender.Minimum, sender.Maximum));
+                if (EditingNextAnimation)
+                {
+                    if (fade) settings.InkNextFadeDurationMs = value;
+                    else settings.InkNextReplayDurationMs = value;
+                }
+                else
+                {
+                    if (fade) settings.InkFadeDurationMs = value;
+                    else settings.InkReplayDurationMs = value;
+                }
+                SaveInkAnimationSettings(fade ? "fade-duration" : "replay-duration");
+            }
+            catch (Exception ex) { CrashReporter.Report(ex, $"ink-animation-duration: value={args.NewValue}"); }
         }
 
         private void OnThemeChanged(object sender, SelectionChangedEventArgs e)
@@ -581,6 +693,13 @@ namespace RimePPT.Windows
 
 
         // ———— 工具栏 ————
+
+        private void OnEntranceOrderChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (_suppress || EntranceOrderCombo.SelectedIndex < 0) return;
+            AppSettings.Instance.EntranceOrder = (ToolbarEntranceOrder)EntranceOrderCombo.SelectedIndex;
+            AppSettings.Instance.Save();
+        }
 
         private void OnZoneToggled(object sender, RoutedEventArgs e)
         {

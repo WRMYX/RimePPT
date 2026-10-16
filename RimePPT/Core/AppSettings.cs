@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Linq;
@@ -50,6 +50,7 @@ namespace RimePPT.Core
 
         public string Theme { get; set; } = "auto"; // light / dark / auto（跟随系统）
         public bool ShowToolbarText { get; set; } = true;
+        public ToolbarEntranceOrder EntranceOrder { get; set; } = ToolbarEntranceOrder.SidesFirst;
         public bool CheckGitHubUpdatesOnStartup { get; set; } = false;
         public string GitHubDownloadSourceId { get; set; } = "direct";
         public List<string> GitHubCustomDownloadSources { get; set; } = new();
@@ -137,6 +138,9 @@ namespace RimePPT.Core
         public InkPageAnimationMode InkPageAnimation { get; set; } = InkPageAnimationMode.Replay;
         public int InkFadeDurationMs { get; set; } = 240;
         public int InkReplayDurationMs { get; set; } = 1000;
+        public InkPageAnimationMode InkNextPageAnimation { get; set; } = InkPageAnimationMode.Retract;
+        public int InkNextFadeDurationMs { get; set; } = 240;
+        public int InkNextReplayDurationMs { get; set; } = 1000;
         public byte[] GetPenArgb()
         {
             if (PenColor == "custom" && CustomPenArgb is { Length: 8 } text)
@@ -145,6 +149,7 @@ namespace RimePPT.Core
         }
         public void Validate()
         {
+            if (!Enum.IsDefined(EntranceOrder)) EntranceOrder = ToolbarEntranceOrder.SidesFirst;
             NormalizeToolbarConfiguration();
             if (!Enum.IsDefined(PenLineStyle)) PenLineStyle = InkLineStyle.Solid;
             if (!Enum.IsDefined(PenShape)) PenShape = InkShape.Freehand;
@@ -158,9 +163,12 @@ namespace RimePPT.Core
             if (!DeveloperModeEnabled) { ExitSeparatorEnabled = false; SeparateExitToolbarEnabled = false; }
             if (SeparateExitToolbarEnabled) ExitSeparatorEnabled = false;
             if (!Enum.IsDefined(InkBackend)) InkBackend = InkBackend.Native;
-            if (!Enum.IsDefined(InkPageAnimation)) InkPageAnimation = InkPageAnimationMode.Fade;
+            if (!Enum.IsDefined(InkPageAnimation) || InkPageAnimation == InkPageAnimationMode.Retract) InkPageAnimation = InkPageAnimationMode.Fade;
             InkFadeDurationMs = Math.Clamp(InkFadeDurationMs, 100, 1000);
             InkReplayDurationMs = Math.Clamp(InkReplayDurationMs, 300, 4000);
+            if (!Enum.IsDefined(InkNextPageAnimation)) InkNextPageAnimation = InkPageAnimationMode.Fade;
+            InkNextFadeDurationMs = Math.Clamp(InkNextFadeDurationMs, 100, 1000);
+            InkNextReplayDurationMs = Math.Clamp(InkNextReplayDurationMs, 300, 4000);
             PenThickness = double.IsFinite(PenThickness) ? Math.Clamp(PenThickness, 2, 20) : 4;
             EraserWidthDip = double.IsFinite(EraserWidthDip) ? Math.Clamp(EraserWidthDip, 16, 160) : 56;
             EraserSizeDip = double.IsFinite(EraserHeightDip) ? Math.Clamp(EraserHeightDip, 24, 160) : 72;
@@ -248,6 +256,9 @@ namespace RimePPT.Core
             var existing = document.RootElement;
             if (!existing.TryGetProperty("RunAtStartup", out _)) settings.RunAtStartup = false;
             if (!existing.TryGetProperty("InkPageAnimation", out _)) settings.InkPageAnimation = InkPageAnimationMode.Fade;
+            if (!existing.TryGetProperty("InkNextPageAnimation", out _)) settings.InkNextPageAnimation = settings.InkPageAnimation;
+            if (!existing.TryGetProperty("InkNextFadeDurationMs", out _)) settings.InkNextFadeDurationMs = settings.InkFadeDurationMs;
+            if (!existing.TryGetProperty("InkNextReplayDurationMs", out _)) settings.InkNextReplayDurationMs = settings.InkReplayDurationMs;
             if (!existing.TryGetProperty("ShowBottomLeft", out _)) settings.ShowBottomLeft = false;
             if (!existing.TryGetProperty("ShowBottomCenter", out _)) settings.ShowBottomCenter = false;
             if (!existing.TryGetProperty("ShowBottomRight", out _)) settings.ShowBottomRight = false;

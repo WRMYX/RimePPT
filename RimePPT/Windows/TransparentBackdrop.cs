@@ -1,70 +1,62 @@
 using System;
-using System.Threading;
+using System.Threading.Tasks;
 using Microsoft.UI.Composition;
 using Microsoft.UI.Xaml;
 using Microsoft.UI.Xaml.Media;
 
-namespace RimePPT.Windows
+namespace RimePPT.Windows;
+
+/// <summary>Transparent composition with bounded UI-thread retries, never a blocking sleep.</summary>
+public sealed class TransparentBackdrop : SystemBackdrop
 {
-    /// <summary>
-    /// 全透明 SystemBackdrop：通过 ICompositionSupportsSystemBackdrop 挂一块
-    /// Windows.UI.Composition 透明画刷，配合 WindowPlumbing.EnableTransparency 的
-    /// DWM 管道，让窗口的 Transparent XAML 区域真正透视到桌面/放映画面。
-    /// Compositor 全局共享一个：放映全屏切换瞬间新建 Compositor 可能被 DWM
-    /// 拒绝（UnauthorizedAccessException，历史"莫名退出"元凶之一），
-    /// 共享实例 + 短重试规避；首次成功后所有窗口复用。
-    /// </summary>
-    public sealed class TransparentBackdrop : SystemBackdrop
+    private static global::Windows.UI.Composition.Compositor? _compositor;
+    private TaskCompletionSource<bool> _ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private int _version;
+    public bool IsReady { get; private set; }
+    internal event Action? Disconnected;
+    internal event Action? Connected;
+    public Task<bool> Ready => _ready.Task;
+
+    protected override async void OnTargetConnected(ICompositionSupportsSystemBackdrop connectedTarget, XamlRoot xamlRoot)
     {
-        private static global::Windows.UI.Composition.Compositor? _compositor;
-        private static readonly object CompositorLock = new();
-
-        private static global::Windows.UI.Composition.Compositor GetCompositor()
+        int version = ++_version;
+        IsReady = false;
+        if (_ready.Task.IsCompleted) _ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        Exception? failure = null;
+        // Keep compositor creation and target updates on the owning XAML thread.
+        foreach (int delay in new[] { 0, 100, 200, 400, 800, 1000, 1000 })
         {
-            if (_compositor is not null)
+            if (delay > 0) await Task.Delay(delay);
+            if (version != _version) return;
+            try
             {
-                return _compositor;
+                _compositor ??= new global::Windows.UI.Composition.Compositor();
+                connectedTarget.SystemBackdrop = _compositor.CreateColorBrush(default(global::Windows.UI.Color));
+                IsReady = true;
+                Core.PresentationDiagnostics.Record("透明背景", "已连接");
+                _ready.TrySetResult(true);
+                Connected?.Invoke();
+                return;
             }
-
-            lock (CompositorLock)
+            catch (Exception ex)
             {
-                if (_compositor is not null)
-                {
-                    return _compositor;
-                }
-
-                // 瞬态失败窗口实测可超过 10 秒（强杀进程后 DWM 清理未完成），
-                // 指数退避最多约 39s：放映启动瞬间 UI 线程无关键任务，可安全阻塞
-                int[] backoffMs = { 0, 250, 500, 1000, 2000, 4000, 8000, 8000, 8000, 8000 };
-                for (int attempt = 0; ; attempt++)
-                {
-                    try
-                    {
-                        _compositor = new global::Windows.UI.Composition.Compositor();
-                        break;
-                    }
-                    catch (Exception ex) when (attempt < backoffMs.Length - 1)
-                    {
-                        Core.CrashReporter.Log($"compositor create retry {attempt + 1}: {ex.Message}");
-                        Thread.Sleep(backoffMs[attempt + 1]);
-                    }
-                }
-
-                return _compositor!;
+                failure = ex;
+                Core.CrashReporter.Log($"transparent backdrop retry: 0x{ex.HResult:X8} {ex.Message}");
             }
         }
+        Core.PresentationDiagnostics.Record("透明背景", "连接失败，保持隐藏");
+        _ready.TrySetResult(false);
+        if (failure is not null) Core.CrashReporter.Report(failure, "transparent-backdrop");
+    }
 
-        protected override void OnTargetConnected(ICompositionSupportsSystemBackdrop connectedTarget, XamlRoot xamlRoot)
-        {
-            // default(Color) = ARGB(0,0,0,0)，即全透明
-            connectedTarget.SystemBackdrop = GetCompositor().CreateColorBrush(default(global::Windows.UI.Color));
-        }
-
-        protected override void OnTargetDisconnected(ICompositionSupportsSystemBackdrop connectedTarget)
-        {
-            // base 实现在 WinUI 2.3.x 的窗口关闭路径上有 AccessViolation 缺陷，
-            // 只清引用、不调 base 以绕开（关窗后整个窗口随即销毁，无泄漏影响）。
-            connectedTarget.SystemBackdrop = null;
-        }
+    protected override void OnTargetDisconnected(ICompositionSupportsSystemBackdrop connectedTarget)
+    {
+        ++_version;
+        IsReady = false;
+        _ready.TrySetResult(false);
+        // Avoid the SDK's historical base-disconnect access violation.
+        connectedTarget.SystemBackdrop = null;
+        _ready = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        Disconnected?.Invoke();
     }
 }

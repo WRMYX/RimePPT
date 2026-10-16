@@ -104,7 +104,7 @@ internal sealed class ToolbarOnboardingSession
             if (_steps.Count > 0)
             {
                 var areas = windows.Select(w => Microsoft.UI.Windowing.DisplayArea.GetFromWindowId(w.AppWindow.Id, Microsoft.UI.Windowing.DisplayAreaFallback.Nearest));
-                foreach (var area in areas.DistinctBy(a => a.DisplayId.Value)) _overlays.Add(new OnboardingOverlayWindow(area));
+                foreach (var area in areas.DistinctBy(a => a.DisplayId.Value)) _overlays.Add(new OnboardingOverlayWindow(area, RestoreGuideOrder));
                 foreach (var window in windows) { window.SetGuidePreview(true); WindowPlumbing.RaiseToTopmost(window); }
                 ShowStep(0);
             }
@@ -115,6 +115,17 @@ internal sealed class ToolbarOnboardingSession
             if (version == _version) Stop();
             CrashReporter.Report(ex, "toolbar-onboarding");
         }
+    }
+
+    private void RestoreGuideOrder()
+    {
+        if (!IsRunning) return;
+        try
+        {
+            foreach (var window in _windows) WindowPlumbing.RaiseToTopmost(window);
+            if (_host is not null) WindowPlumbing.RaiseToTopmost(_host);
+        }
+        catch (Exception ex) { Stop(); CrashReporter.Report(ex, "guide-layer-order"); }
     }
 
     internal void Stop()

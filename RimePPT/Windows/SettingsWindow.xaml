@@ -1,8 +1,9 @@
-<?xml version="1.0" encoding="utf-8"?>
+﻿<?xml version="1.0" encoding="utf-8"?>
 <Window
     x:Class="RimePPT.Windows.SettingsWindow"
     xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:RimePPT.Controls"
     xmlns:animation="using:Microsoft.UI.Xaml.Media.Animation"
     Title="RimePPT 设置">
 
@@ -46,7 +47,13 @@
                     <FontIcon Glyph="&#xE7F4;" />
                 </NavigationViewItem.Icon>
             </NavigationViewItem>
-            <NavigationViewItem Content="ClassWidgets 2" Tag="classwidgets" ToolTipService.ToolTip="ClassWidgets 2"><NavigationViewItem.Icon><FontIcon Glyph="&#xE71B;" /></NavigationViewItem.Icon></NavigationViewItem>
+            <NavigationViewItem x:Name="ThirdPartyConnectionsNav" Content="第三方连接" SelectsOnInvoked="False" IsExpanded="False" ToolTipService.ToolTip="第三方连接">
+                <NavigationViewItem.Icon><FontIcon Glyph="&#xE71B;" /></NavigationViewItem.Icon>
+                <NavigationViewItem.MenuItems>
+                    <NavigationViewItem Content="ClassWidgets 2" Tag="classwidgets" ToolTipService.ToolTip="ClassWidgets 2"><NavigationViewItem.Icon><FontIcon Glyph="&#xE71B;" /></NavigationViewItem.Icon></NavigationViewItem>
+                    <NavigationViewItem Content="Office COM" Tag="office" ToolTipService.ToolTip="Office COM 加载项"><NavigationViewItem.Icon><FontIcon Glyph="&#xE8A5;" /></NavigationViewItem.Icon></NavigationViewItem>
+                </NavigationViewItem.MenuItems>
+            </NavigationViewItem>
         </NavigationView.MenuItems>
 
         <NavigationView.FooterMenuItems>
@@ -99,14 +106,15 @@
             </Frame>
             <ScrollViewer x:Name="AppearancePage" Grid.Row="1" Padding="24,0,24,24" HorizontalContentAlignment="Stretch" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel MaxWidth="960" HorizontalAlignment="Left" Spacing="12">
-                    <Border Style="{StaticResource CardBorder}" Padding="16">
-                      <StackPanel Spacing="8">
-                        <TextBlock Text="书写模式" Style="{StaticResource SettingTitle}"/>
-                        <ComboBox x:Name="BackendCombo" HorizontalAlignment="Stretch" SelectionChanged="OnBackendChanged">
-                          <ComboBoxItem Content="PowerPoint 原生（COM）"/><ComboBoxItem Content="RimePPT 自研"/>
-                        </ComboBox>
-                        <TextBlock x:Name="BackendDescription" Text="两套笔与橡皮均保留；原生墨迹由 PowerPoint 管理，自研模式支持多指和撤销。" Style="{StaticResource SettingDesc}"/>
-                      </StackPanel>
+                    <Border Style="{StaticResource CardBorder}">
+                        <controls:SettingRow x:Name="BackendRow" Title="书写模式" EditorWidth="240"
+                            Description="两套笔与橡皮均保留；原生墨迹由 PowerPoint 管理，自研模式支持多指和撤销。">
+                            <controls:SettingRow.Editor>
+                                <ComboBox x:Name="BackendCombo" HorizontalAlignment="Stretch" SelectionChanged="OnBackendChanged">
+                                    <ComboBoxItem Content="PowerPoint 原生（COM）"/><ComboBoxItem Content="RimePPT 自研"/>
+                                </ComboBox>
+                            </controls:SettingRow.Editor>
+                        </controls:SettingRow>
                     </Border>
                     <Border Style="{StaticResource CardBorder}">
                         <StackPanel>
@@ -196,42 +204,38 @@
                             <Button Grid.Column="1" Content="导出板书" Click="OnExportBoard" VerticalAlignment="Center" MinHeight="40"/>
                         </Grid>
                     </Border>
-                    <Border Style="{StaticResource CardBorder}" Padding="16,12">
-                        <StackPanel Spacing="4">
-                            <TextBlock Text="翻页笔迹动画" Style="{StaticResource SettingTitle}" />
-                            <TextBlock Text="适用于 RimePPT 自研笔迹，可在“外观 → 书写模式”中选择。PowerPoint 原生笔迹由 Office 绘制。" Style="{StaticResource SettingDesc}" />
-                        </StackPanel>
-                    </Border>
                     <Border Style="{StaticResource CardBorder}">
                         <StackPanel>
-                            <Grid Padding="16,12" MinHeight="60" ColumnSpacing="12">
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                <StackPanel VerticalAlignment="Center" Spacing="4">
-                                    <TextBlock Text="动画样式" Style="{StaticResource SettingTitle}" />
-                                    <TextBlock Text="渐隐渐显，或沿每笔的起点到终点重新书写" Style="{StaticResource SettingDesc}" />
-                                </StackPanel>
-                                <ComboBox x:Name="InkAnimationCombo" AutomationProperties.Name="笔迹动画样式" Grid.Column="1" Width="180" VerticalAlignment="Center" SelectionChanged="OnInkAnimationChanged">
-                                    <ComboBoxItem Content="关闭动画" /><ComboBoxItem Content="渐隐渐显" /><ComboBoxItem Content="按书写顺序重播" />
-                                </ComboBox>
-                            </Grid>
+                            <StackPanel Padding="16,12" Spacing="4">
+                                <TextBlock Text="翻页笔迹动画" Style="{StaticResource SettingTitle}" />
+                                <TextBlock Text="适用于自研笔迹。旧页笔迹退出后再显示或重播新页笔迹；PPT 立即翻页，不等待笔迹动画。" Style="{StaticResource SettingDesc}" />
+                            </StackPanel>
                             <Rectangle Style="{StaticResource Divider}" />
-                            <Grid Padding="16,12" MinHeight="60" ColumnSpacing="12">
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                <StackPanel VerticalAlignment="Center" Spacing="4">
-                                    <TextBlock Text="淡入淡出时长" Style="{StaticResource SettingTitle}" />
-                                    <TextBlock Text="100–1000 毫秒；重播模式下用于上一页笔迹淡出" Style="{StaticResource SettingDesc}" />
-                                </StackPanel>
-                                <NumberBox x:Name="InkFadeDurationBox" AutomationProperties.Name="淡入淡出时长（毫秒）" Grid.Column="1" Width="140" Minimum="100" Maximum="1000" SmallChange="20" LargeChange="100" SpinButtonPlacementMode="Compact" VerticalAlignment="Center" ValueChanged="OnInkDurationChanged" />
-                            </Grid>
+                            <controls:SettingRow Title="翻页方向" Description="切换编辑方向；上一页与下一页分别保存，互不覆盖。">
+                                <controls:SettingRow.Editor>
+                                    <ComboBox x:Name="InkAnimationDirectionCombo" AutomationProperties.Name="编辑翻页动画方向" SelectionChanged="OnInkAnimationDirectionChanged">
+                                        <ComboBoxItem Content="翻到上一页" /><ComboBoxItem Content="翻到下一页" />
+                                    </ComboBox>
+                                </controls:SettingRow.Editor>
+                            </controls:SettingRow>
                             <Rectangle Style="{StaticResource Divider}" />
-                            <Grid Padding="16,12" MinHeight="60" ColumnSpacing="12">
-                                <Grid.ColumnDefinitions><ColumnDefinition Width="*" /><ColumnDefinition Width="Auto" /></Grid.ColumnDefinitions>
-                                <StackPanel VerticalAlignment="Center" Spacing="4">
-                                    <TextBlock Text="书写重播时长" Style="{StaticResource SettingTitle}" />
-                                    <TextBlock Text="300–4000 毫秒，控制当前页面全部笔迹的重播速度" Style="{StaticResource SettingDesc}" />
-                                </StackPanel>
-                                <NumberBox x:Name="InkReplayDurationBox" AutomationProperties.Name="书写重播时长（毫秒）" Grid.Column="1" Width="140" Minimum="300" Maximum="4000" SmallChange="100" LargeChange="500" SpinButtonPlacementMode="Compact" VerticalAlignment="Center" ValueChanged="OnInkDurationChanged" />
-                            </Grid>
+                            <controls:SettingRow Title="动画样式" Description="选择此方向的笔迹显示方式。">
+                                <controls:SettingRow.Editor>
+                                    <ComboBox x:Name="InkAnimationCombo" AutomationProperties.Name="笔迹动画样式" SelectionChanged="OnInkAnimationChanged" />
+                                </controls:SettingRow.Editor>
+                            </controls:SettingRow>
+                            <Rectangle Style="{StaticResource Divider}" />
+                            <controls:SettingRow x:Name="InkFadeRow" Title="淡入淡出时长" EditorWidth="140">
+                                <controls:SettingRow.Editor>
+                                    <NumberBox x:Name="InkFadeDurationBox" AutomationProperties.Name="淡入淡出时长（毫秒）" Minimum="100" Maximum="1000" SmallChange="20" LargeChange="100" SpinButtonPlacementMode="Compact" ValueChanged="OnInkDurationChanged" />
+                                </controls:SettingRow.Editor>
+                            </controls:SettingRow>
+                            <Rectangle Style="{StaticResource Divider}" />
+                            <controls:SettingRow x:Name="InkReplayRow" Title="播放时长" EditorWidth="140">
+                                <controls:SettingRow.Editor>
+                                    <NumberBox x:Name="InkReplayDurationBox" AutomationProperties.Name="笔迹播放时长（毫秒）" Minimum="300" Maximum="4000" SmallChange="100" LargeChange="500" SpinButtonPlacementMode="Compact" ValueChanged="OnInkDurationChanged" />
+                                </controls:SettingRow.Editor>
+                            </controls:SettingRow>
                         </StackPanel>
                     </Border>
                     <TextBlock Text="翻页不会修改或删除笔迹。动画中开始书写、擦除或撤销时会立即显示完整笔迹；Windows 关闭动画效果时直接显示。" Style="{StaticResource SettingDesc}" Margin="16,0" />
@@ -242,6 +246,17 @@
             <ScrollViewer x:Name="ToolbarPage" Grid.Row="1" Padding="24,0,24,24" Visibility="Collapsed" HorizontalContentAlignment="Stretch" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel MaxWidth="960" HorizontalAlignment="Left" Spacing="12">
 
+                    <Border Style="{StaticResource CardBorder}">
+                        <controls:SettingRow Title="工具栏入场顺序" Description="同组同时入场，第一组完成后显示第二组。更改对下一次入场生效。">
+                            <controls:SettingRow.Editor>
+                            <ComboBox x:Name="EntranceOrderCombo" SelectionChanged="OnEntranceOrderChanged">
+                                <ComboBoxItem Content="左右优先" />
+                                <ComboBoxItem Content="底部优先" />
+                                <ComboBoxItem Content="同时出现" />
+                            </ComboBox>
+                        </controls:SettingRow.Editor>
+                        </controls:SettingRow>
+                    </Border>
                     <!-- 显示区域：屏幕示意图选择器 -->
                     <Border Style="{StaticResource CardBorder}">
                         <StackPanel>
@@ -401,6 +416,36 @@
             </ScrollViewer>
 
             <!-- ———— 关于 ———— -->
+            <ScrollViewer x:Name="OfficePage" Grid.Row="1" Padding="24,0,24,24" Visibility="Collapsed" HorizontalContentAlignment="Stretch" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
+                <StackPanel MaxWidth="960" HorizontalAlignment="Left" Spacing="12">
+                    <Border Style="{StaticResource CardBorder}" Padding="20">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="PowerPoint 放映事件连接" Style="{StaticResource SubtitleTextBlockStyle}" TextWrapping="Wrap" />
+                            <TextBlock Text="通过 Office COM 加载项及时通知 RimePPT 放映开始、翻页和结束。无需改变书写模式；未注册时仍可使用自动检测。" Style="{StaticResource SettingDesc}" />
+                            <TextBlock x:Name="OfficeRegistrationText" Text="正在检查注册状态…" TextWrapping="Wrap" />
+                            <TextBlock x:Name="OfficeConnectionText" Text="正在检查 PowerPoint 连接…" TextWrapping="Wrap" />
+                            <TextBlock x:Name="OfficeInstalledPath" Style="{StaticResource SettingDesc}" IsTextSelectionEnabled="True" />
+                            <Button Content="刷新状态" Click="OnRefreshOfficeAddin" HorizontalAlignment="Left" />
+                        </StackPanel>
+                    </Border>
+                    <Border Style="{StaticResource CardBorder}" Padding="20">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="管理加载项" Style="{StaticResource SettingTitle}" />
+                            <TextBlock Text="注册或卸载前，请关闭全部 PowerPoint 窗口。以管理员身份运行 PowerPoint，或电脑关闭 UAC 时，请选择所有用户。" Style="{StaticResource SettingDesc}" />
+                            <controls:SettingRow Title="注册范围" EditorWidth="260" RowPadding="0,8"><controls:SettingRow.Editor><ComboBox x:Name="OfficeScopeCombo">
+                                <ComboBoxItem Content="当前用户" />
+                                <ComboBoxItem Content="所有用户（需要管理员权限）" />
+                            </ComboBox></controls:SettingRow.Editor></controls:SettingRow>
+                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                <Button x:Name="OfficeRegisterButton" Content="注册加载项" Style="{StaticResource AccentButtonStyle}" Click="OnRegisterOfficeAddin" />
+                                <Button x:Name="OfficeUnregisterButton" Content="卸载加载项" Click="OnUnregisterOfficeAddin" />
+                            </StackPanel>
+                            <InfoBar x:Name="OfficeOperationInfo" IsOpen="False" IsClosable="True" />
+                            <TextBlock Text="注册完成后，重新打开 PowerPoint。可在 文件 → 选项 → 加载项 → 管理 COM 加载项 中查看 RimePPT。此加载项不会自动启动 RimePPT。" Style="{StaticResource SettingDesc}" />
+                        </StackPanel>
+                    </Border>
+                </StackPanel>
+            </ScrollViewer>
             <ScrollViewer x:Name="ClassWidgetsPage" Grid.Row="1" Padding="24,0,24,24" Visibility="Collapsed" HorizontalContentAlignment="Stretch" HorizontalScrollMode="Disabled" HorizontalScrollBarVisibility="Disabled">
                 <StackPanel MaxWidth="960" HorizontalAlignment="Left" Spacing="12">
                     <Border Style="{StaticResource CardBorder}" Padding="20"><StackPanel Spacing="12">

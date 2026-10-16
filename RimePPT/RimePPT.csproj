@@ -77,4 +77,13 @@
     <Exec Command="dotnet publish &quot;$(MSBuildProjectDirectory)/../tools/RimePPT.Updater/RimePPT.Updater.csproj&quot; -c Release -r win-x64 --self-contained true -p:UseSharedCompilation=false -p:Platform=x64 -p:PublishSingleFile=false -p:WindowsAppSDKSelfContained=true -o &quot;$(UpdaterOutput)&quot;" />
     <ItemGroup><UpdaterRuntimeFiles Include="$(UpdaterOutput)**/*"/><ResolvedFileToPublish Include="@(UpdaterRuntimeFiles)"><RelativePath>Updater/%(UpdaterRuntimeFiles.RecursiveDir)%(UpdaterRuntimeFiles.Filename)%(UpdaterRuntimeFiles.Extension)</RelativePath><CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory></ResolvedFileToPublish></ItemGroup>
   </Target>
+  <Target Name="BuildOfficeAddinPayload" BeforeTargets="AssignTargetPaths" Condition="'$(DesignTimeBuild)' != 'true'">
+    <PropertyGroup><OfficeAddinOutput>$(MSBuildProjectDirectory)/../.tasks/office-addin-payload/$(Configuration)/</OfficeAddinOutput></PropertyGroup>
+    <Exec Command="dotnet build &quot;$(MSBuildProjectDirectory)/../tools/RimePPT.OfficeAddin/RimePPT.OfficeAddin.csproj&quot; -c $(Configuration) -p:SignAssembly=false -p:UseSharedCompilation=false -o &quot;$(OfficeAddinOutput)&quot;" />
+    <ItemGroup>
+      <Content Include="$(OfficeAddinOutput)RimePPT.OfficeAddin.dll"><Link>OfficeAddin/RimePPT.OfficeAddin.dll</Link><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory><CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory></Content>
+      <Content Include="$(MSBuildProjectDirectory)/../tools/Register-OfficeAddin.ps1"><Link>OfficeAddin/Register-OfficeAddin.ps1</Link><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory><CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory></Content>
+      <Content Include="$(MSBuildProjectDirectory)/../tools/RimePPT.OfficeAddin/README.md"><Link>OfficeAddin/README.md</Link><CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory><CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory></Content>
+    </ItemGroup>
+  </Target>
 </Project>

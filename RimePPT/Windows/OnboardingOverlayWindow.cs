@@ -9,13 +9,20 @@ namespace RimePPT.Windows;
 
 internal sealed class OnboardingOverlayWindow : Window
 {
-    internal OnboardingOverlayWindow(DisplayArea area)
+    internal OnboardingOverlayWindow(DisplayArea area, System.Action restoreGuide)
     {
         Title = "RimePPT 引导遮罩";
-        Content = new Grid { Background = new SolidColorBrush(Microsoft.UI.Colors.Black) };
+        var background = new Grid { Background = new SolidColorBrush(Microsoft.UI.Colors.Black) };
+        background.PointerPressed += (_, args) =>
+        {
+            args.Handled = true;
+            restoreGuide();
+            DispatcherQueue.TryEnqueue(() => restoreGuide());
+        };
+        Content = background;
         WindowPlumbing.RemoveWindowBorder(this);
         WindowPlumbing.RemoveResizableFrame(this);
-        WindowPlumbing.ApplyPointerNoActivate(this);
+        WindowPlumbing.ApplyNoActivate(this);
         WindowPlumbing.SetOpacity(this, 128);
         AppWindow.IsShownInSwitchers = false;
         if (AppWindow.Presenter is OverlappedPresenter presenter)

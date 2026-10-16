@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.Diagnostics;
+using System.Linq;
 using System.Numerics;
 using Microsoft.Graphics.Canvas;
 using Microsoft.Graphics.Canvas.Geometry;
@@ -25,6 +26,7 @@ public sealed class InkRenderer : IDisposable
     private CanvasRenderTarget? _outgoing;
     private InkPageTransition? _transition;
     private InkReplayPlan? _replay;
+    private InkReplayPlan? _retract;
     private int _replayedCount;
     private long _started;
     private InkViewport _viewport;
@@ -34,7 +36,7 @@ public sealed class InkRenderer : IDisposable
     public Vector2? EraserPosition { get; set; }
     public IReadOnlyList<Vector2> EraserPositions { get; set; } = Array.Empty<Vector2>();
     public Vector2 EraserSize { get; set; } = new(56, 72);
-    public bool IsAnimating => _transition is not null;
+    public bool IsAnimating => _transition is not null || _retract is not null;
 
     public InkRenderer(CanvasDevice device, Func<IReadOnlyList<StrokeData>> strokes, Func<IReadOnlyList<StrokeData>> preview)
     {
@@ -50,8 +52,10 @@ public sealed class InkRenderer : IDisposable
         if (mode == InkPageAnimationMode.None || !viewport.IsValid) { CancelAnimation(); return; }
         EnsureHistory(viewport);
         var previous = Frame();
+        InkReplayPlan? outgoingRetraction = mode == InkPageAnimationMode.Retract
+            ? new InkReplayPlan(SnapshotVisibleInk(viewport, previous), viewport) : null;
         CanvasRenderTarget? snapshot = null;
-        if (_strokes().Count > 0)
+        if (mode != InkPageAnimationMode.Retract && previous.DrawIncoming && previous.IncomingOpacity > 0 && _strokes().Count > 0)
         {
             snapshot = new CanvasRenderTarget(_device, viewport.WidthDip, viewport.HeightDip, _history!.Dpi);
             using var target = snapshot.CreateDrawingSession();
@@ -59,19 +63,46 @@ public sealed class InkRenderer : IDisposable
             DrawCurrentInk(target, viewport, previous);
         }
         // Keep only the currently visible incoming ink on rapid flips, never an earlier page's fading bitmap.
-        CancelAnimation(); _outgoing = snapshot;
+        CancelAnimation(); _outgoing = snapshot; _retract = outgoingRetraction;
         _replay = mode == InkPageAnimationMode.Replay ? new InkReplayPlan(incoming, viewport) : null;
         bool hasIncoming = false;
         foreach (var stroke in incoming) if (stroke.Dots.Count > 0) { hasIncoming = true; break; }
-        _transition = new(mode, fadeMs, replayMs, snapshot is not null, hasIncoming);
+        _transition = new(mode, fadeMs, replayMs, snapshot is not null || _retract?.TotalLength > 0, hasIncoming);
         _started = Stopwatch.GetTimestamp(); _replayedCount = 0;
         if (_transition.At(0).IsComplete) CancelAnimation();
         InvalidateSlide();
     }
 
+    private IReadOnlyList<StrokeData> SnapshotVisibleInk(InkViewport viewport, InkAnimationFrame frame)
+    {
+        var visible = new List<StrokeData>();
+        if (!frame.DrawIncoming || frame.IncomingOpacity <= 0) return visible;
+        StrokeData Copy(StrokeData stroke, int points) => new()
+        {
+            Id = stroke.Id, SlideIndex = stroke.SlideIndex, Argb = (byte[])stroke.Argb.Clone(),
+            ThicknessDips = stroke.ThicknessDips, LineStyle = stroke.LineStyle,
+            Dots = stroke.Dots.Take(points).Select(p => new StrokeData.Dot { X = p.X, Y = p.Y }).ToList()
+        };
+        if (_replay is null)
+            foreach (var stroke in _strokes()) visible.Add(Copy(stroke, stroke.Dots.Count));
+        else
+        {
+            var prefix = _replay.At(frame.ReplayProgress);
+            for (int i = 0; i < prefix.CompletedStrokes; i++) visible.Add(Copy(_replay.Strokes[i], _replay.Strokes[i].Dots.Count));
+            if (prefix.PartialStroke is { } partial)
+            {
+                var copy = Copy(partial, prefix.VisiblePoints);
+                if (prefix.Tail is { } tail) copy.Dots.Add(new() { X = tail.X / viewport.WidthDip, Y = tail.Y / viewport.HeightDip });
+                visible.Add(copy);
+            }
+        }
+        return visible;
+    }
+
     public void CancelAnimation()
     {
-        if (_transition is null && _outgoing is null && _replay is null) return;
+        if (_transition is null && _outgoing is null && _replay is null && _retract is null) return;
+        _retract = null;
         _outgoing?.Dispose(); _outgoing = null; _transition = null; _replay = null; _replayedCount = 0;
         InvalidateSlide();
     }
@@ -134,9 +165,15 @@ public sealed class InkRenderer : IDisposable
         if (!viewport.IsValid) return;
         EnsureHistory(viewport);
         var frame = Frame();
+        if (_retract is not null && frame.OutgoingOpacity > 0)
+        {
+            var prefix = _retract.AtReverse(frame.ReplayProgress);
+            for (int i = 0; i < prefix.CompletedStrokes; i++) DrawStroke(session, _retract.Strokes[i], viewport, false);
+            if (prefix.PartialStroke is { } partial) DrawPrefix(session, partial, prefix, viewport);
+        }
         if (_outgoing is not null && frame.OutgoingOpacity > 0)
             session.DrawImage(_outgoing, Vector2.Zero, new Rect(0, 0, viewport.WidthDip, viewport.HeightDip), frame.OutgoingOpacity);
-        DrawCurrentInk(session, viewport, frame);
+        if (frame.DrawIncoming) DrawCurrentInk(session, viewport, frame);
         foreach (var live in _preview()) DrawStroke(session, live, viewport, false);
         if (EraserPositions.Count > 0) { foreach (var position in EraserPositions) DrawEraser(session, position); }
         else if (EraserPosition is { } position) DrawEraser(session, position);

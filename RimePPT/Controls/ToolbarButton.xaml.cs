@@ -12,7 +12,7 @@ public sealed partial class ToolbarButton : UserControl
     private readonly Grid _host = new();
     private readonly FontIcon _icon = new() { FontSize = 20, FontFamily = new FontFamily("Segoe Fluent Icons") };
     private readonly TextBlock _label = new() { FontSize = 11, HorizontalAlignment = HorizontalAlignment.Center };
-    private readonly Border _penColor = new() { Width = 24, Height = 3, CornerRadius = new CornerRadius(1.5), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(2, 0, 0, 0), IsHitTestVisible = false };
+    private readonly Border _penColor = new() { Width = 22, Height = 3, CornerRadius = new CornerRadius(1.5), HorizontalAlignment = HorizontalAlignment.Left, VerticalAlignment = VerticalAlignment.Bottom, Margin = new Thickness(4, 0, 0, 0), IsHitTestVisible = false };
     private ButtonBase? _button;
     private bool _guidePreview;
     private bool _normalChecked;
@@ -47,11 +47,17 @@ public sealed partial class ToolbarButton : UserControl
     public string Label { get => (string)GetValue(LabelProperty); set => SetValue(LabelProperty,value); }
     private ToolbarCommand _command;
     public ToolbarCommand Command { get => _command; set { _command = value; Build(); } }
-    public ToolbarButton() { Content = _host; Loaded += (_,_) => Build(); }
+    public ToolbarButton()
+    {
+        HorizontalContentAlignment = HorizontalAlignment.Stretch;
+        VerticalContentAlignment = VerticalAlignment.Stretch;
+        Content = _host; Loaded += (_,_) => Build();
+    }
     private void Build()
     {
         if (_button is not null) return;
-        var content = new StackPanel { Spacing = 2 };
+        var content = new StackPanel { Spacing = 2, HorizontalAlignment = HorizontalAlignment.Center };
+        _icon.HorizontalAlignment = HorizontalAlignment.Center;
         if (Command == ToolbarCommand.Annotate)
         {
             // 色条与笔尖共用图标区域，不增加工具按钮的高度。
@@ -66,6 +72,8 @@ public sealed partial class ToolbarButton : UserControl
         _button.MinWidth = 44; _button.MinHeight = 44;
         _button.Padding = new Thickness(10, 8, 10, 8);
         _button.BorderThickness = new Thickness(0);
+        // Tool activation must not become a ScrollViewer pan on touch displays.
+        ConfigureToolInput(_button);
         _button.Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent);
         _button.HorizontalAlignment = HorizontalAlignment.Stretch;
         _button.HorizontalContentAlignment = HorizontalAlignment.Center;
@@ -80,6 +88,12 @@ public sealed partial class ToolbarButton : UserControl
             _host.Children.Add(frame);
         }
         else _host.Children.Add(_button);
+    }
+    internal static void ConfigureToolInput(ButtonBase button)
+    {
+        button.ManipulationMode = Microsoft.UI.Xaml.Input.ManipulationModes.None;
+        button.AddHandler(UIElement.PointerPressedEvent,
+            new Microsoft.UI.Xaml.Input.PointerEventHandler((_, _) => button.CancelDirectManipulations()), true);
     }
     internal void MatchSize(double width, double height)
     {

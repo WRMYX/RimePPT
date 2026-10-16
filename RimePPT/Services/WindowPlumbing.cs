@@ -54,7 +54,7 @@ namespace RimePPT.Services
         /// 鼠标穿透开关：开启后该窗口对鼠标完全透明（点击落到下面的放映画面），
         /// 用于批注层未启用时不挡放映操作。依赖 WS_EX_LAYERED 使 WS_EX_TRANSPARENT 生效。
         /// </summary>
-        public static void SetClickThrough(Window window, bool passthrough)
+        public static void SetClickThrough(Window window, bool passthrough, bool preserveLayered = false)
         {
             IntPtr hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
             int style = GetWindowLongW(hwnd, GWL_EXSTYLE);
@@ -64,7 +64,7 @@ namespace RimePPT.Services
             }
             else
             {
-                style = (int)((uint)style & ~(WS_EX_TRANSPARENT | WS_EX_LAYERED));
+                style = (int)((uint)style & ~(WS_EX_TRANSPARENT | (preserveLayered ? 0 : WS_EX_LAYERED)));
             }
             Marshal.SetLastPInvokeError(0);
             int previous = SetWindowLongW(hwnd, GWL_EXSTYLE, style);
