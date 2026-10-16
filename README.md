@@ -36,7 +36,7 @@ RimePPT 把翻页、批注、橡皮和课堂辅助工具放在屏幕边缘的浮
 - **逐页编辑与保存**：擦除、撤销、重做；再次放映课件时，可加载之前保存的笔迹。
 - **独立翻页动画**：上一页与下一页分别设置动画和时长；支持淡入淡出、按书写顺序重播，以及下一页的倒放收回后淡入。
 
-线型、形状、智能整理和可调橡皮使用 **RimePPT 自研** 模式。原生 COM 模式不支持这些扩展绘制功能。新用户默认上一页按书写顺序重播、下一页倒放收回，已有用户的设置保留。
+线型、形状、智能整理和可调橡皮使用 **RimePPT 自研** 模式。原生 COM 模式不支持这些扩展绘制功能。
 
 ### 放映之外的课堂工具
 
@@ -54,8 +54,6 @@ RimePPT 把翻页、批注、橡皮和课堂辅助工具放在屏幕边缘的浮
 - **便携版**：下载 Portable ZIP，完整解压后运行 `RimePPT.exe`。保留随包提供的资源和运行依赖。
 - **MSIX＋证书版**：下载 MSIX-with-certificate ZIP，按 Windows 提示信任随附的公开证书 `.cer`，再安装 MSIX。
 
-Store 提交包仅作为 Actions 构建产物提供，供维护者上传合作伙伴中心，不放入 Releases。
-
 ### 第一次使用
 
 1. 启动 RimePPT，通过托盘菜单打开设置。
@@ -64,11 +62,14 @@ Store 提交包仅作为 Actions 构建产物提供，供维护者上传合作�
 4. 在工具菜单中打开独立画板；画板工具栏的返回按钮用于回到 PPT。
 5. 退出放映时，按提示选择是否保存笔迹。
 
-### 可选的 Office 加载项
+<details>
+<summary>可选的 Office 加载项：用途、注册与卸载</summary>
 
 RimePPT 无需注册加载项也能检测 PowerPoint。可选加载项用于通知放映开始、翻页和结束，**不会自动启动 RimePPT**。
 
 可在设置的“第三方连接 → Office COM”查看状态、注册或卸载。操作前先关闭 PowerPoint；全机注册需要管理员授权。详细说明见 [Office 加载项文档](tools/RimePPT.OfficeAddin/README.md)。
+
+</details>
 
 ## 软件更新
 
@@ -80,13 +81,21 @@ RimePPT 无需注册加载项也能检测 PowerPoint。可选加载项用于通�
 
 启动时自动检查 GitHub 更新默认关闭，可以在设置中开启；检查不会自动下载或安装。GitHub 下载支持官方直连、预设加速源及自定义 HTTPS 加速前缀，版本信息仍来自官方 API。
 
+> 当前自动打包流程每次生成新的自签名证书。非商店 MSIX 更新仍需手动信任相应证书，程序不会自动安装证书。
+
+<details>
+<summary>更新原理、备份与记录位置</summary>
+
 自动更新只使用匹配版本、安装类型和进程架构的附件，并校验文件大小与官方 SHA-256 digest。缺少合适附件或校验信息时，可通过页面中的链接手动下载。草稿和预发布不作为软件更新来源。
 
 便携更新会备份并替换程序文件，之后重新启动；用户设置和笔迹文件保留。更新记录与备份位于 `%LOCALAPPDATA%\RimePPT\Updates`，记录目录为其下的 `History`。程序所在目录需要写入权限。
 
-> 当前自动打包流程每次生成新的自签名证书。非商店 MSIX 更新仍需手动信任相应证书，程序不会自动安装证书。
+</details>
 
 ## 源码构建
+
+<details>
+<summary>开发环境、构建命令与测试</summary>
 
 项目使用 **C# / .NET 8、WinUI 3 / Windows App SDK、Win2D 和 PowerPoint COM**；托盘基于 H.NotifyIcon.WinUI。
 
@@ -123,7 +132,14 @@ pwsh -NoProfile -File tests/RimePPT.Update.Tests/Test-PortableUpdate.ps1
 
 测试源码覆盖笔迹几何、擦除、图形识别、撤销、动画与设置兼容性等。编译或自动化检查通过，不代表真实触摸、PowerPoint / WPS 兼容性和界面效果已经验收。
 
+</details>
+
 ## 自动打包与发布
+
+<details>
+<summary>GitHub Actions 工作流与草稿发布步骤</summary>
+
+Store 提交包仅作为 Actions 构建产物提供，供维护者上传合作伙伴中心，不放入 Releases。
 
 仓库提供两条 GitHub Actions 工作流：
 
@@ -139,6 +155,8 @@ pwsh -NoProfile -File tests/RimePPT.Update.Tests/Test-PortableUpdate.ps1
 
 也支持推送版本标签触发。当前要求 `v主版本.次版本.修订版本`，例如 `v1.2.5` 对应包版本 `1.2.5.0`，四段标签不受支持。未指定版本时，读取 [Package.appxmanifest](RimePPT/Package.appxmanifest) 中的默认版本。
 
+</details>
+
 ## 反馈与贡献
 
 欢迎通过 [GitHub Issues](https://github.com/WRMYX/RimePPT/issues) 反馈问题或提出功能建议。请尽量提供：
@@ -147,7 +165,7 @@ pwsh -NoProfile -File tests/RimePPT.Update.Tests/Test-PortableUpdate.ps1
 - PowerPoint / WPS 版本、复现步骤及截图或视频。
 - 相关日志；发送前请移除个人信息和不宜公开的课件内容。
 
-运行日志位于 `%TEMP%\rimeppt_app.log` 和 `%TEMP%\rimeppt_com.log`。讨论改动时，请区分编译结果与真实设备上的测试结果。
+运行日志位于 `%TEMP%\rimeppt_app.log` 和 `%TEMP%\rimeppt_com.log`。
 
 ## 许可证
 
