@@ -45,7 +45,7 @@ internal static class PresentationDiagnostics
             }
             catch (System.Security.SecurityException) { writer.WriteLine("Driver registry unavailable"); }
         }
-        foreach (string name in new[] { "rimeppt_app.log", "rimeppt_com.log" })
+        foreach (string name in new[] { "rimeppt_app.log", "rimeppt_com.log", "rimeppt_startup.log" })
         {
             writer.WriteLine($"\n--- {name} ---");
             try { writer.Write(File.ReadAllText(Path.Combine(Path.GetTempPath(), name))); }

@@ -9,6 +9,8 @@ public sealed partial class SettingsWindow
 {
     private bool _startupBusy;
     private bool _loadingStartup;
+    internal static System.Threading.Tasks.Task RefreshStartupStatusIfOpenAsync()
+        => _instance?.RefreshStartupAsync() ?? System.Threading.Tasks.Task.CompletedTask;
     private async System.Threading.Tasks.Task RefreshStartupAsync()
     {
         if (_closed || _startupBusy) return;

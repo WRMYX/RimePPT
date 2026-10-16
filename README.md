@@ -9,7 +9,7 @@
     <a href="https://github.com/WRMYX/RimePPT/releases">下载发布版</a> ·
     <a href="https://github.com/WRMYX/RimePPT/issues">反馈问题</a>
   </p>
-  <p><strong>WinUI 3</strong> &nbsp; / &nbsp; <strong>.NET 8</strong> &nbsp; / &nbsp; <strong>GPL v3</strong></p>
+  <p><strong>WinUI 3</strong> &nbsp; / &nbsp; <strong>.NET 10</strong> &nbsp; / &nbsp; <strong>GPL v3</strong></p>
 </div>
 
 ![RimePPT 产品封面](docs/images/RimePPT-Cover.png)
@@ -97,9 +97,9 @@ RimePPT 无需注册加载项也能检测 PowerPoint。可选加载项用于通�
 <details>
 <summary>开发环境、构建命令与测试</summary>
 
-项目使用 **C# / .NET 8、WinUI 3 / Windows App SDK、Win2D 和 PowerPoint COM**；托盘基于 H.NotifyIcon.WinUI。
+项目使用 **C# / .NET 10、WinUI 3 / Windows App SDK、Win2D 和 PowerPoint COM**；托盘基于 H.NotifyIcon.WinUI。
 
-在 Windows 上准备 .NET 8 SDK、Windows SDK 和 WinUI 开发工具。可选 Office 加载项面向 .NET Framework 4.8。打包脚本要求 **PowerShell 7.2 或更新版本（`pwsh`）**。
+在 Windows 上准备 .NET 10 SDK、Windows SDK 和 WinUI 开发工具。可选 Office 加载项面向 .NET Framework 4.8。打包脚本要求 **PowerShell 7.2 或更新版本（`pwsh`）**。
 
 以下命令在仓库根目录运行，以 x64 为例；直接使用项目文件，不依赖工具对 `.slnx` 的支持：
 

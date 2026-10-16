@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.Collections.Generic;
 using System.Linq;
 using Microsoft.UI.Windowing;
@@ -275,8 +275,8 @@ namespace RimePPT.Windows
             WindowPlumbing.RemoveResizableFrame(this);
             _firstPlacement = true;
             UpdatePlacement();
+            WindowPlumbing.SetOpacity(this, 0);
             ArmFirstFrameNotification();
-            WindowPlumbing.SetOpacity(this, 255);
             AppWindow.Show(false);
             ApplyTheme();
             if (_detachedExit is not null) { _detachedExit.ShowOn(area); PositionDetachedExit(); }
@@ -338,7 +338,11 @@ namespace RimePPT.Windows
             {
                 if (!RootGrid.IsLoaded || RootGrid.ActualWidth <= 0 || ++frames < 2) return;
                 CancelFirstFrameNotification();
-                if (!_closing) FirstFrameVisible?.Invoke(this, EventArgs.Empty);
+                if (!_closing)
+                {
+                    WindowPlumbing.SetOpacity(this, 255);
+                    FirstFrameVisible?.Invoke(this, EventArgs.Empty);
+                }
             };
             Microsoft.UI.Xaml.Media.CompositionTarget.Rendering += _frameHandler;
         }

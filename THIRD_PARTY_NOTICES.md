@@ -4,9 +4,9 @@ RimePPT 自身采用 GPL-3.0-only。该许可证不会替代第三方组件的�
 
 ## 直接依赖
 
-- **H.NotifyIcon.WinUI 2.3.0**：MIT。项目与版权声明见 [H.NotifyIcon](https://github.com/HavenDV/H.NotifyIcon)，授权文本见 [MIT](https://licenses.nuget.org/MIT)。
-- **Microsoft.WindowsAppSDK 2.4.0**：对应 NuGet 包的 `license.txt`，见 [Windows App SDK](https://github.com/microsoft/WindowsAppSDK)。包内含微软软件许可条款，应以实际使用版本的随包条款为准。
-- **Microsoft.Graphics.Win2D 1.3.2**：NuGet 元数据引用 [微软 Win2D 软件许可条款](http://www.microsoft.com/web/webpi/eula/eula_win2d_10012014.htm)。源码项目见 [Win2D](https://github.com/microsoft/Win2D)，源码与预编译 NuGet 包的许可应分别核对。
+- **H.NotifyIcon.WinUI 2.4.1**：MIT。项目与版权声明见 [H.NotifyIcon](https://github.com/HavenDV/H.NotifyIcon)，授权文本见 [MIT](https://licenses.nuget.org/MIT)。
+- **Microsoft.WindowsAppSDK 2.5.1**：对应 NuGet 包的 `license.txt`，见 [Windows App SDK](https://github.com/microsoft/WindowsAppSDK)。包内含微软软件许可条款，应以实际使用版本的随包条款为准。
+- **Microsoft.Graphics.Win2D 1.4.0**：NuGet 元数据引用 [微软 Win2D 软件许可条款](http://www.microsoft.com/web/webpi/eula/eula_win2d_10012014.htm)。源码项目见 [Win2D](https://github.com/microsoft/Win2D)，源码与预编译 NuGet 包的许可应分别核对。
 - **Microsoft.Windows.SDK.BuildTools 10.0.28000.2705**：构建工具，元数据引用 [Windows SDK 许可条款](https://aka.ms/WinSDKLicenseURL)。
 
 自包含发布还带有 .NET、Windows App SDK 及其传递依赖。分发时应保留它们随包提供的许可证和声明；以上直接依赖列表不是所有运行时文件的完整清单。

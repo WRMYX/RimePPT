@@ -1,4 +1,4 @@
-using System;
+﻿using System;
 using System.IO;
 using System.Numerics;
 using System.Runtime.InteropServices;
@@ -18,6 +18,7 @@ namespace RimePPT.Windows;
 
 public sealed class SpotlightWindow : Window
 {
+    private readonly TransparentBackdrop _backdrop = new();
     private readonly Microsoft.UI.Windowing.DisplayArea _area;
     private readonly Grid _root = new() { Background = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.Transparent), ManipulationMode = ManipulationModes.None };
     private readonly CanvasControl _canvas = new() { ClearColor = Microsoft.UI.Colors.Transparent, IsHitTestVisible = false };
@@ -36,6 +37,8 @@ public sealed class SpotlightWindow : Window
     private Vector2 _center = new(400, 300), _start, _last;
     private Rect _selection;
     private bool _magnify, _selecting, _closed;
+    private readonly System.Threading.CancellationTokenSource _lifetime = new();
+    private readonly System.Threading.Tasks.TaskCompletionSource _firstFrame = new(System.Threading.Tasks.TaskCreationOptions.RunContinuationsAsynchronously);
     private bool _centered;
     private Border? _controlBorder;
     private Vector2 _pan;
@@ -43,8 +46,8 @@ public sealed class SpotlightWindow : Window
     {
         _area = area; _png = Array.Empty<byte>();
         Title = "聚光与放大";
-        SystemBackdrop = new TransparentBackdrop();
         _root.Children.Add(_canvas); Content = _root;
+        _backdrop.Attach(this);
         var controls = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8, HorizontalAlignment = HorizontalAlignment.Center, VerticalAlignment = VerticalAlignment.Bottom, Margin = new(12) };
         var mode = new ToggleButton { Content = "框选放大", MinHeight = 44 };
         var refresh = new Button { Content = "刷新画面", MinHeight = 44 };
@@ -140,17 +143,39 @@ public sealed class SpotlightWindow : Window
         WindowPlumbing.EnableTransparency(this, false);
         WindowPlumbing.RemoveWindowBorder(this);
         WindowPlumbing.RemoveResizableFrame(this);
-        Closed += (_, _) => { _closed = true; _captureVersion++; _resourceVersion++; _mask?.Dispose(); _mask = null; _snapshot?.Dispose(); _snapshot = null; _canvas.RemoveFromVisualTree(); _png = Array.Empty<byte>(); };
+        _backdrop.Disconnected += () =>
+        {
+            if (_closed) return;
+            WindowPlumbing.SetOpacity(this, 0); AppWindow.Hide();
+            DispatcherQueue.TryEnqueue(() => { if (!_closed) Close(); });
+        };
+        Closed += (_, _) => { _closed = true; _lifetime.Cancel(); _firstFrame.TrySetCanceled(); _captureVersion++; _resourceVersion++; _mask?.Dispose(); _mask = null; _snapshot?.Dispose(); _snapshot = null; _canvas.RemoveFromVisualTree(); _png = Array.Empty<byte>(); };
     }
     [DllImport("user32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool SetWindowDisplayAffinity(IntPtr window, uint affinity);
-    public void Show()
+    public async System.Threading.Tasks.Task ShowAsync()
     {
-        var bounds = _area.OuterBounds; AppWindow.MoveAndResize(bounds); Activate();
-        // 排除整个聚光窗口，使刷新与导出的原始截图不含遮罩和控制按钮。
+        var bounds = _area.OuterBounds; AppWindow.MoveAndResize(bounds);
+        WindowPlumbing.SetOpacity(this, 0); AppWindow.Show(false);
         SetWindowDisplayAffinity(WinRT.Interop.WindowNative.GetWindowHandle(this), 0x11);
+        try
+        {
+            if (!await _backdrop.Ready.WaitAsync(TimeSpan.FromSeconds(5), _lifetime.Token))
+                throw new InvalidOperationException("聚光透明背景初始化失败。");
+            _canvas.Invalidate();
+            await _firstFrame.Task.WaitAsync(TimeSpan.FromSeconds(3), _lifetime.Token);
+            await TransparentBackdrop.WaitForFrameAsync(_root, _lifetime.Token);
+            if (_closed || !_backdrop.IsReady) return;
+            WindowPlumbing.SetOpacity(this, 255); Activate();
+        }
+        catch
+        {
+            if (!_closed) { AppWindow.Hide(); Close(); }
+            throw;
+        }
     }
+    public new void Close() { if (!_closed) base.Close(); }
     private Vector2 Point(PointerRoutedEventArgs e) { var p = e.GetCurrentPoint(_canvas).Position; return new((float)Math.Clamp(p.X, 0, _canvas.ActualWidth), (float)Math.Clamp(p.Y, 0, _canvas.ActualHeight)); }
     private void Press(object sender, PointerRoutedEventArgs e)
     {
@@ -177,7 +202,20 @@ public sealed class SpotlightWindow : Window
     }
     private void Draw(CanvasControl sender, CanvasDrawEventArgs args)
     {
-        var ds = args.DrawingSession; var full = new Rect(0,0,sender.ActualWidth,sender.ActualHeight);
+        try { DrawCore(sender, args); }
+        catch (Exception ex)
+        {
+            _firstFrame.TrySetException(ex);
+            if (!_closed) { WindowPlumbing.SetOpacity(this, 0); AppWindow.Hide(); }
+            CrashReporter.Report(ex, "spotlight-render");
+            DispatcherQueue.TryEnqueue(() => { if (!_closed) Close(); });
+        }
+    }
+    private void DrawCore(CanvasControl sender, CanvasDrawEventArgs args)
+    {
+        var ds = args.DrawingSession;
+        ds.Clear(Microsoft.UI.Colors.Transparent);
+        var full = new Rect(0,0,sender.ActualWidth,sender.ActualHeight);
         if (full.Width <= 0 || full.Height <= 0) return;
         var shade = Color.FromArgb((byte)(_dim.Value * 255),0,0,0);
         if (_magnify)
@@ -208,5 +246,6 @@ public sealed class SpotlightWindow : Window
             }
             ds.FillGeometry(_mask, shade);
         }
+        if (_backdrop.IsReady) _firstFrame.TrySetResult();
     }
 }

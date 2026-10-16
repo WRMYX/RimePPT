@@ -20,6 +20,7 @@ internal sealed class OnboardingOverlayWindow : Window
             DispatcherQueue.TryEnqueue(() => restoreGuide());
         };
         Content = background;
+        WindowPlumbing.UseTransparentNativeBackground(this);
         WindowPlumbing.RemoveWindowBorder(this);
         WindowPlumbing.RemoveResizableFrame(this);
         WindowPlumbing.ApplyNoActivate(this);

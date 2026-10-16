@@ -213,6 +213,49 @@ namespace RimePPT.Services
 
         private delegate IntPtr SubclassProc(IntPtr hwnd, uint message, UIntPtr wParam, IntPtr lParam, UIntPtr id, UIntPtr data);
         private static readonly SubclassProc PointerNoActivateProc = HandlePointerNoActivate;
+        private static readonly SubclassProc TransparentBackgroundProc = HandleTransparentBackground;
+        private static readonly UIntPtr TransparentBackgroundId = new(0x52494D46);
+
+        // XAML's transparent island does not clear the HWND's GDI redirection surface.
+        // DWM glass needs zeroed pixels here; the default light-theme erase paints white.
+        internal static void UseTransparentNativeBackground(Window window)
+        {
+            IntPtr hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
+            if (!SetWindowSubclass(hwnd, TransparentBackgroundProc, TransparentBackgroundId, UIntPtr.Zero))
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "Unable to configure transparent window background.");
+            // The HWND can already have received its first erase before XAML Content is attached.
+            // Clear that surface too; waiting for another erase leaves the old white pixels behind.
+            var hdc = GetDC(hwnd);
+            if (hdc != IntPtr.Zero)
+            {
+                try { if (GetClientRect(hwnd, out var bounds)) FillRect(hdc, ref bounds, GetStockObject(4)); }
+                finally { ReleaseDC(hwnd, hdc); }
+            }
+        }
+
+        private static IntPtr HandleTransparentBackground(IntPtr hwnd, uint message, UIntPtr wParam, IntPtr lParam, UIntPtr id, UIntPtr data)
+        {
+            if (message == 0x0014 && GetClientRect(hwnd, out var bounds)) // WM_ERASEBKGND
+            {
+                if (FillRect(unchecked((nint)(nuint)wParam), ref bounds, GetStockObject(4)) != 0)
+                    return new IntPtr(1); // BLACK_BRUSH writes the zero-alpha DWM background, not a XAML theme colour.
+            }
+            if (message == 0x0082) RemoveWindowSubclass(hwnd, TransparentBackgroundProc, id);
+            return DefSubclassProc(hwnd, message, wParam, lParam);
+        }
+
+        [DllImport("user32.dll")]
+        [return: MarshalAs(UnmanagedType.Bool)]
+        private static extern bool GetClientRect(IntPtr hwnd, out RECT rectangle);
+        [DllImport("user32.dll")]
+        private static extern int FillRect(IntPtr hdc, ref RECT rectangle, IntPtr brush);
+        [DllImport("user32.dll")]
+        private static extern IntPtr GetDC(IntPtr hwnd);
+        [DllImport("user32.dll")]
+        private static extern int ReleaseDC(IntPtr hwnd, IntPtr hdc);
+        [DllImport("gdi32.dll")]
+        private static extern IntPtr GetStockObject(int objectType);
+
         private static IntPtr HandlePointerNoActivate(IntPtr hwnd, uint message, UIntPtr wParam, IntPtr lParam, UIntPtr id, UIntPtr data)
         {
             if (message is 0x0021 or 0x024B) return new IntPtr(3); // MA_NOACTIVATE / PA_NOACTIVATE
@@ -234,6 +277,7 @@ namespace RimePPT.Services
         /// </summary>
         public static void EnableTransparency(Window window, bool enableBlur = true)
         {
+            UseTransparentNativeBackground(window);
             IntPtr hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
 
             var margins = new MARGINS { Left = -1, Right = -1, Top = -1, Bottom = -1 };

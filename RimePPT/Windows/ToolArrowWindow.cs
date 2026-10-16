@@ -12,11 +12,13 @@ namespace RimePPT.Windows;
 /// <summary>外侧细长箭头，使用原生 Button 和系统实心三角图标。</summary>
 internal sealed class ToolArrowWindow : Window
 {
+    private readonly TransparentBackdrop _backdrop = new();
     private readonly ToolbarWindow _owner;
     private ToolbarCommand _command;
     private readonly double _widthDip;
     private readonly double _heightDip;
     private bool _closed;
+    private int _revealVersion;
     private bool _placing;
     private FrameworkElement? _target;
     private readonly Grid _root;
@@ -61,7 +63,7 @@ internal sealed class ToolArrowWindow : Window
         var root = _root = new Grid { Background = new SolidColorBrush(Microsoft.UI.Colors.Transparent) };
         root.Children.Add(card); Content = root;
         // 独立窗口紧贴可见按钮，避免 DWM 为额外留白绘制半透明外框。
-        SystemBackdrop = new TransparentBackdrop();
+        _backdrop.Attach(this);
         ThemeResources.Attach(this, root, card);
         if (AppWindow.Presenter is OverlappedPresenter p)
         {
@@ -77,7 +79,7 @@ internal sealed class ToolArrowWindow : Window
         ((FrameworkElement)_owner.Content).LayoutUpdated += OnOwnerLayout;
         Closed += (_, _) =>
         {
-            _closed = true;
+            _closed = true; ++_revealVersion;
             _owner.AppWindow.Changed -= OnOwnerChanged;
             ((FrameworkElement)_owner.Content).LayoutUpdated -= OnOwnerLayout;
         };
@@ -93,14 +95,13 @@ internal sealed class ToolArrowWindow : Window
         if (_warming)
         {
             _warming = false;
-            WindowPlumbing.SetOpacity(this, 255);
-            WindowPlumbing.SetClickThrough(this, false);
+            WindowPlumbing.SetClickThrough(this, false, preserveLayered: true);
         }
         Place();
     }
     public void Hide()
     {
-        _visibleRequested = false;
+        _visibleRequested = false; ++_revealVersion;
         if (!_closed) AppWindow.Hide();
     }
     public async Task PrewarmAsync()
@@ -126,9 +127,9 @@ internal sealed class ToolArrowWindow : Window
             _warming = false;
             if (!_closed)
             {
-                if (!_visibleRequested) AppWindow.Hide();
-                WindowPlumbing.SetOpacity(this, 255);
-                WindowPlumbing.SetClickThrough(this, false);
+                AppWindow.Hide();
+                WindowPlumbing.SetOpacity(this, 0);
+                WindowPlumbing.SetClickThrough(this, false, preserveLayered: true);
                 if (_visibleRequested) Place();
             }
         }
@@ -162,9 +163,30 @@ internal sealed class ToolArrowWindow : Window
         }
         if (AppWindow.Position.X != x || AppWindow.Position.Y != y || AppWindow.Size.Width != width || AppWindow.Size.Height != height)
             AppWindow.MoveAndResize(new global::Windows.Graphics.RectInt32(x, y, width, height));
-        if (!AppWindow.IsVisible) AppWindow.Show(false);
+        if (!AppWindow.IsVisible)
+        {
+            WindowPlumbing.SetOpacity(this, 0);
+            AppWindow.Show(false);
+            _ = RevealAsync(++_revealVersion);
+        }
         }
         finally { _placing = false; }
+    }
+    private async Task RevealAsync(int version)
+    {
+        try
+        {
+            bool ready = await _backdrop.Ready.WaitAsync(TimeSpan.FromSeconds(5));
+            if (ready) await TransparentBackdrop.WaitForFrameAsync(_root);
+            if (_closed || version != _revealVersion || !_visibleRequested) return;
+            if (!ready || !_backdrop.IsReady) { AppWindow.Hide(); return; }
+            WindowPlumbing.SetOpacity(this, 255);
+        }
+        catch (Exception ex)
+        {
+            if (!_closed && version == _revealVersion) AppWindow.Hide();
+            CrashReporter.Report(ex, "tool-arrow-first-frame");
+        }
     }
     private void OnOwnerLayout(object? sender, object args) => Place();
     public void Dismiss() { if (!_closed) Close(); }

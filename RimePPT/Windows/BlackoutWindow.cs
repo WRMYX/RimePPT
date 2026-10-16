@@ -36,6 +36,7 @@ namespace RimePPT.Windows
             };
             _root.Children.Add(hint);
             Content = _root;
+            WindowPlumbing.UseTransparentNativeBackground(this);
 
             WindowPlumbing.RemoveWindowBorder(this);
             WindowPlumbing.RemoveResizableFrame(this);

@@ -106,7 +106,7 @@ public sealed class AnnotationWindow : Window
         _root.Children.Add(_canvas);
         Content = _root;
         Title = "RimePPT Annotation";
-        SystemBackdrop = _backdrop;
+        _backdrop.Attach(this);
         _backdrop.Disconnected += OnBackdropDisconnected;
         _backdrop.Connected += OnBackdropConnected;
         if (AppWindow.Presenter is OverlappedPresenter presenter)

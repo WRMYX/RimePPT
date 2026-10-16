@@ -4,7 +4,7 @@ Run on an unlocked interactive Windows desktop. Close an existing RimePPT instan
 
 ```powershell
 dotnet build RimePPT/RimePPT.csproj -p:Platform=x64
-dotnet run --project tools/RimePPT.TouchProbe -c Release -- RimePPT/bin/x64/Debug/net8.0-windows10.0.19041.0/win-x64/RimePPT.exe .tasks/touch-probe-results.json --stress
+dotnet run --project tools/RimePPT.TouchProbe -c Release -- RimePPT/bin/x64/Debug/net10.0-windows10.0.19041.0/win-x64/RimePPT.exe .tasks/touch-probe-results.json --stress
 ```
 
 Keep the desktop available during the run: injecting input affects real screen coordinates. Setup shows only the owned settings and toolbar windows; all assertions for writing, erasing and toolbar navigation use touch input, never a mouse fallback. Windows may assign different pointer IDs from the injection IDs. Injection API failures report the Win32 error code.

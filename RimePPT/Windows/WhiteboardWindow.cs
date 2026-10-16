@@ -212,6 +212,7 @@ public sealed class WhiteboardWindow : Window
         _message.Foreground = new Microsoft.UI.Xaml.Media.SolidColorBrush(Microsoft.UI.Colors.White);
         _message.IsHitTestVisible = false;
         _root.Children.Add(_message); Content = _root;
+        WindowPlumbing.UseTransparentNativeBackground(this);
         _canvas.CreateResources += (sender, _) => { _renderer?.Dispose(); _renderer = new InkRenderer(sender.Device, CurrentStrokes, Previews); };
         _canvas.Draw += (sender, args) => { if (!_closed) {
             _renderer ??= new InkRenderer(sender.Device, CurrentStrokes, Previews);

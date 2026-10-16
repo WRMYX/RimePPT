@@ -11,7 +11,9 @@ namespace RimePPT
     {
         public MainWindow()
         {
+            Core.StartupDiagnostics.Mark("anchor.ctor.enter");
             InitializeComponent();
+            Core.StartupDiagnostics.Mark("anchor.xaml.ready");
 
             if (AppWindow.Presenter is Microsoft.UI.Windowing.OverlappedPresenter presenter)
             {
@@ -20,6 +22,7 @@ namespace RimePPT
             }
 
             AppWindow.SetIcon(System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "icon.ico"));
+            Core.StartupDiagnostics.Mark("anchor.icon.ready");
 
             // 隐藏：本窗口不参与交互
             AppWindow.Hide();

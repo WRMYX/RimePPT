@@ -558,23 +558,23 @@
                         <StackPanel Padding="16" Spacing="16">
                             <TextBlock Text="软件技术栈" Style="{StaticResource BodyStrongTextBlockStyle}" />
                             <StackPanel Spacing="4">
-                                <TextBlock Text="C# · .NET 8" Style="{StaticResource SettingTitle}" />
-                                <TextBlock Text="应用逻辑、设置管理与本地数据读写" Style="{StaticResource SettingDesc}" />
+                                <TextBlock Text="C# · .NET 10（LTS）" Style="{StaticResource SettingTitle}" />
+                                <TextBlock Text=".NET 10.0.13：应用逻辑、设置管理与本地数据读写" Style="{StaticResource SettingDesc}" />
                             </StackPanel>
                             <StackPanel Spacing="4">
-                                <TextBlock Text="WinUI 3 · Windows App SDK" Style="{StaticResource SettingTitle}" />
+                                <TextBlock Text="WinUI 3 · Windows App SDK 2.5.1" Style="{StaticResource SettingTitle}" />
                                 <TextBlock Text="原生 Windows 界面、Mica 材质与 TeachingTip 引导" Style="{StaticResource SettingDesc}" />
                             </StackPanel>
                             <StackPanel Spacing="4">
-                                <TextBlock Text="Win2D" Style="{StaticResource SettingTitle}" />
+                                <TextBlock Text="Win2D 1.4.0" Style="{StaticResource SettingTitle}" />
                                 <TextBlock Text="自研笔迹绘制、擦除与翻页动画" Style="{StaticResource SettingDesc}" />
                             </StackPanel>
                             <StackPanel Spacing="4">
                                 <TextBlock Text="PowerPoint COM · Windows API" Style="{StaticResource SettingTitle}" />
-                                <TextBlock Text="放映状态联动、页面控制与桌面窗口管理" Style="{StaticResource SettingDesc}" />
+                                <TextBlock Text="放映状态联动、页面控制与桌面窗口管理；可选 Office COM 加载项使用 .NET Framework 4.8" Style="{StaticResource SettingDesc}" />
                             </StackPanel>
                             <StackPanel Spacing="4">
-                                <TextBlock Text="H.NotifyIcon · System.Text.Json" Style="{StaticResource SettingTitle}" />
+                                <TextBlock Text="H.NotifyIcon 2.4.1 · System.Text.Json" Style="{StaticResource SettingTitle}" />
                                 <TextBlock Text="系统托盘、设置及笔迹保存、ClassWidgets 课程数据交换" Style="{StaticResource SettingDesc}" />
                             </StackPanel>
                         </StackPanel>

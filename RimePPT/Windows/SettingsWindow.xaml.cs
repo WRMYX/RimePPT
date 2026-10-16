@@ -33,6 +33,7 @@ namespace RimePPT.Windows
         private readonly DispatcherTimer _connectionTimer = new() { Interval = TimeSpan.FromSeconds(3) };
         private bool _refreshingConnection;
         private bool _closed;
+        private bool _deferredInitialized;
         private StoreUpdateService? _storeUpdates;
         private IReadOnlyList<StorePackageUpdate> _availableUpdates = Array.Empty<StorePackageUpdate>();
         private CancellationTokenSource? _storeCancellation;
@@ -57,9 +58,12 @@ namespace RimePPT.Windows
 
         public SettingsWindow()
         {
+            StartupDiagnostics.Mark("settings.xaml.begin");
             InitializeComponent();
+            StartupDiagnostics.Mark("settings.xaml.end");
             InitializeFeatureSettings();
             InitializeDeveloperSettings();
+            StartupDiagnostics.Mark("settings.editors.ready");
             // XAML 中的命名设置控件保留实例与事件，只更换原生导航容器。
             foreach (var page in new[] { AppearancePage, InkPage, ToolbarPage, ClassWidgetsPage, OfficePage, StoreUpdatePage, DebugPage, AboutPage })
             {
@@ -91,10 +95,27 @@ namespace RimePPT.Windows
             LoadValues();
             Activated += (_, args) => { if (args.WindowActivationState != WindowActivationState.Deactivated) _ = RefreshStartupAsync(); };
             _ = RefreshStartupAsync();
-            LoadImages();
-            VersionText.Text = "版本 " + GitHubUpdateService.InstalledVersion;
-            InitializeStoreUpdates();
-            InitializeGitHubUpdates();
+            WindowRoot.Loaded += (_, _) =>
+            {
+                if (_deferredInitialized) return;
+                _deferredInitialized = true;
+                StartupDiagnostics.Mark("settings.loaded");
+                DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                {
+                    if (_closed) return;
+                    bool previous = _suppress; _suppress = true;
+                    try
+                    {
+                        StartupDiagnostics.Mark("settings.optional.begin");
+                        LoadImages();
+                        VersionText.Text = "版本 " + GitHubUpdateService.InstalledVersion;
+                        InitializeStoreUpdates();
+                        InitializeGitHubUpdates();
+                    }
+                    catch (Exception ex) { CrashReporter.Report(ex, "settings-deferred-init"); }
+                    finally { _suppress = previous; StartupDiagnostics.Mark("settings.optional.end"); }
+                });
+            };
             ClassWidgetsDataPath.Text = ClassWidgetsCourseReader.DataPath;
             _connectionTimer.Tick += OnConnectionTick;
             _connectionTimer.Start();
@@ -116,6 +137,7 @@ namespace RimePPT.Windows
                 _instance = null;
             };
             _suppress = false;
+            StartupDiagnostics.Mark("settings.constructor.end");
         }
 
         private void ApplyTitleBarButtonsTheme()

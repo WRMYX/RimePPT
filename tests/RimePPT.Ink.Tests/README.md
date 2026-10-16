@@ -1,6 +1,6 @@
 # Ink regression tests
 
-Run from the repository folder with the .NET 8 runtime and SDK:
+Run from the repository folder with the .NET 10 runtime and SDK:
 
 ```powershell
 dotnet run --project tests/RimePPT.Ink.Tests -c Release -- .tasks/ink-test-results.json

@@ -141,13 +141,17 @@ namespace RimePPT
 
         public App()
         {
+            StartupDiagnostics.Mark("app.resources.begin");
             InitializeComponent(); _instance = this;
+            StartupDiagnostics.Mark("app.resources.end");
+            StartupDiagnostics.RecordIdentity();
         }
 
         protected override void OnLaunched(Microsoft.UI.Xaml.LaunchActivatedEventArgs args)
         {
             // 全局异常兜底最先就位：任何线程的未处理异常都要落日志并可见，
             // 而不是无提示消失（"后台都没了"）
+            StartupDiagnostics.Mark("app.launch.begin");
             CrashReporter.Init();
 
             // 单实例保护：主窗口是隐藏锚点，托盘图标是唯一可见入口，
@@ -162,12 +166,13 @@ namespace RimePPT
             _dispatcher = DispatcherQueue.GetForCurrentThread();
             // 首次使用先持久化待展示状态，之后即使设置文件生成仍保留引导资格。
             if (OnboardingState.ShouldShow()) OnboardingState.TryArmFreshUser();
+            StartupDiagnostics.Mark("settings.load.begin");
             AppSettings.Load();
+            StartupDiagnostics.Mark("settings.load.end");
             if (AppSettings.IsFreshInstallation)
             {
                 AppSettings.Instance.Persist();
             }
-            _ = Startup.InitializeAsync(AppSettings.Instance, AppSettings.IsFreshInstallation);
             _toolbarSettingsSnapshot = ToolbarSettingsSignature();
             AppSettings.SettingsChanged += (_, _) => QueueSettingsRefresh();
 
@@ -177,9 +182,12 @@ namespace RimePPT
             Debug.ShowStarted += OnShowStarted;
             Debug.ShowEnded += OnShowEnded;
             Debug.SlideChanged += OnSlideChanged;
+            StartupDiagnostics.Mark("powerpoint.start.begin");
             PowerPoint.Start();
+            StartupDiagnostics.Mark("powerpoint.start.end");
             Wps.ShowStarted += OnShowStarted; Wps.ShowEnded += OnShowEnded; Wps.SlideChanged += OnSlideChanged;
             Wps.Start();
+            StartupDiagnostics.Mark("controllers.started");
 
             // 诊断入口：RimePPT.exe --crash-test 模拟后台线程致命异常，
             // 验证报错弹窗与退出路径
@@ -196,7 +204,25 @@ namespace RimePPT
             }
 
             // MainWindow 仅为隐藏的应用锚点（托盘与设置窗承载全部交互）
+            StartupDiagnostics.Mark("anchor.begin");
             _window = new MainWindow();
+            StartupDiagnostics.Mark("anchor.end");
+            InitializeTray();
+            StartupDiagnostics.Mark("tray.ready");
+            CrashReporter.Log("startup: tray initialized");
+            // Registry migration/JSON persistence may complete synchronously even in an async
+            // method. Let the tray and first settings frame become available before this work.
+            _dispatcher.TryEnqueue(DispatcherQueuePriority.Low, async () =>
+            {
+                StartupDiagnostics.Mark("startup-registration.begin");
+                try
+                {
+                    await Startup.InitializeAsync(AppSettings.Instance, AppSettings.IsFreshInstallation);
+                    await SettingsWindow.RefreshStartupStatusIfOpenAsync();
+                }
+                catch (Exception ex) { CrashReporter.Report(ex, "startup-registration-deferred"); }
+                finally { StartupDiagnostics.Mark("startup-registration.end"); }
+            });
 
             // 自动化/排障入口：RimePPT.exe --settings 直接打开设置窗口
             string[] cliArgs = Environment.GetCommandLineArgs();
@@ -204,14 +230,19 @@ namespace RimePPT
             {
                 if (string.Equals(a, "--settings", StringComparison.OrdinalIgnoreCase))
                 {
-                    SettingsWindow.Open();
+                    _dispatcher.TryEnqueue(() =>
+                    {
+                        StartupDiagnostics.Mark("settings.open.begin");
+                        try { SettingsWindow.Open(); }
+                        catch (Exception ex) { CrashReporter.Report(ex, "startup-settings"); }
+                        finally { StartupDiagnostics.Mark("settings.open.end"); }
+                    });
                     break;
                 }
             }
 
-            InitializeTray();
-            CrashReporter.Log("startup: tray initialized");
             PreparePresentationToolbars();
+            StartupDiagnostics.Mark("launch.queued");
             _ = CheckGitHubUpdatesAtStartupAsync();
             // 独立预览诊断入口，不读写课件或墨迹，用于验证原生询问框。
             var promptPreview = cliArgs.FirstOrDefault(a => a.StartsWith("--prompt-preview=", StringComparison.OrdinalIgnoreCase));
@@ -744,7 +775,7 @@ namespace RimePPT
                 try { if (version == _toolTransitionVersion && ReferenceEquals(_backend, backend) && _blackout is null) await backend.SetToolAsync(_annotating ? (_erasing ? AnnotationTool.Eraser : AnnotationTool.Pen) : null); RaiseCompanions(); }
                 catch (Exception ex) { Log(ex.Message); }
             };
-            try { spotlight.Show(); } catch { spotlight.Close(); throw; }
+            try { await spotlight.ShowAsync(); } catch { spotlight.Close(); throw; }
         }
 
         private void CloseToolsMenu()
@@ -890,6 +921,7 @@ namespace RimePPT
 
         private void InitializeTray()
         {
+            StartupDiagnostics.Mark("tray.commands.begin");
             var settingsCommand = new Microsoft.UI.Xaml.Input.XamlUICommand { Description = "打开设置" };
             settingsCommand.ExecuteRequested += (_, _) =>
             {
@@ -910,6 +942,7 @@ namespace RimePPT
             menu.Items.Add(new MenuFlyoutItem { Command = settingsCommand, Text = "设置" });
             menu.Items.Add(new MenuFlyoutSeparator());
             menu.Items.Add(new MenuFlyoutItem { Command = exitCommand, Text = "退出" });
+            StartupDiagnostics.Mark("tray.menu.ready");
 
             // 图标缺失只降级为系统图标，绝不能让托盘初始化杀死整个应用
             var iconPath = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "icon.ico");
@@ -922,6 +955,7 @@ namespace RimePPT
                     ? new System.Drawing.Icon(iconPath)
                     : System.Drawing.SystemIcons.Application,
             };
+            StartupDiagnostics.Mark("tray.icon.ready");
             // 系统长按和键盘菜单键发送 WM_CONTEXTMENU；库只抛出事件，未自动显示菜单。
             // WinUI 版本的菜单入口接收屏幕坐标，复用现有原生菜单窗口。
             var tray = _trayIcon;
@@ -935,6 +969,7 @@ namespace RimePPT
                 });
             };
             _trayIcon.ForceCreate();
+            StartupDiagnostics.Mark("tray.force-create.end");
         }
 
         private void ExitApplication()

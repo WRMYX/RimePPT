@@ -156,8 +156,6 @@ public partial class PenPickerWindow
         image.Children.Add(drawing); panel.Children.Add(image);
         var caption = new TextBlock { Text = label, FontSize = 12, HorizontalAlignment = HorizontalAlignment.Center };
         panel.Children.Add(caption);
-        if (drawing is Polyline line) line.SetBinding(Shape.StrokeProperty,
-            new Microsoft.UI.Xaml.Data.Binding { Path = new PropertyPath("Foreground"), Source = caption });
         var item = new GridViewItem { Tag = value, Content = panel, Width = 92, Height = 76,
             Padding = new Thickness(4), HorizontalContentAlignment = HorizontalAlignment.Center,
             VerticalContentAlignment = VerticalAlignment.Center };
@@ -168,8 +166,8 @@ public partial class PenPickerWindow
 
     private static FrameworkElement OptionDrawing(int category, int value)
     {
-        var line = new Polyline { StrokeThickness = 2, StrokeLineJoin = PenLineJoin.Round,
-            StrokeStartLineCap = PenLineCap.Round, StrokeEndLineCap = PenLineCap.Round };
+        var line = (Polyline)Microsoft.UI.Xaml.Markup.XamlReader.Load(
+            "<Polyline xmlns='http://schemas.microsoft.com/winfx/2006/xaml/presentation' Stroke='{ThemeResource TextFillColorPrimaryBrush}' StrokeThickness='2' StrokeLineJoin='Round' StrokeStartLineCap='Round' StrokeEndLineCap='Round'/>");
         IEnumerable<Point> points;
         if (category == 1)
         {

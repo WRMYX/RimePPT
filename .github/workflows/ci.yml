@@ -22,7 +22,7 @@ jobs:
       - name: Set up .NET / 配置 .NET 环境
         uses: actions/setup-dotnet@v4
         with:
-          dotnet-version: '8.0.x'
+          dotnet-version: '10.0.x'
       - name: Run ink tests / 运行笔迹测试
         run: dotnet run --project tests/RimePPT.Ink.Tests -c Release
       - name: Verify portable update rollback / 验证便携更新与回滚
