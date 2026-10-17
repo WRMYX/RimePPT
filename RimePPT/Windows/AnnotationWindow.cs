@@ -68,6 +68,7 @@ public sealed class AnnotationWindow : Window
     public event EventHandler? InkChanged;
     public event EventHandler<string>? RenderingFailed;
     public Action? CompanionsRaise;
+    public Action? InputFinished;
     public AnnotationTool Tool
     {
         get => _tool;
@@ -341,7 +342,7 @@ public sealed class AnnotationWindow : Window
         _holdPositions.Remove(id);
         if (_contacts.Count == 0) _shapeTimer.Stop();
         if (_pointers.Remove(id, out var pointer)) _root.ReleasePointerCapture(pointer);
-        if (!_closed) { CompanionsRaise?.Invoke(); Invalidate(); }
+        if (!_closed) { CompanionsRaise?.Invoke(); Invalidate(); if (_contacts.Count == 0 && reason == "released") InputFinished?.Invoke(); }
     }
     private void Erase(uint id, Vector2 from, Vector2 to)
     {

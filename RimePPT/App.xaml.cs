@@ -342,6 +342,7 @@ namespace RimePPT
                 DiscardPreparedToolbars();
                 _annotation.InkChanged += (_, _) => { _inkDirty = true; SyncPresentationControls(); };
                 _annotation.CompanionsRaise = RaiseCompanions;
+                _annotation.InputFinished = () => RestorePresentationFocus("批注输入结束");
                 _annotation.RenderingFailed += async (_, message) =>
                 {
                     if (!CurrentSession()) return;
@@ -620,6 +621,15 @@ namespace RimePPT
             finally { _settingsApplying = false; if (_settingsPending) QueueSettingsRefresh(); }
         }
 
+        private void RestorePresentationFocus(string stage)
+        {
+            if (_presenting is not { IsPresenting: true } controller || _showCancellation?.IsCancellationRequested == true ||
+                WhiteboardWindow.IsOpen || _picker is { IsShowing: true } || _blackout is not null || _spotlight is not null || _onboarding.IsRunning) return;
+            PresentationDiagnostics.RecordFocus(stage, controller.ShowWindowHandle);
+            bool restored = WindowPlumbing.TryRestorePresentationFocus(controller.ShowWindowHandle);
+            PresentationDiagnostics.RecordFocus(stage + (restored ? "：已保持/恢复" : "：未恢复"), controller.ShowWindowHandle);
+        }
+
         private async Task ToggleToolAsync(AnnotationTool tool)
         {
             if (_backend is null) { SyncAnnotationChecks(); return; }
@@ -630,6 +640,7 @@ namespace RimePPT
                 && cancellation?.IsCancellationRequested != true && !WhiteboardWindow.IsOpen;
             bool selected = _annotating && _erasing == (tool == AnnotationTool.Eraser);
             AnnotationTool? requested = selected ? null : tool;
+            if (_presenting is { } activeShow) PresentationDiagnostics.RecordFocus("切换工具前", activeShow.ShowWindowHandle);
             _picker?.Dismiss(); _picker = null;
             _annotating = !selected; _erasing = !selected && tool == AnnotationTool.Eraser;
             SyncAnnotationChecks(); RaiseCompanions();
@@ -640,6 +651,7 @@ namespace RimePPT
                 if (!CurrentSession()) return;
                 await backend.SetToolAsync(requested, CurrentSession);
                 if (!CurrentSession()) return;
+                RestorePresentationFocus("切换工具完成");
             }
             catch (Exception ex)
             {
@@ -661,6 +673,15 @@ namespace RimePPT
                 command == ToolbarCommand.Eraser ? new EraserPickerWindow() : new PenPickerWindow();
             _picker = picker;
             picker.Closed += (_, _) => { if (ReferenceEquals(_picker, picker)) _picker = null; };
+            var focusSession = _presenting;
+            picker.InteractionClosed += (_, _) =>
+            {
+                // Run after WinUI has completed popup focus restoration, not during Closed dispatch.
+                toolbar.DispatcherQueue.TryEnqueue(Microsoft.UI.Dispatching.DispatcherQueuePriority.Low, () =>
+                {
+                    if (ReferenceEquals(focusSession, _presenting)) RestorePresentationFocus("工具设置关闭");
+                });
+            };
             picker.ShowAt(anchor, toolbar.Layout);
         }
         private void ShowPenChevron() { }

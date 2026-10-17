@@ -29,6 +29,7 @@ public partial class PenPickerWindow : Flyout
     private Flyout? _colorFlyout;
     private bool _suppress, _dirty, _subscribed;
     private FrameworkElement? _anchor;
+    public event EventHandler? InteractionClosed;
     public bool IsShowing { get; private set; }
     public bool Owns(FrameworkElement anchor) => ReferenceEquals(_anchor, anchor);
     public PenPickerWindow() : this(false) { }
@@ -77,6 +78,7 @@ public partial class PenPickerWindow : Flyout
             IsShowing = false; HideColorPicker();
             if (_subscribed) { AppSettings.SettingsChanged -= SettingsChanged; _subscribed = false; }
             Flush();
+            InteractionClosed?.Invoke(this, EventArgs.Empty);
         };
         RefreshBackendState();
     }

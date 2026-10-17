@@ -1,5 +1,6 @@
 using System;
 using System.ComponentModel;
+using System.Collections.Generic;
 using System.Runtime.InteropServices;
 using Microsoft.UI.Xaml;
 
@@ -11,6 +12,37 @@ namespace RimePPT.Services
     /// </summary>
     public static class WindowPlumbing
     {
+        // UI-thread owned. Only presentation input surfaces may return focus to Office.
+        private static readonly HashSet<IntPtr> PresentationInputWindows = new();
+        private static void TrackPresentationInputWindow(Window window, IntPtr hwnd)
+        {
+            if (window is not (RimePPT.Windows.ToolbarWindow or RimePPT.Windows.ToolArrowWindow or RimePPT.Windows.AnnotationWindow)) return;
+            if (PresentationInputWindows.Add(hwnd))
+                window.Closed += (_, _) => PresentationInputWindows.Remove(hwnd);
+        }
+
+        internal static IntPtr ForegroundWindow => GetForegroundWindow();
+        internal static bool TryRestorePresentationFocus(IntPtr showWindow)
+        {
+            if (showWindow == IntPtr.Zero || !IsWindow(showWindow) || !IsWindowVisible(showWindow) || IsIconic(showWindow)) return false;
+            var foreground = GetForegroundWindow();
+            if (foreground == showWindow) return true;
+            if (!PresentationInputWindows.Contains(foreground) &&
+                !PresentationInputWindows.Contains(GetAncestor(foreground, 2 /* GA_ROOT: do not include owned dialogs */))) return false;
+            GetWindowThreadProcessId(showWindow, out uint targetProcess);
+            if (targetProcess == 0 || targetProcess == (uint)Environment.ProcessId) return false;
+            // Never attach input queues or repeatedly steal focus when Windows refuses.
+            return SetForegroundWindow(showWindow) && GetForegroundWindow() == showWindow;
+        }
+
+        [DllImport("user32.dll")] private static extern IntPtr GetForegroundWindow();
+        [DllImport("user32.dll")] private static extern IntPtr GetAncestor(IntPtr hwnd, uint flags);
+        [DllImport("user32.dll")] private static extern uint GetWindowThreadProcessId(IntPtr hwnd, out uint processId);
+        [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool IsWindow(IntPtr hwnd);
+        [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool IsWindowVisible(IntPtr hwnd);
+        [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool IsIconic(IntPtr hwnd);
+        [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool SetForegroundWindow(IntPtr hwnd);
+
         private const int GWL_STYLE = -16;
         private const int GWL_EXSTYLE = -20;
         private const long WS_EX_NOACTIVATE = 0x08000000;
@@ -197,14 +229,18 @@ namespace RimePPT.Services
         public static void ApplyNoActivate(Window window)
         {
             IntPtr hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
+            TrackPresentationInputWindow(window, hwnd);
             int style = GetWindowLongW(hwnd, GWL_EXSTYLE);
             SetWindowLongW(hwnd, GWL_EXSTYLE, (int)((uint)style | WS_EX_NOACTIVATE | WS_EX_TOOLWINDOW));
+            if (!SetWindowSubclass(hwnd, PointerNoActivateProc, new UIntPtr(0x52494D45), UIntPtr.Zero))
+                throw new Win32Exception(Marshal.GetLastWin32Error(), "Unable to configure annotation input.");
         }
 
         // WS_EX_NOACTIVATE 会使部分新建浮窗忽略触摸；通过消息拒绝激活但保留输入。
         public static void ApplyPointerNoActivate(Window window)
         {
             IntPtr hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
+            TrackPresentationInputWindow(window, hwnd);
             int style = GetWindowLongW(hwnd, GWL_EXSTYLE);
             SetWindowLongW(hwnd, GWL_EXSTYLE, (int)(((uint)style & ~(uint)WS_EX_NOACTIVATE) | WS_EX_TOOLWINDOW));
             if (!SetWindowSubclass(hwnd, PointerNoActivateProc, new UIntPtr(0x52494D45), UIntPtr.Zero))
@@ -304,7 +340,7 @@ namespace RimePPT.Services
             int style = GetWindowLongW(hwnd, GWL_STYLE);
             style &= ~(WS_THICKFRAME | WS_CAPTION);
             SetWindowLongW(hwnd, GWL_STYLE, style);
-            SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_FRAMECHANGED);
+            SetWindowPos(hwnd, IntPtr.Zero, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOZORDER | SWP_NOACTIVATE | SWP_FRAMECHANGED);
         }
 
         /// <summary>

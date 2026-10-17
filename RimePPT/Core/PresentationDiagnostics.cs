@@ -9,6 +9,8 @@ internal static class PresentationDiagnostics
 {
     private static readonly object Gate = new();
     private static readonly Queue<string> Events = new();
+    internal static void RecordFocus(string stage, IntPtr showWindow)
+        => Record("放映焦点", $"{stage}; foreground=0x{WindowPlumbing.ForegroundWindow.ToInt64():X}; show=0x{showWindow.ToInt64():X}");
     internal static void Record(string stage, string detail)
     {
         string entry = $"{DateTimeOffset.Now:HH:mm:ss.fff} {stage}: {detail}";
