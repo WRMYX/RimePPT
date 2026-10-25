@@ -32,7 +32,7 @@ jobs:
       - name: Check out code / 获取源代码
         uses: actions/checkout@v6
       - name: Set up .NET / 配置 .NET 环境
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v6.0.0
         with:
           dotnet-version: '10.0.x'
       - name: Resolve package version / 确定安装包版本
@@ -102,22 +102,25 @@ jobs:
           $store = @(Get-ChildItem artifacts/Store -Filter '*.msix')
           if ($store.Count -ne 1) { throw 'Expected exactly one Store package.' }
       - name: Upload portable archive / 上传便携版
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: RimePPT-Portable-x64
           path: artifacts/Release/*-Portable-x64.zip
+          archive: true
           if-no-files-found: error
       - name: Upload MSIX and public certificate / 上传 MSIX 与证书
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: RimePPT-MSIX-with-certificate-x64
           path: artifacts/Release/*-MSIX-with-certificate-x64.zip
+          archive: true
           if-no-files-found: error
       - name: Upload Store package / 上传 Store 提交包
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7.0.2
         with:
           name: RimePPT-Store-x64
           path: artifacts/Store/*.msix
+          archive: true
           if-no-files-found: error
       - name: Create draft release / 创建草稿发布
         if: steps.version.outputs.tag != ''
