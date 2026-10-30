@@ -49,6 +49,7 @@ namespace RimePPT.Core
         public static event EventHandler? SettingsChanged;
 
         public string Theme { get; set; } = "auto"; // light / dark / auto（跟随系统）
+        public bool TouchFriendlyTrayMenu { get; set; } = true;
         public bool ShowToolbarText { get; set; } = true;
         public ToolbarEntranceOrder EntranceOrder { get; set; } = ToolbarEntranceOrder.SidesFirst;
         public bool CheckGitHubUpdatesOnStartup { get; set; } = false;

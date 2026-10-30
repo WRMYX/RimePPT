@@ -97,7 +97,7 @@ RimePPT 无需注册加载项也能检测 PowerPoint。可选加载项用于通�
 <details>
 <summary>开发环境、构建命令与测试</summary>
 
-项目使用 **C# / .NET 10、WinUI 3 / Windows App SDK、Win2D 和 PowerPoint COM**；托盘基于 H.NotifyIcon.WinUI。
+项目使用 **C# / .NET 10、WinUI 3 / Windows App SDK、Win2D 和 PowerPoint COM**；托盘基于 Windows 原生 Shell_NotifyIcon，菜单使用 WinUI 3 MenuFlyout，支持触摸友好模式。
 
 在 Windows 上准备 .NET 10 SDK、Windows SDK 和 WinUI 开发工具。可选 Office 加载项面向 .NET Framework 4.8。打包脚本要求 **PowerShell 7.2 或更新版本（`pwsh`）**。
 

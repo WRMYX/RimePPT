@@ -43,6 +43,27 @@ namespace RimePPT.Services
         [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool IsIconic(IntPtr hwnd);
         [DllImport("user32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool SetForegroundWindow(IntPtr hwnd);
 
+        internal static void ResetTrayHost(Window window)
+        {
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
+            if (SetWindowRgn(hwnd, IntPtr.Zero, true) == 0)
+                throw new Win32Exception(Marshal.GetLastWin32Error());
+        }
+        internal static void ConfigureTrayHost(Window window)
+        {
+            var hwnd = WinRT.Interop.WindowNative.GetWindowHandle(window);
+            var region = CreateRectRgn(0, 0, 0, 0);
+            if (region == IntPtr.Zero) throw new Win32Exception(Marshal.GetLastWin32Error());
+            // Windows takes ownership only after a successful SetWindowRgn.
+            if (SetWindowRgn(hwnd, region, true) == 0)
+            { DeleteObject(region); throw new Win32Exception(Marshal.GetLastWin32Error()); }
+        }
+        internal static void BringToForeground(Window window)
+            => SetForegroundWindow(WinRT.Interop.WindowNative.GetWindowHandle(window));
+        [DllImport("user32.dll", SetLastError = true)] private static extern int SetWindowRgn(IntPtr hwnd, IntPtr region, bool redraw);
+        [DllImport("gdi32.dll", SetLastError = true)] private static extern IntPtr CreateRectRgn(int left, int top, int right, int bottom);
+        [DllImport("gdi32.dll")] [return: MarshalAs(UnmanagedType.Bool)] private static extern bool DeleteObject(IntPtr value);
+
         private const int GWL_STYLE = -16;
         private const int GWL_EXSTYLE = -20;
         private const long WS_EX_NOACTIVATE = 0x08000000;
@@ -199,11 +220,6 @@ namespace RimePPT.Services
             DwmSetWindowAttribute(hwnd, DWMWA_BORDER_COLOR - 1, ref preference, sizeof(int));
         }
 
-        [DllImport("gdi32.dll")]
-        private static extern IntPtr CreateRectRgn(int x1, int y1, int x2, int y2);
-
-        [DllImport("gdi32.dll")]
-        private static extern bool DeleteObject(IntPtr handle);
 
         [StructLayout(LayoutKind.Sequential)]
         private struct MARGINS

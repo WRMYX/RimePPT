@@ -54,5 +54,5 @@ internal static class StartupDiagnostics
 
     internal static void RecordIdentity() => Mark($"identity; path={Environment.ProcessPath}; runtime={Environment.Version}; " +
         $"winui={typeof(Microsoft.UI.Xaml.Application).Assembly.GetName().Version}; " +
-        $"tray={typeof(H.NotifyIcon.TaskbarIcon).Assembly.GetName().Version}; build={typeof(StartupDiagnostics).Assembly.GetName().Version}");
+        $"tray=Shell_NotifyIcon+WinUI; build={typeof(StartupDiagnostics).Assembly.GetName().Version}");
 }

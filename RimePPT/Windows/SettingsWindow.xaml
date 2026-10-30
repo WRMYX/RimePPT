@@ -186,6 +186,19 @@
                             </InfoBar>
                         </StackPanel>
                     </Border>
+                    <Border Style="{StaticResource CardBorder}" Padding="16">
+                        <StackPanel Spacing="12">
+                            <TextBlock Text="托盘菜单" Style="{StaticResource SettingTitle}"/>
+                            <Grid ColumnSpacing="16">
+                                <Grid.ColumnDefinitions><ColumnDefinition Width="*"/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                                <StackPanel Spacing="4" VerticalAlignment="Center">
+                                    <TextBlock Text="触摸友好托盘菜单" Style="{StaticResource SettingTitle}"/>
+                                    <TextBlock Text="增大菜单项的点击区域，方便触摸操作；下次打开托盘菜单生效。" Style="{StaticResource SettingDesc}"/>
+                                </StackPanel>
+                                <ToggleSwitch x:Name="TouchTrayToggle" Grid.Column="1" OnContent="" OffContent="" VerticalAlignment="Center" AutomationProperties.Name="触摸友好托盘菜单" Toggled="OnTouchTrayToggled"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
                 </StackPanel>
             </ScrollViewer>
 
@@ -574,7 +587,7 @@
                                 <TextBlock Text="放映状态联动、页面控制与桌面窗口管理；可选 Office COM 加载项使用 .NET Framework 4.8" Style="{StaticResource SettingDesc}" />
                             </StackPanel>
                             <StackPanel Spacing="4">
-                                <TextBlock Text="H.NotifyIcon 2.4.1 · System.Text.Json" Style="{StaticResource SettingTitle}" />
+                                <TextBlock Text="Shell_NotifyIcon · WinUI MenuFlyout · System.Text.Json" Style="{StaticResource SettingTitle}" />
                                 <TextBlock Text="系统托盘、设置及笔迹保存、ClassWidgets 课程数据交换" Style="{StaticResource SettingDesc}" />
                             </StackPanel>
                         </StackPanel>

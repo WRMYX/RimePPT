@@ -262,6 +262,7 @@ namespace RimePPT.Windows
                 "dark" => 2,
                 _ => 0,
             };
+            TouchTrayToggle.IsOn = settings.TouchFriendlyTrayMenu;
             ShowTextToggle.IsOn = settings.ShowToolbarText;
             EntranceOrderCombo.SelectedIndex = (int)settings.EntranceOrder;
             MarginBox.Value = settings.EdgeMargin;
@@ -680,6 +681,13 @@ namespace RimePPT.Windows
                 2 => "dark",
                 _ => "auto",
             };
+            AppSettings.Instance.Save();
+        }
+
+        private void OnTouchTrayToggled(object sender, RoutedEventArgs e)
+        {
+            if (_suppress) return;
+            AppSettings.Instance.TouchFriendlyTrayMenu = TouchTrayToggle.IsOn;
             AppSettings.Instance.Save();
         }
 

@@ -65,7 +65,8 @@ namespace RimePPT
             try { await backend.ClearCurrentSlideAsync(); }
             catch (Exception ex) { await _instance.ShowPromptAsync(_instance._showArea, "无法清屏", ex.Message, "确定", "关闭"); }
         }
-        private H.NotifyIcon.TaskbarIcon? _trayIcon;
+        private NativeTrayIcon? _trayIcon;
+        private TrayMenuWindow? _trayMenu;
 
         /// <summary>当前存活的工具条浮窗集合。</summary>
         public static List<ToolbarWindow> ActiveToolbars { get; } = new();
@@ -943,53 +944,31 @@ namespace RimePPT
         private void InitializeTray()
         {
             StartupDiagnostics.Mark("tray.commands.begin");
-            var settingsCommand = new Microsoft.UI.Xaml.Input.XamlUICommand { Description = "打开设置" };
-            settingsCommand.ExecuteRequested += (_, _) =>
+            try
             {
-                try
+                _trayIcon = new NativeTrayIcon(System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "icon.ico"));
+                _trayIcon.OpenRequested += () => _dispatcher?.TryEnqueue(() =>
                 {
-                    SettingsWindow.Open();
-                }
-                catch (Exception ex)
-                {
-                    CrashReporter.Report(ex, "tray-settings");
-                }
-            };
-
-            var exitCommand = new Microsoft.UI.Xaml.Input.XamlUICommand { Description = "退出 RimePPT" };
-            exitCommand.ExecuteRequested += (_, _) => ExitApplication();
-
-            var menu = new MenuFlyout();
-            menu.Items.Add(new MenuFlyoutItem { Command = settingsCommand, Text = "设置" });
-            menu.Items.Add(new MenuFlyoutSeparator());
-            menu.Items.Add(new MenuFlyoutItem { Command = exitCommand, Text = "退出" });
-            StartupDiagnostics.Mark("tray.menu.ready");
-
-            // 图标缺失只降级为系统图标，绝不能让托盘初始化杀死整个应用
-            var iconPath = System.IO.Path.Combine(AppContext.BaseDirectory, "Assets", "icon.ico");
-            _trayIcon = new H.NotifyIcon.TaskbarIcon
-            {
-                ToolTipText = "RimePPT 放映助手",
-                ContextFlyout = menu,
-                ContextMenuMode = H.NotifyIcon.ContextMenuMode.SecondWindow,
-                Icon = System.IO.File.Exists(iconPath)
-                    ? new System.Drawing.Icon(iconPath)
-                    : System.Drawing.SystemIcons.Application,
-            };
-            StartupDiagnostics.Mark("tray.icon.ready");
-            // 系统长按和键盘菜单键发送 WM_CONTEXTMENU；库只抛出事件，未自动显示菜单。
-            // WinUI 版本的菜单入口接收屏幕坐标，复用现有原生菜单窗口。
-            var tray = _trayIcon;
-            tray.TrayIcon.MessageWindow.KeyboardEventReceived += (_, e) =>
-            {
-                if (e.KeyboardEvent != H.NotifyIcon.Core.KeyboardEvent.ContextMenu) return;
-                _dispatcher?.TryEnqueue(() =>
-                {
-                    if (!tray.IsDisposed)
-                        tray.ShowContextMenu(e.Point);
+                    try { SettingsWindow.Open(); }
+                    catch (Exception ex) { CrashReporter.Report(ex, "tray-settings"); }
                 });
-            };
-            _trayIcon.ForceCreate();
+                _trayIcon.MenuRequested += location => _dispatcher?.TryEnqueue(() =>
+                {
+                    try
+                    {
+                        _trayMenu ??= new TrayMenuWindow(() => SettingsWindow.Open(), ExitApplication);
+                        _trayMenu.ShowAt(location, ToolbarTheme);
+                    }
+                    catch (Exception ex) { CrashReporter.Report(ex, "tray-menu-create"); }
+                });
+                StartupDiagnostics.Mark("tray.icon.ready");
+            }
+            catch (Exception ex)
+            {
+                CrashReporter.Report(ex, "tray-initialize");
+                // A missing taskbar must not leave the app running with no visible entry.
+                _dispatcher?.TryEnqueue(() => SettingsWindow.Open());
+            }
             StartupDiagnostics.Mark("tray.force-create.end");
         }
 
@@ -997,7 +976,8 @@ namespace RimePPT
         {
             PowerPoint.Stop(); Wps.Stop();
             DiscardPreparedToolbars();
-            _trayIcon?.Dispose();
+            _trayIcon?.Dispose(); _trayIcon = null;
+            _trayMenu?.Close(); _trayMenu = null;
             Environment.Exit(0);
         }
 
