@@ -181,12 +181,12 @@ Copyright © 2026 **MYXMJY**。本项目采用 **GNU GPL v3（GPL-3.0-only）**�
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="RimePPT/Assets/Support/WeChat-Dark.png" />
     <source media="(prefers-color-scheme: light)" srcset="RimePPT/Assets/Support/WeChat-Light.png" />
-    <img src="RimePPT/Assets/Support/WeChat-Light.png" width="180" alt="微信支持二维码" />
+    <img src="RimePPT/Assets/Support/WeChat-Light.png" width="180" alt="微信支持二维码" /><br /><strong>微信支付</strong>
   </picture>
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="RimePPT/Assets/Support/Alipay-Dark.png" />
     <source media="(prefers-color-scheme: light)" srcset="RimePPT/Assets/Support/Alipay-Light.png" />
-    <img src="RimePPT/Assets/Support/Alipay-Light.png" width="180" alt="支付宝支持二维码" />
+    <img src="RimePPT/Assets/Support/Alipay-Light.png" width="180" alt="支付宝支持二维码" /><br /><strong>支付宝</strong>
   </picture>
 </div>
 
