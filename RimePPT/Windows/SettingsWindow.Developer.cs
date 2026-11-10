@@ -6,6 +6,10 @@ using RimePPT.Services;
 namespace RimePPT.Windows;
 public sealed partial class SettingsWindow
 {
+    private void EnableDeveloperMode()
+    {
+        DeveloperNav.Visibility = Visibility.Visible;
+    }
     private int _developerClicks;
     private DateTime _developerLastClick;
     private bool _developerNoticeShown;

@@ -14,6 +14,7 @@ using Windows.Graphics;
 using Windows.UI;
 using Windows.Services.Store;
 using System.Threading;
+using System.Linq;
 
 namespace RimePPT.Windows
 {
@@ -24,6 +25,24 @@ namespace RimePPT.Windows
     /// </summary>
     public sealed partial class SettingsWindow : Window
     {
+        private sealed record SearchEntry(string Name, string Tag, string[] Keywords);
+        private static readonly SearchEntry[] SearchItems =
+        {
+            new("书写模式", "appearance", new[]{"外观","主题","浅色","深色"}),
+            new("工具条主题", "toolbar", new[]{"工具栏","颜色","按钮"}),
+            new("按钮文字", "toolbar", new[]{"标签","显示文字"}),
+            new("屏幕边距", "toolbar", new[]{"边距","距离"}),
+            new("随放映显示工具条", "toolbar", new[]{"放映","自动显示"}),
+            new("工具栏布局", "toolbar", new[]{"区域自定义","位置"}),
+            new("工具栏按钮顺序", "toolbar", new[]{"顺序","排列"}),
+            new("智能图形整理", "ink", new[]{"图形","智能"}),
+            new("课堂板书回顾", "ink", new[]{"板书","回顾"}),
+            new("开机自启", "appearance", new[]{"启动","开机"}),
+            new("自动检查更新", "updates", new[]{"更新","检查"}),
+            new("GitHub 更新", "updates", new[]{"GitHub","版本"}),
+            new("调试模式", "debug", new[]{"调试","实验"}),
+            new("关于", "about", new[]{"软件","开发者"})
+        };
         private static SettingsWindow? _instance;
 
         private bool _suppress = true;
@@ -65,20 +84,30 @@ namespace RimePPT.Windows
             InitializeDeveloperSettings();
             StartupDiagnostics.Mark("settings.editors.ready");
             // XAML 中的命名设置控件保留实例与事件，只更换原生导航容器。
+            StartupDiagnostics.Mark("settings.section-host.begin");
             foreach (var page in new[] { AppearancePage, InkPage, ToolbarPage, ClassWidgetsPage, OfficePage, StoreUpdatePage, DebugPage, AboutPage })
             {
                 PageHost.Children.Remove(page);
                 page.Visibility = Visibility.Visible;
             }
+            StartupDiagnostics.Mark("settings.section-host.end");
+            StartupDiagnostics.Mark("settings.first-navigation.begin");
             NavigateSection(AppearancePage, false);
+            StartupDiagnostics.Mark("settings.first-navigation.end");
 
             Title = "RimePPT 设置";
             // WinUI 一体化标题栏：内容贯通顶条，Mica 直达窗口上缘
             ExtendsContentIntoTitleBar = true;
+            StartupDiagnostics.Mark("settings.titlebar.begin");
+            // 搜索框不放入标题栏拖动宿主，避免鼠标选择文字被系统识别为窗口拖动。
             SetTitleBar(AppTitleBar);
+            StartupDiagnostics.Mark("settings.titlebar.end");
+            SettingsSearch.ItemsSource = SearchItems.Select(x => x.Name).ToArray();
+            StartupDiagnostics.Mark("settings.layout.begin");
             WindowRoot.SizeChanged += (_, _) => AdaptLayout();
             Nav.Loaded += (_, _) => AdaptLayout();
             Nav.PaneOpened += (_, _) => AdaptLayout(); Nav.PaneClosed += (_, _) => AdaptLayout();
+            StartupDiagnostics.Mark("settings.layout.end");
             AppSettings.SettingsChanged += SettingsUpdated;
             Nav.ActualThemeChanged += (_, _) =>
             {
@@ -312,14 +341,57 @@ namespace RimePPT.Windows
             AdaptLayout();
         }
 
+        private void OnSettingsSearchTextChanged(AutoSuggestBox sender, AutoSuggestBoxTextChangedEventArgs args)
+        {
+            if (args.Reason != AutoSuggestionBoxTextChangeReason.UserInput) return;
+            string q = sender.Text.Trim();
+            sender.ItemsSource = SearchItems.Where(x => string.IsNullOrWhiteSpace(q) || x.Name.Contains(q, StringComparison.OrdinalIgnoreCase) || x.Keywords.Any(k => k.Contains(q, StringComparison.OrdinalIgnoreCase))).Select(x => x.Name).ToArray();
+        }
+        private void OnSettingsSearchQuerySubmitted(AutoSuggestBox sender, AutoSuggestBoxQuerySubmittedEventArgs args)
+        {
+            string q = (args.ChosenSuggestion as string ?? args.QueryText ?? string.Empty).Trim(); if (q.Length == 0) return;
+            string tag = SearchItems.FirstOrDefault(x => x.Name.Contains(q, StringComparison.OrdinalIgnoreCase) || x.Keywords.Any(k => q.Contains(k, StringComparison.OrdinalIgnoreCase)))?.Tag ?? string.Empty;
+            if (string.IsNullOrEmpty(tag)) tag = q.Contains("工具栏") || q.Contains("屏幕") || q.Contains("按钮") ? "toolbar" : q.Contains("板书") || q.Contains("图形") ? "ink" : q.Contains("更新") || q.Contains("GitHub") ? "updates" : q.Contains("调试") ? "debug" : "appearance";
+            Nav.SelectedItem = Nav.MenuItems.OfType<NavigationViewItem>().Concat(Nav.FooterMenuItems.OfType<NavigationViewItem>()).FirstOrDefault(i => i.Tag as string == tag);
+            DispatcherQueue.TryEnqueue(() =>
+            {
+                if (ContentFrame.Content is FrameworkElement root)
+                {
+                    var target = FindTextElement(root, q) ?? root;
+                    target.StartBringIntoView();
+                    target.Focus(FocusState.Programmatic);
+                }
+            });
+        }
+
+        private static FrameworkElement? FindTextElement(DependencyObject root, string query)
+        {
+            if (root is TextBlock text && text.Text.Contains(query, StringComparison.CurrentCultureIgnoreCase)) return text;
+            if (root is ContentControl control && control.Content is string content && content.Contains(query, StringComparison.CurrentCultureIgnoreCase)) return control;
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(root); i++)
+            {
+                var match = FindTextElement(VisualTreeHelper.GetChild(root, i), query);
+                if (match is not null) return match;
+            }
+            return null;
+        }
+
         private void NavigateSection(ScrollViewer section, bool animate)
         {
+            if (ReferenceEquals(section, AboutPage))
+            {
+                ContentFrame.Navigate(typeof(AboutSettingsPage), new Action(EnableDeveloperMode), animate ? new EntranceNavigationTransitionInfo() : new SuppressNavigationTransitionInfo());
+                ContentFrame.BackStack.Clear();
+                return;
+            }
             if (ContentFrame.Content is Page previous)
             {
                 if (ReferenceEquals(previous.Content, section)) return;
                 previous.Content = null;
             }
             bool enabled = animate && new global::Windows.UI.ViewManagement.UISettings().AnimationsEnabled;
+            // WinUI 的 XAML Page 容器必须使用自身已编译的 x:Class 进行 Frame 导航；
+            // 独立页面类型保留作后续迁移边界，当前统一容器可确保原有命名控件安全重挂载。
             ContentFrame.Navigate(typeof(SettingsSectionPage), section, enabled ? new EntranceNavigationTransitionInfo() : new SuppressNavigationTransitionInfo());
             ContentFrame.BackStack.Clear();
         }
